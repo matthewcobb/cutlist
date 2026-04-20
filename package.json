@@ -1,0 +1,28 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "bun --cwd web dev",
+    "test": "bun --cwd web test",
+    "test:watch": "bun --cwd web test --watch",
+    "build": "bun --cwd web build",
+    "check": "bun --cwd web check",
+    "prepare": "simple-git-hooks"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.2.5",
+    "simple-git-hooks": "^2.11.0"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "bun lint-staged"
+  },
+  "lint-staged": {
+    "*": "prettier --ignore-unknown --write"
+  },
+  "dependencies": {
+    "panzoom": "^9.4.3",
+    "standard-version": "^9.5.0",
+    "vue-tsc": "^2.0.10"
+  }
+}

@@ -1,0 +1,30 @@
+# Cutlist configuration
+# Edit values here to change defaults. Saved from the UI writes back to this file.
+
+bladeWidth: 3
+distanceUnit: mm
+extraSpace: 3
+optimize: Auto
+showPartNumbers: true
+stock:
+  - material: Plywood
+    thickness:
+      - 18mm
+      - 12mm
+      - 9mm
+      - 6mm
+    width:
+      - 1220mm
+    length:
+      - 2440mm
+  - material: MDF
+    thickness:
+      - 18mm
+      - 12mm
+      - 9mm
+      - 6mm
+      - 3mm
+    width:
+      - 1220mm
+    length:
+      - 2440mm

@@ -1,0 +1,104 @@
+<script lang="ts" setup>
+import { Distance } from 'cutlist';
+
+const {
+  bladeWidth,
+  distanceUnit,
+  extraSpace,
+  optimize,
+  showPartNumbers,
+  isLoading,
+  changes,
+} = useProjectSettings();
+
+const { mutate: save } = useSetSettingsMutation();
+
+// Auto-save when any setting changes (debounced)
+let saveTimeout: ReturnType<typeof setTimeout> | undefined;
+watch(
+  changes,
+  (val) => {
+    if (!val || Object.keys(val).length === 0) return;
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      save({ changes: toRaw(val) });
+    }, 1000);
+  },
+  { deep: true },
+);
+
+onBeforeUnmount(() => {
+  if (saveTimeout) clearTimeout(saveTimeout);
+});
+
+// Convert values when units change
+watch(distanceUnit, (newUnit, oldUnit) => {
+  if (!newUnit || !oldUnit) return;
+
+  const convertDistance = (value: Ref<string | number | undefined>) => {
+    if (value.value == null) return;
+    const dist = new Distance(value.value + oldUnit);
+    value.value = roundDistance(dist[newUnit], newUnit);
+  };
+  convertDistance(bladeWidth);
+  convertDistance(extraSpace);
+});
+
+function roundDistance(value: number, unit: 'in' | 'm' | 'mm') {
+  if (unit === 'mm') return Number(value.toFixed(3));
+  if (unit === 'm') return Number(value.toFixed(5));
+  return Number(value.toFixed(5));
+}
+</script>
+
+<template>
+  <div v-if="!isLoading" class="flex items-center gap-3 flex-wrap">
+    <div class="flex items-center gap-1.5">
+      <label class="text-xs text-white/50 whitespace-nowrap">Optimize</label>
+      <USelect
+        v-model="optimize"
+        :options="['Auto', 'Cuts', 'CNC']"
+        size="xs"
+        :ui="{ base: 'w-20' }"
+      />
+    </div>
+
+    <div class="flex items-center gap-1.5">
+      <label class="text-xs text-white/50 whitespace-nowrap">Blade</label>
+      <UInput
+        v-model="bladeWidth"
+        type="number"
+        min="0"
+        step="0.00001"
+        size="xs"
+        :ui="{ base: 'w-20' }"
+      />
+    </div>
+
+    <div class="flex items-center gap-1.5">
+      <label class="text-xs text-white/50 whitespace-nowrap">Extra</label>
+      <UInput
+        v-model="extraSpace"
+        type="number"
+        size="xs"
+        :ui="{ base: 'w-20' }"
+      />
+    </div>
+
+    <div class="flex items-center gap-1.5">
+      <label class="text-xs text-white/50 whitespace-nowrap">Unit</label>
+      <USelect
+        v-model="distanceUnit"
+        :options="['in', 'm', 'mm']"
+        size="xs"
+        :ui="{ base: 'w-16' }"
+      />
+    </div>
+
+    <UCheckbox
+      v-model="showPartNumbers"
+      label="Part #s"
+      :ui="{ label: 'text-xs text-white/50' }"
+    />
+  </div>
+</template>
