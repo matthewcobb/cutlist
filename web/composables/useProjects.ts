@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient } from '@tanstack/vue-query';
 import type { ColorInfo, NodePartMapping, PartDraft } from '~/utils/parseGltf';
+import type { IdbModelMeta } from '~/composables/useIdb';
 
 export interface Model {
   id: string;
@@ -24,41 +24,81 @@ interface ProjectListItem {
   updatedAt: string;
 }
 
+export interface ArchivedProjectItem {
+  id: string;
+  name: string;
+  archivedAt: string;
+}
+
+// ─── Module-level singletons (same pattern as before) ────────────────────────
+
 const activeId = ref<string | null>(null);
+const projectList = ref<ProjectListItem[]>([]);
+const archivedList = ref<ArchivedProjectItem[]>([]);
+const activeProjectData = ref<Project | null>(null);
+let initialized = false;
+
+function modelMetaToModel(meta: IdbModelMeta): Model {
+  return {
+    id: meta.id,
+    filename: meta.filename,
+    drafts: meta.drafts,
+    colors: meta.colors,
+    enabled: meta.enabled,
+    nodePartMap: meta.nodePartMap ?? undefined,
+  };
+}
+
+async function init() {
+  const idb = useIdb();
+  const [list, archived] = await Promise.all([
+    idb.getProjectList(),
+    idb.getArchivedList(),
+  ]);
+  projectList.value = list;
+  archivedList.value = archived;
+  if (list.length > 0 && activeId.value == null) {
+    activeId.value = list[0].id;
+  }
+  if (activeId.value) {
+    const full = await idb.getProjectWithModels(activeId.value);
+    activeProjectData.value = full
+      ? { ...full, models: full.models.map(modelMetaToModel) }
+      : null;
+  }
+  initialized = true;
+}
+
+if (import.meta.client && !initialized) {
+  init();
+}
+
+// ─── Composable ──────────────────────────────────────────────────────────────
 
 export default function useProjects() {
-  const queryClient = useQueryClient();
+  const idb = useIdb();
 
-  // Lightweight list for the tab bar
-  const { data: projectList } = useQuery<ProjectListItem[]>({
-    queryKey: ['projects'],
-    queryFn: () => $fetch('/api/projects'),
+  // Watch activeId changes to reload full project data
+  watch(activeId, async (id) => {
+    if (!initialized) return;
+    if (!id) {
+      activeProjectData.value = null;
+      return;
+    }
+    const full = await idb.getProjectWithModels(id);
+    activeProjectData.value = full
+      ? { ...full, models: full.models.map(modelMetaToModel) }
+      : null;
   });
 
-  // Full project data (with models) for the active project
-  const { data: activeProjectData } = useQuery<Project>({
-    queryKey: computed(() => ['projects', activeId.value]),
-    queryFn: () => $fetch(`/api/projects/${activeId.value}`),
-    enabled: computed(() => activeId.value != null),
-  });
-
-  // Auto-select first project on initial load
-  watch(
-    projectList,
-    (list) => {
-      if (activeId.value != null) return;
-      if (list && list.length > 0) {
-        activeId.value = list[0].id;
-      }
-    },
-    { immediate: true },
-  );
-
-  // Build a Map matching the old interface. Only the active project has full data.
+  // Build a Map matching the old interface
   const projects = computed(() => {
     const map = new Map<string, Project>();
-    for (const p of projectList.value ?? []) {
-      if (p.id === activeId.value && activeProjectData.value) {
+    for (const p of projectList.value) {
+      if (
+        p.id === activeId.value &&
+        activeProjectData.value?.id === activeId.value
+      ) {
         map.set(p.id, activeProjectData.value);
       } else {
         map.set(p.id, { id: p.id, name: p.name, models: [], colorMap: {} });
@@ -68,8 +108,8 @@ export default function useProjects() {
   });
 
   const activeProject = computed(() => {
-    if (activeId.value == null) return;
-    return activeProjectData.value;
+    if (activeId.value == null) return undefined;
+    return activeProjectData.value ?? undefined;
   });
 
   const enabledModels = computed(
@@ -94,136 +134,169 @@ export default function useProjects() {
     return [...counts.values()];
   });
 
-  function addProject(name: string) {
-    $fetch<Project>('/api/projects', {
-      method: 'POST',
-      body: { name },
-    }).then((project) => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      activeId.value = project.id;
-    });
+  // ─── Mutations ─────────────────────────────────────────────────────────────
+
+  async function addProject(name: string) {
+    const project = await idb.createProject(name);
+    projectList.value = [
+      { id: project.id, name: project.name, updatedAt: project.updatedAt },
+      ...projectList.value,
+    ];
+    activeId.value = project.id;
+    activeProjectData.value = { ...project, models: [] };
   }
 
-  function closeProject(id: string) {
-    // Pre-compute next active before the delete
-    const list = projectList.value ?? [];
-    const remaining = list.filter((p) => p.id !== id);
-    const nextId =
-      remaining.length > 0 ? remaining[remaining.length - 1].id : null;
-
+  async function closeProject(id: string) {
+    const item = projectList.value.find((p) => p.id === id);
+    const remaining = projectList.value.filter((p) => p.id !== id);
     if (activeId.value === id) {
+      const nextId =
+        remaining.length > 0 ? remaining[remaining.length - 1].id : null;
       activeId.value = nextId;
+      // activeProjectData will be updated by the activeId watcher
     }
+    projectList.value = remaining;
+    await idb.archiveProject(id);
+    const archivedAt = new Date().toISOString();
+    archivedList.value = [
+      { id, name: item?.name ?? '', archivedAt },
+      ...archivedList.value,
+    ];
+  }
 
-    $fetch(`/api/projects/${id}`, { method: 'DELETE' }).then(() => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-    });
+  async function restoreProject(id: string) {
+    const item = archivedList.value.find((p) => p.id === id);
+    if (!item) return;
+    await idb.unarchiveProject(id);
+    archivedList.value = archivedList.value.filter((p) => p.id !== id);
+    const updatedAt = new Date().toISOString();
+    projectList.value = [
+      { id, name: item.name, updatedAt },
+      ...projectList.value,
+    ];
+    activeId.value = id;
+  }
+
+  async function permanentlyDeleteProject(id: string) {
+    archivedList.value = archivedList.value.filter((p) => p.id !== id);
+    await idb.deleteProject(id);
+  }
+
+  async function clearHistory() {
+    const ids = archivedList.value.map((p) => p.id);
+    archivedList.value = [];
+    await Promise.all(ids.map((id) => idb.deleteProject(id)));
   }
 
   function setActive(id: string) {
     activeId.value = id;
   }
 
-  function addModel(projectId: string, model: Model) {
-    // Optimistically add to cache for instant UI feedback
-    queryClient.setQueryData<Project>(['projects', projectId], (old) => {
-      if (!old) return old;
-      return { ...old, models: [...old.models, model] };
-    });
-
-    $fetch(`/api/projects/${projectId}/models`, {
-      method: 'POST',
-      body: model,
-    }).then(() => {
-      queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
-    });
-  }
-
-  function removeModel(projectId: string, modelId: string) {
-    queryClient.setQueryData<Project>(['projects', projectId], (old) => {
-      if (!old) return old;
-      return { ...old, models: old.models.filter((m) => m.id !== modelId) };
-    });
-
-    $fetch(`/api/projects/${projectId}/models/${modelId}`, {
-      method: 'DELETE',
-    }).then(() => {
-      queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
+  async function addModel(projectId: string, model: Model) {
+    // Optimistic: add to reactive store without gltfJson
+    if (activeProjectData.value?.id === projectId) {
+      const { gltfJson: _g, ...meta } = model;
+      activeProjectData.value = {
+        ...activeProjectData.value,
+        models: [...activeProjectData.value.models, meta],
+      };
+    }
+    // Write full model (with gltfJson) to IDB
+    await idb.createModel({
+      id: model.id,
+      projectId,
+      filename: model.filename,
+      drafts: model.drafts,
+      colors: model.colors,
+      enabled: model.enabled,
+      gltfJson: model.gltfJson ?? null,
+      nodePartMap: model.nodePartMap ?? null,
+      createdAt: new Date().toISOString(),
     });
   }
 
-  function toggleModel(projectId: string, modelId: string) {
-    // Read current state before optimistic update
-    const cached = queryClient.getQueryData<Project>(['projects', projectId]);
-    const current = cached?.models.find((m) => m.id === modelId);
+  async function removeModel(projectId: string, modelId: string) {
+    if (activeProjectData.value?.id === projectId) {
+      activeProjectData.value = {
+        ...activeProjectData.value,
+        models: activeProjectData.value.models.filter((m) => m.id !== modelId),
+      };
+    }
+    await idb.deleteModel(modelId);
+  }
+
+  async function toggleModel(projectId: string, modelId: string) {
+    const current = activeProjectData.value?.models.find(
+      (m) => m.id === modelId,
+    );
     const newEnabled = current ? !current.enabled : true;
 
-    queryClient.setQueryData<Project>(['projects', projectId], (old) => {
-      if (!old) return old;
-      return {
-        ...old,
-        models: old.models.map((m) =>
+    if (activeProjectData.value?.id === projectId) {
+      activeProjectData.value = {
+        ...activeProjectData.value,
+        models: activeProjectData.value.models.map((m) =>
           m.id === modelId ? { ...m, enabled: newEnabled } : m,
         ),
       };
-    });
-
-    $fetch(`/api/projects/${projectId}/models/${modelId}`, {
-      method: 'PATCH',
-      body: { enabled: newEnabled },
-    }).then(() => {
-      queryClient.invalidateQueries({ queryKey: ['projects', projectId] });
-    });
+    }
+    await idb.updateModel(modelId, { enabled: newEnabled });
   }
 
-  function updateColorMap(id: string, colorKey: string, material: string) {
+  async function updateColorMap(
+    id: string,
+    colorKey: string,
+    material: string,
+  ) {
     const project = activeProjectData.value;
     if (!project || project.id !== id) return;
-
     const newColorMap = { ...project.colorMap, [colorKey]: material };
-
-    // Optimistic update
-    queryClient.setQueryData<Project>(['projects', id], (old) => {
-      if (!old) return old;
-      return { ...old, colorMap: newColorMap };
-    });
-
-    $fetch(`/api/projects/${id}`, {
-      method: 'PATCH',
-      body: { colorMap: newColorMap },
-    }).then(() => {
-      queryClient.invalidateQueries({ queryKey: ['projects', id] });
-    });
+    activeProjectData.value = { ...project, colorMap: newColorMap };
+    await idb.updateProject(id, { colorMap: newColorMap });
   }
 
-  function renameProject(id: string, name: string) {
-    queryClient.setQueryData<Project>(['projects', id], (old) => {
-      if (!old) return old;
-      return { ...old, name };
-    });
+  async function renameProject(id: string, name: string) {
+    if (activeProjectData.value?.id === id) {
+      activeProjectData.value = { ...activeProjectData.value, name };
+    }
+    projectList.value = projectList.value.map((p) =>
+      p.id === id ? { ...p, name } : p,
+    );
+    await idb.updateProject(id, { name });
+  }
 
-    $fetch(`/api/projects/${id}`, {
-      method: 'PATCH',
-      body: { name },
-    }).then(() => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['projects', id] });
-    });
+  async function reloadProjectList() {
+    const [list, archived] = await Promise.all([
+      idb.getProjectList(),
+      idb.getArchivedList(),
+    ]);
+    projectList.value = list;
+    archivedList.value = archived;
+  }
+
+  function reorderProjects(ids: string[]) {
+    const map = new Map(projectList.value.map((p) => [p.id, p]));
+    projectList.value = ids.map((id) => map.get(id)!).filter(Boolean);
   }
 
   return {
     projects,
     activeId,
     activeProject,
+    archivedList,
     enabledModels,
     allColors,
     addProject,
     closeProject,
+    restoreProject,
+    permanentlyDeleteProject,
+    clearHistory,
     renameProject,
+    reorderProjects,
     setActive,
     addModel,
     removeModel,
     toggleModel,
     updateColorMap,
+    reloadProjectList,
   };
 }

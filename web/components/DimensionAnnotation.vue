@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { RulerMeasurement } from '~/composables/useRulerStore';
+import { PX_PER_M } from '~/composables/useGetPx';
 
 const props = defineProps<{
   measurement: RulerMeasurement;
@@ -14,7 +15,6 @@ const emit = defineEmits<{
 
 const formatDistance = useFormatDistance();
 
-const PX = 500;
 const ARROW_SIZE = 6;
 const EXT_OVERSHOOT = 8;
 
@@ -23,13 +23,15 @@ const distanceM = computed(() =>
 );
 const label = computed(() => formatDistance(distanceM.value) ?? '');
 const minPx = computed(
-  () => Math.min(props.measurement.anchorA, props.measurement.anchorB) * PX,
+  () =>
+    Math.min(props.measurement.anchorA, props.measurement.anchorB) * PX_PER_M,
 );
 const maxPx = computed(
-  () => Math.max(props.measurement.anchorA, props.measurement.anchorB) * PX,
+  () =>
+    Math.max(props.measurement.anchorA, props.measurement.anchorB) * PX_PER_M,
 );
 const midPx = computed(() => (minPx.value + maxPx.value) / 2);
-const offsetPx = computed(() => props.measurement.offsetM * PX);
+const offsetPx = computed(() => props.measurement.offsetM * PX_PER_M);
 const isX = computed(() => props.measurement.axis === 'x');
 
 // Arrow point helpers

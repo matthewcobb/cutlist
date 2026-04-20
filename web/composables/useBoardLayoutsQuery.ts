@@ -5,12 +5,12 @@ import {
   type PartToCut,
 } from 'cutlist';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
+import { parseStock } from '~/utils/parseStock';
 
 export default function () {
   const { activeProject, enabledModels } = useProjects();
   const { bladeWidth, optimize, extraSpace, distanceUnit, stock } =
     useProjectSettings();
-  const parseStock = useParseStock();
 
   const parts = computed<PartToCut[] | undefined>(() => {
     const project = activeProject.value;
@@ -66,8 +66,6 @@ export default function () {
 
   return {
     data: layouts,
-    isFetching: ref(false),
-    isLoading: ref(false),
     error: ref(null),
   };
 }

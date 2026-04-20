@@ -6,14 +6,16 @@ const props = defineProps<{
   placement?: BoardLayoutPlacement;
 }>();
 
-const width = useFormattedDistance(() => props.part.widthM);
-const length = useFormattedDistance(() => props.part.lengthM);
-const thickness = useFormattedDistance(() => props.part.thicknessM);
+const formatDistance = useFormatDistance();
 
-const top = useFormattedDistance(() => props.placement?.topM);
-const left = useFormattedDistance(() => props.placement?.leftM);
-const right = useFormattedDistance(() => props.placement?.rightM);
-const bottom = useFormattedDistance(() => props.placement?.bottomM);
+const width = computed(() => formatDistance(props.part.widthM));
+const length = computed(() => formatDistance(props.part.lengthM));
+const thickness = computed(() => formatDistance(props.part.thicknessM));
+
+const top = computed(() => formatDistance(props.placement?.topM));
+const left = computed(() => formatDistance(props.placement?.leftM));
+const right = computed(() => formatDistance(props.placement?.rightM));
+const bottom = computed(() => formatDistance(props.placement?.bottomM));
 </script>
 
 <template>

@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { BoardLayout } from 'cutlist';
 import type { SnapEdge } from '~/composables/useRulerStore';
+import { PX_PER_M } from '~/composables/useGetPx';
 
 const props = defineProps<{
   layout: BoardLayout;
@@ -25,8 +26,8 @@ const boardMeasurements = getMeasurementsForBoard(props.boardIndex);
 
 const widthM = computed(() => props.layout.stock.widthM);
 const lengthM = computed(() => props.layout.stock.lengthM);
-const widthPx = computed(() => widthM.value * 500);
-const heightPx = computed(() => lengthM.value * 500);
+const widthPx = computed(() => widthM.value * PX_PER_M);
+const heightPx = computed(() => lengthM.value * PX_PER_M);
 
 const SNAP_THRESHOLD_PX = 15;
 
@@ -103,9 +104,9 @@ function handleBoardClick(event: MouseEvent) {
       <template v-if="pendingClick && pendingClick.boardIndex === boardIndex">
         <line
           v-if="pendingClick.edge.axis === 'x'"
-          :x1="pendingClick.edge.positionM * 500"
+          :x1="pendingClick.edge.positionM * PX_PER_M"
           y1="0"
-          :x2="pendingClick.edge.positionM * 500"
+          :x2="pendingClick.edge.positionM * PX_PER_M"
           :y2="heightPx"
           stroke="#10b981"
           stroke-width="2"
@@ -115,9 +116,9 @@ function handleBoardClick(event: MouseEvent) {
         <line
           v-else
           x1="0"
-          :y1="pendingClick.edge.positionM * 500"
+          :y1="pendingClick.edge.positionM * PX_PER_M"
           :x2="widthPx"
-          :y2="pendingClick.edge.positionM * 500"
+          :y2="pendingClick.edge.positionM * PX_PER_M"
           stroke="#10b981"
           stroke-width="2"
           stroke-dasharray="6,4"

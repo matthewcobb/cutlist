@@ -1,7 +1,8 @@
 <script lang="ts" setup>
+import { parseStock } from '~/utils/parseStock';
+
 const { activeId, allColors, updateColorMap, activeProject } = useProjects();
 const { stock } = useProjectSettings();
-const parseStock = useParseStock();
 
 const materialOptions = computed<string[]>(() => {
   if (stock.value == null) return [];

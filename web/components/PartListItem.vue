@@ -9,15 +9,19 @@ const props = defineProps<{
 const container = ref<HTMLDivElement>();
 const isHovered = useElementHover(container);
 
-const width = usePx(() => props.placement.widthM);
-const height = usePx(() => props.placement.lengthM);
-const left = usePx(() => props.placement.leftM);
-const bottom = usePx(() => props.placement.bottomM);
+const getPx = useGetPx();
 
-const fontSize = usePx(() =>
-  Math.min(
-    props.placement.widthM / 2,
-    0.0254, // 1 in to m
+const width = computed(() => getPx(props.placement.widthM));
+const height = computed(() => getPx(props.placement.lengthM));
+const left = computed(() => getPx(props.placement.leftM));
+const bottom = computed(() => getPx(props.placement.bottomM));
+
+const fontSize = computed(() =>
+  getPx(
+    Math.min(
+      props.placement.widthM / 2,
+      0.0254, // 1 in to m
+    ),
   ),
 );
 

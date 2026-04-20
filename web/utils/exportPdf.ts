@@ -4,6 +4,7 @@ import type {
   BoardLayoutLeftover,
   BoardLayoutPlacement,
 } from 'cutlist';
+import { groupPartsByNumber } from '~/lib/utils/bom-utils';
 import type { RulerMeasurement } from '~/composables/useRulerStore';
 
 export type PdfScale = 1 | 5 | 10 | 20 | 50;
@@ -79,7 +80,6 @@ export async function exportCutlistPdf(
     pageCount: { value: 0 },
   };
 
-  // Compute BOM rows from layouts + leftovers (mirrors BomTab.vue:11-36)
   const bomRows = aggregateBom(
     opts.layouts.flatMap((l) => l.placements),
     opts.leftovers,
@@ -116,24 +116,16 @@ function aggregateBom(
   leftovers: BoardLayoutLeftover[],
   formatSize: (m: number) => string | undefined,
 ): BomRow[] {
-  const map = new Map<number, BoardLayoutLeftover[]>();
-  for (const part of [...placements, ...leftovers]) {
-    const list = map.get(part.partNumber) ?? [];
-    list.push(part);
-    map.set(part.partNumber, list);
-  }
-  return [...map.values()]
-    .toSorted((a, b) => a[0].partNumber - b[0].partNumber)
-    .map((instances) => {
-      const part = instances[0];
-      return {
-        partNumber: part.partNumber,
-        name: part.name,
-        qty: instances.length,
-        material: part.material,
-        size: `${formatSize(part.thicknessM) ?? ''} × ${formatSize(part.widthM) ?? ''} × ${formatSize(part.lengthM) ?? ''}`,
-      };
-    });
+  return groupPartsByNumber(placements, leftovers).map((instances) => {
+    const part = instances[0];
+    return {
+      partNumber: part.partNumber,
+      name: part.name,
+      qty: instances.length,
+      material: part.material,
+      size: `${formatSize(part.thicknessM) ?? ''} × ${formatSize(part.widthM) ?? ''} × ${formatSize(part.lengthM) ?? ''}`,
+    };
+  });
 }
 
 function addPage(

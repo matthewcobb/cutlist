@@ -1,24 +1,33 @@
-import { useMutation, useQueryClient } from '@tanstack/vue-query';
 import type { CutlistSettings } from '~/utils';
+import { updateSettingsCache } from '~/composables/useSettingsQuery';
+
+interface MutateOptions {
+  onSuccess?: (result: CutlistSettings) => void;
+  onError?: (error: unknown) => void;
+  onSettled?: () => void;
+}
 
 export default function () {
-  const client = useQueryClient();
-  const projectId = useProjectId();
+  const idb = useIdb();
+  const isPending = ref(false);
 
-  return useMutation({
-    mutationFn({ changes }: { changes: Partial<CutlistSettings> }) {
-      return $fetch('/api/settings/document', {
-        method: 'POST',
-        body: { changes },
-      });
-    },
-    onSettled() {
-      client.invalidateQueries({
-        queryKey: ['settings', projectId.value ?? '__local__'],
-      });
-    },
-    onError(error) {
+  async function mutate(
+    variables: { changes: Partial<CutlistSettings> },
+    options?: MutateOptions,
+  ) {
+    isPending.value = true;
+    try {
+      const updated = await idb.saveSettings(variables.changes);
+      updateSettingsCache(updated);
+      options?.onSuccess?.(updated);
+    } catch (error) {
       console.error('[settings] Failed to save settings', error);
-    },
-  });
+      options?.onError?.(error);
+    } finally {
+      isPending.value = false;
+      options?.onSettled?.();
+    }
+  }
+
+  return { mutate, isPending };
 }

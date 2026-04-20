@@ -1,6 +1,5 @@
 import { Rectangle } from '../geometry';
 import { isNearlyEqual } from '../utils/floating-point-utils';
-import type { Visualizer } from '../visualizers';
 import type { PackOptions, PackResult, Packer } from './Packer';
 
 /**
@@ -48,7 +47,6 @@ interface FitCandidate<T> {
  * Python library by secnot.
  */
 export function createGuillotinePacker<T>(
-  visualizer?: Visualizer,
   config: {
     fitMode?: GuillotineFitMode;
     splitMode?: GuillotineSplitMode;
@@ -72,8 +70,6 @@ export function createGuillotinePacker<T>(
       ];
 
       for (const rect of rects) {
-        visualizer?.render('start', { res, bin, toPlace: rect });
-
         const candidate = pickBestPlacement(rect, freeRects, options, fitMode);
         if (!candidate) {
           res.leftovers.push(rect.data);
@@ -97,8 +93,6 @@ export function createGuillotinePacker<T>(
         if (rectMerge) {
           mergeFreeRects(freeRects, options.precision);
         }
-
-        visualizer?.render('placed', { res, bin });
       }
 
       return res;

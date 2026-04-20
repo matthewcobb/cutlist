@@ -7,7 +7,7 @@ export default defineNuxtConfig({
     preference: 'dark',
     fallback: 'dark',
   },
-  ssr: true, // SSG
+  ssr: false,
   alias: {
     cutlist: resolve('./lib'),
   },

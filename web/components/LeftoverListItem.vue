@@ -4,9 +4,11 @@ import type { BoardLayoutLeftover } from 'cutlist';
 const props = defineProps<{
   part: BoardLayoutLeftover;
 }>();
-const width = useFormattedDistance(() => props.part.widthM);
-const length = useFormattedDistance(() => props.part.lengthM);
-const thickness = useFormattedDistance(() => props.part.thicknessM);
+const formatDistance = useFormatDistance();
+
+const width = computed(() => formatDistance(props.part.widthM));
+const length = computed(() => formatDistance(props.part.lengthM));
+const thickness = computed(() => formatDistance(props.part.thicknessM));
 </script>
 
 <template>

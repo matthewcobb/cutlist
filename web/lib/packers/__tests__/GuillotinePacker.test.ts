@@ -2,7 +2,6 @@ import { describe, it, expect } from 'bun:test';
 import { createGuillotinePacker } from '../GuillotinePacker';
 import type { PackOptions } from '../Packer';
 import { Rectangle } from '../../geometry';
-import { defineSvgVisualizer } from '../../visualizers/SvgVisualizer';
 
 const baseOptions: PackOptions = {
   allowRotations: false,
@@ -35,10 +34,7 @@ describe('Guillotine Packer', () => {
   });
 
   it('packs four rects into a 10x10 bin without overlap', () => {
-    const visualizer = defineSvgVisualizer(
-      'src/packers/__tests__/dist/GuillotinePacker/four-rects',
-    );
-    const packer = createGuillotinePacker<string>(visualizer);
+    const packer = createGuillotinePacker<string>();
     const bin = new Rectangle(null, 0, 0, 10, 10);
     const rects = [
       new Rectangle('a', 0, 0, 5, 5),

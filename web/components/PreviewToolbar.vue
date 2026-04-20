@@ -1,6 +1,4 @@
 <script lang="ts" setup>
-import { Distance } from 'cutlist';
-
 const {
   bladeWidth,
   distanceUnit,
@@ -10,6 +8,8 @@ const {
   isLoading,
   changes,
 } = useProjectSettings();
+
+useUnitConverter();
 
 const { mutate: save } = useSetSettingsMutation();
 
@@ -30,25 +30,6 @@ watch(
 onBeforeUnmount(() => {
   if (saveTimeout) clearTimeout(saveTimeout);
 });
-
-// Convert values when units change
-watch(distanceUnit, (newUnit, oldUnit) => {
-  if (!newUnit || !oldUnit) return;
-
-  const convertDistance = (value: Ref<string | number | undefined>) => {
-    if (value.value == null) return;
-    const dist = new Distance(value.value + oldUnit);
-    value.value = roundDistance(dist[newUnit], newUnit);
-  };
-  convertDistance(bladeWidth);
-  convertDistance(extraSpace);
-});
-
-function roundDistance(value: number, unit: 'in' | 'm' | 'mm') {
-  if (unit === 'mm') return Number(value.toFixed(3));
-  if (unit === 'm') return Number(value.toFixed(5));
-  return Number(value.toFixed(5));
-}
 </script>
 
 <template>

@@ -1,7 +1,7 @@
 import type { Tab } from './useProjectTabMap';
 
 export default function () {
-  const projectId = useProjectId();
+  const { activeId: projectId } = useProjects();
   const map = useProjectTabMap();
 
   const key = computed(() => projectId.value ?? '__local__');

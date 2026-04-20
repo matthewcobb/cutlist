@@ -61,6 +61,7 @@ interface Gltf {
 export interface NodePartMapping {
   nodeIndex: number;
   partNumber: number;
+  colorHex: string;
 }
 
 export interface ParseResult {
@@ -137,21 +138,25 @@ export async function parseGltf(file: File): Promise<ParseResult> {
       });
     }
     for (const nodeIndex of group.nodeIndices) {
-      nodePartMap.push({ nodeIndex, partNumber });
+      nodePartMap.push({ nodeIndex, partNumber, colorHex: group.colorHex });
     }
   }
 
   // Tally colors across all drafts.
-  const colorCounts = new Map<string, number>();
-  for (const d of drafts) {
-    colorCounts.set(d.colorKey, (colorCounts.get(d.colorKey) ?? 0) + 1);
+  const colorMap = new Map<
+    string,
+    { rgb: [number, number, number]; count: number }
+  >();
+  for (const group of groups.values()) {
+    const existing = colorMap.get(group.colorKey);
+    if (existing) {
+      existing.count += group.quantity;
+    } else {
+      colorMap.set(group.colorKey, { rgb: group.rgb, count: group.quantity });
+    }
   }
-  const colors: ColorInfo[] = Array.from(colorCounts.entries()).map(
-    ([key, count]) => ({
-      key,
-      rgb: parseColorKey(key, gltf.materials),
-      count,
-    }),
+  const colors: ColorInfo[] = Array.from(colorMap.entries()).map(
+    ([key, { rgb, count }]) => ({ key, rgb, count }),
   );
 
   return { drafts, colors, gltfJson: gltf, nodePartMap };
@@ -160,6 +165,8 @@ export async function parseGltf(file: File): Promise<ParseResult> {
 interface PartInfo {
   name: string;
   colorKey: string;
+  colorHex: string;
+  rgb: [number, number, number];
   size: PartToCut['size'];
   nodeIndex: number;
 }
@@ -195,7 +202,7 @@ function meshToPartInfo(
 ): PartInfo | null {
   let min: [number, number, number] = [Infinity, Infinity, Infinity];
   let max: [number, number, number] = [-Infinity, -Infinity, -Infinity];
-  const colorKeys = new Set<string>();
+  let firstMaterialIdx: number | undefined;
 
   for (const prim of mesh.primitives) {
     const posIdx = prim.attributes.POSITION;
@@ -218,9 +225,8 @@ function meshToPartInfo(
       }
     }
 
-    if (prim.material != null) {
-      const matName = gltf.materials?.[prim.material]?.name;
-      if (matName) colorKeys.add(matName);
+    if (firstMaterialIdx == null && prim.material != null) {
+      firstMaterialIdx = prim.material;
     }
   }
 
@@ -231,28 +237,61 @@ function meshToPartInfo(
     (a, b) => a - b,
   );
 
+  const matName =
+    firstMaterialIdx != null
+      ? gltf.materials?.[firstMaterialIdx]?.name ?? ''
+      : '';
+  const { key, rgb, hex } = resolveColor(
+    matName,
+    firstMaterialIdx,
+    gltf.materials,
+  );
+
   return {
     name: node.name ?? mesh.name ?? 'Unnamed',
-    colorKey: colorKeys.values().next().value ?? 'Unknown',
+    colorKey: key,
+    colorHex: hex,
+    rgb,
     size: { thickness: dims[0], width: dims[1], length: dims[2] },
     nodeIndex,
   };
 }
 
-function parseColorKey(
-  key: string,
-  materials?: GltfMaterial[],
-): [number, number, number] {
-  // Onshape encodes the appearance as "R_G_B_X_Y" (normalized RGB floats).
-  const parts = key.split('_').map(Number);
+function resolveColor(
+  name: string,
+  materialIdx: number | undefined,
+  materials: GltfMaterial[] | undefined,
+): { key: string; rgb: [number, number, number]; hex: string } {
+  // Onshape encodes appearance as "R_G_B_X_Y" (normalized RGB floats in name).
+  // Detect: 3+ underscore-separated finite numbers.
+  const parts = name.split('_').map(Number);
   if (parts.length >= 3 && parts.slice(0, 3).every((n) => isFinite(n))) {
-    return [parts[0], parts[1], parts[2]];
+    const rgb: [number, number, number] = [parts[0], parts[1], parts[2]];
+    const hex = rgbToHex(rgb);
+    return { key: hex, rgb, hex };
   }
-  // Fallback: try the material's PBR base color.
-  const mat = materials?.find((m) => m.name === key);
+
+  // Standard GLTF: read PBR base color from the material at materialIdx.
+  const mat = materialIdx != null ? materials?.[materialIdx] : undefined;
   const c = mat?.pbrMetallicRoughness?.baseColorFactor;
-  if (c) return [c[0], c[1], c[2]];
-  return [0.5, 0.5, 0.5];
+  if (c) {
+    const rgb: [number, number, number] = [c[0], c[1], c[2]];
+    // Use the material name as the grouping key (stable, human-readable).
+    // Fall back to hex if name is empty.
+    const key = name || rgbToHex(rgb);
+    return { key, rgb, hex: rgbToHex(rgb) };
+  }
+
+  const fallbackRgb: [number, number, number] = [0.5, 0.5, 0.5];
+  const key = name || 'Unknown';
+  return { key, rgb: fallbackRgb, hex: rgbToHex(fallbackRgb) };
+}
+
+function rgbToHex(rgb: [number, number, number]): string {
+  const [r, g, b] = rgb.map((v) =>
+    Math.round(Math.min(1, Math.max(0, v)) * 255),
+  );
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
 function round(n: number): number {

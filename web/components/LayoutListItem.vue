@@ -6,12 +6,15 @@ const props = defineProps<{
   boardIndex: number;
 }>();
 
-const widthPx = usePx(() => props.layout.stock.widthM);
-const heightPx = usePx(() => props.layout.stock.lengthM);
+const getPx = useGetPx();
+const formatDistance = useFormatDistance();
 
-const thickness = useFormattedDistance(() => props.layout.stock.thicknessM);
-const width = useFormattedDistance(() => props.layout.stock.widthM);
-const length = useFormattedDistance(() => props.layout.stock.lengthM);
+const widthPx = computed(() => getPx(props.layout.stock.widthM));
+const heightPx = computed(() => getPx(props.layout.stock.lengthM));
+
+const thickness = computed(() => formatDistance(props.layout.stock.thicknessM));
+const width = computed(() => formatDistance(props.layout.stock.widthM));
+const length = computed(() => formatDistance(props.layout.stock.lengthM));
 </script>
 
 <template>

@@ -11,6 +11,5 @@ const { data } = useBoardLayoutsQuery();
     >
       No warnings
     </li>
-    <li></li>
   </ul>
 </template>

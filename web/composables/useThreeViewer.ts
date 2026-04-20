@@ -227,6 +227,11 @@ export default function useThreeViewer(
         if (!scene || !THREE || gen !== loadGeneration) return;
         const T = THREE; // local alias — TS loses narrowing inside traverse callbacks
 
+        const nodeColorMap = new Map<number, string>();
+        for (const { nodeIndex, colorHex } of nodePartMap) {
+          nodeColorMap.set(nodeIndex, colorHex);
+        }
+
         for (const { nodeIndex, partNumber } of nodePartMap) {
           const adjustedPartNumber = partNumber + partNumberOffset;
           try {
@@ -249,23 +254,22 @@ export default function useThreeViewer(
               mesh.castShadow = true;
               mesh.receiveShadow = true;
 
-              // Onshape encodes the true sRGB display colour in the material name
-              // (e.g. "0.921569_0.800000_0.650980"). The GLTF baseColorFactor may
-              // differ, so override with the name-derived colour for accuracy.
-              const mats = Array.isArray(mesh.material)
-                ? mesh.material
-                : [mesh.material];
-              for (const m of mats) {
-                if (
-                  !(m as import('three').MeshStandardMaterial)
-                    .isMeshStandardMaterial
-                )
-                  continue;
-                const std = m as import('three').MeshStandardMaterial;
-                const parts = std.name.split('_').map(Number);
-                if (parts.length >= 3 && parts.slice(0, 3).every(isFinite)) {
-                  const [r, g, b] = parts;
-                  std.color.setRGB(r, g, b, T.SRGBColorSpace);
+              // Apply the normalized color resolved at import time.
+              // Must use setRGB with SRGBColorSpace so Three.js converts sRGB→linear
+              // internally; Color.set(hex) skips that conversion → washed-out output.
+              const colorHex = nodeColorMap.get(nodeIndex);
+              if (colorHex) {
+                const hexVal = parseInt(colorHex.slice(1), 16);
+                const sr = ((hexVal >> 16) & 0xff) / 255;
+                const sg = ((hexVal >> 8) & 0xff) / 255;
+                const sb = (hexVal & 0xff) / 255;
+                const mats = Array.isArray(mesh.material)
+                  ? mesh.material
+                  : [mesh.material];
+                for (const m of mats) {
+                  const std = m as import('three').MeshStandardMaterial;
+                  if (!std.isMeshStandardMaterial) continue;
+                  std.color.setRGB(sr, sg, sb, T.SRGBColorSpace);
                   std.roughness = 0.35;
                   std.metalness = 0.0;
                 }

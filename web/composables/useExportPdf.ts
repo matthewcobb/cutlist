@@ -22,7 +22,7 @@ export default function () {
         scale,
         layouts: layouts.value.layouts,
         leftovers: layouts.value.leftovers,
-        formatSize: (m) => formatDistance(m),
+        formatSize: formatDistance,
         distanceUnit: String(distanceUnit.value ?? ''),
         showPartNumbers: !!showPartNumbers.value,
         measurements: measurements.value,

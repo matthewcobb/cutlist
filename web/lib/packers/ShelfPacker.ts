@@ -1,5 +1,4 @@
 import { Rectangle } from '../geometry';
-import type { Visualizer } from '../visualizers';
 import type { PackOptions, PackResult, Packer } from './Packer';
 
 /**
@@ -25,7 +24,6 @@ export type ShelfHeightMode = 'first-fit' | 'best-width-fit';
  * This is the easiest pattern to execute with a table/track/circular saw.
  */
 export function createShelfPacker<T>(
-  visualizer?: Visualizer,
   config: {
     shelfHeightMode?: ShelfHeightMode;
   } = {},
@@ -40,13 +38,9 @@ export function createShelfPacker<T>(
 
       while (remaining.length > 0) {
         const rect = remaining.shift()!;
-        visualizer?.render('start', { res, bin, toPlace: rect });
 
         const placed = placeOnExistingShelf(rect, shelves, bin, options, res);
-        if (placed) {
-          visualizer?.render('placed', { res, bin });
-          continue;
-        }
+        if (placed) continue;
 
         // Open a new shelf
         const shelfBottom = getNextShelfBottom(shelves, options);
@@ -80,10 +74,8 @@ export function createShelfPacker<T>(
         res.placements.push(placement);
         shelf.usedWidth += placement.width + options.gap;
 
-        visualizer?.render('placed', { res, bin });
-
         // Try to fill the rest of this shelf from remaining parts
-        fillShelf(shelf, remaining, bin, options, res, visualizer);
+        fillShelf(shelf, remaining, bin, options, res);
       }
 
       return res;
@@ -219,7 +211,6 @@ function fillShelf<T>(
   bin: Rectangle<unknown>,
   options: PackOptions,
   res: PackResult<T>,
-  visualizer?: Visualizer,
 ): void {
   let i = 0;
   while (i < remaining.length) {
@@ -233,7 +224,6 @@ function fillShelf<T>(
       res.placements.push(placement);
       shelf.usedWidth += placement.width + options.gap;
       remaining.splice(i, 1);
-      visualizer?.render('placed', { res, bin });
     } else {
       i++;
     }

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-const { data, isLoading, error } = useBoardLayoutsQuery();
+const { data, error } = useBoardLayoutsQuery();
 
 const container = ref<HTMLDivElement>();
 const { scale, resetZoom, zoomIn, zoomOut } = usePanZoom(container);
@@ -23,14 +23,6 @@ const { scale, resetZoom, zoomIn, zoomOut } = usePanZoom(container);
           <LayoutList :layouts="data.layouts" />
         </div>
       </template>
-
-      <div v-else-if="isLoading" class="m-auto flex items-center space-x-4">
-        <USkeleton class="h-12 w-12" :ui="{ rounded: 'rounded-full' }" />
-        <div class="space-y-2">
-          <USkeleton class="h-4 w-[250px]" />
-          <USkeleton class="h-4 w-[200px]" />
-        </div>
-      </div>
     </div>
 
     <!-- Settings toolbar -->

@@ -6,7 +6,7 @@ defineProps<{
   layouts: BoardLayout[];
 }>();
 
-const gap = usePx(new Distance('4 in').m);
+const gap = useGetPx()(new Distance('4 in').m);
 </script>
 
 <template>

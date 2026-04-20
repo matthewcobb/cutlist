@@ -1,20 +1,29 @@
-import { useMutation, useQueryClient } from '@tanstack/vue-query';
+import { updateSettingsCache } from '~/composables/useSettingsQuery';
+
+interface MutateOptions {
+  onSuccess?: () => void;
+  onError?: (error: unknown) => void;
+  onSettled?: () => void;
+}
 
 export default function () {
-  const client = useQueryClient();
-  const projectId = useProjectId();
+  const idb = useIdb();
+  const isPending = ref(false);
 
-  return useMutation({
-    mutationFn() {
-      return $fetch('/api/settings/document', { method: 'DELETE' });
-    },
-    onSettled() {
-      client.invalidateQueries({
-        queryKey: ['settings', projectId.value ?? '__local__'],
-      });
-    },
-    onError(error) {
+  async function mutate(_variables?: undefined, options?: MutateOptions) {
+    isPending.value = true;
+    try {
+      const defaults = await idb.resetSettings();
+      updateSettingsCache(defaults);
+      options?.onSuccess?.();
+    } catch (error) {
       console.error('[settings] Failed to reset settings', error);
-    },
-  });
+      options?.onError?.(error);
+    } finally {
+      isPending.value = false;
+      options?.onSettled?.();
+    }
+  }
+
+  return { mutate, isPending };
 }

@@ -4,7 +4,7 @@
 bladeWidth: 3
 distanceUnit: mm
 extraSpace: 3
-optimize: Auto
+optimize: CNC
 showPartNumbers: true
 stock:
   - material: Plywood

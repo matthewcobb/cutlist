@@ -1,9 +1,8 @@
 import { isNearlyEqual } from '../geometry';
-import type { Visualizer } from '../visualizers';
 import { createGenericPacker } from './GenericPacker';
 import type { Packer } from './Packer';
 
-export function createTightPacker<T>(visualizer?: Visualizer): Packer<T> {
+export function createTightPacker<T>(): Packer<T> {
   return createGenericPacker({
     getPossiblePlacements: (bin, placements, gap) => [
       bin.bottomLeft,
@@ -15,6 +14,5 @@ export function createTightPacker<T>(visualizer?: Visualizer): Packer<T> {
       if (!isNearlyEqual(a.y, b.y, options.precision)) return a.y - b.y;
       return a.x - b.x;
     },
-    visualizer,
   });
 }

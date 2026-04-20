@@ -2,7 +2,7 @@ import type { CutlistSettings } from '~/utils';
 
 export default function () {
   const store = useProjectSettingsStore();
-  const projectId = useProjectId();
+  const { activeId: projectId } = useProjects();
 
   const defineSettingValue = <T extends keyof CutlistSettings>(key: T) =>
     computed({
@@ -23,10 +23,27 @@ export default function () {
   const stock = defineSettingValue('stock');
 
   const { data: settings, isLoading } = useSettingsQuery();
-  watch(settings, () => {
-    resetSettings();
-    resetStock();
-  });
+
+  const resetSettings = () => {
+    bladeWidth.value = settings.value?.bladeWidth;
+    distanceUnit.value = settings.value?.distanceUnit;
+    extraSpace.value = settings.value?.extraSpace;
+    optimize.value = settings.value?.optimize;
+    showPartNumbers.value = settings.value?.showPartNumbers;
+  };
+  const resetStock = () => {
+    stock.value = settings.value?.stock;
+  };
+
+  watch(
+    settings,
+    (value) => {
+      if (!value) return;
+      resetSettings();
+      resetStock();
+    },
+    { immediate: true },
+  );
 
   const changes = computed(() => {
     const changes: Partial<CutlistSettings> = {};
@@ -43,17 +60,6 @@ export default function () {
     if (settings.value?.stock !== stock.value) changes.stock = stock.value;
     return changes;
   });
-
-  const resetSettings = () => {
-    bladeWidth.value = settings.value?.bladeWidth;
-    distanceUnit.value = settings.value?.distanceUnit;
-    extraSpace.value = settings.value?.extraSpace;
-    optimize.value = settings.value?.optimize;
-    showPartNumbers.value = settings.value?.showPartNumbers;
-  };
-  const resetStock = () => {
-    stock.value = settings.value?.stock;
-  };
 
   return {
     bladeWidth,

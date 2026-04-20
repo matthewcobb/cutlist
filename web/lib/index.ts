@@ -25,7 +25,6 @@ import {
   type PackOptions,
   type Packer,
 } from './packers';
-import type { Visualizer } from './visualizers';
 
 export * from './types';
 export * from './utils/units';
@@ -197,13 +196,11 @@ export function generateBoardLayouts(
   parts: PartToCut[],
   stock: StockMatrix[],
   config: ConfigInput,
-  visualizer?: Visualizer,
 ): {
   layouts: BoardLayout[];
   leftovers: BoardLayoutLeftover[];
 } {
   const normalizedConfig = Config.parse(config);
-  console.info('Generating board layouts...');
 
   const boards = reduceStockMatrix(stock).toSorted(
     (a, b) => b.width * b.length - a.width * a.length,
@@ -212,13 +209,12 @@ export function generateBoardLayouts(
 
   const searchResult =
     normalizedConfig.optimize === 'auto'
-      ? runMultiPassSearch(normalizedConfig, parts, boards, visualizer)
+      ? runMultiPassSearch(normalizedConfig, parts, boards)
       : runSearchPass(
           normalizedConfig,
           parts,
           boards,
           getSingleModePass(normalizedConfig.optimize),
-          visualizer,
         );
 
   return {
@@ -247,23 +243,22 @@ export function reduceStockMatrix(matrix: StockMatrix[]): Stock[] {
 
 export const PACKERS: Record<
   PackerKind,
-  (visualizer?: Visualizer, pass?: SearchPassDefinition) => Packer<PartToCut>
+  (pass?: SearchPassDefinition) => Packer<PartToCut>
 > = {
-  shelf: (visualizer?: Visualizer) => createShelfPacker<PartToCut>(visualizer),
-  guillotine: (visualizer?: Visualizer, pass?: SearchPassDefinition) =>
-    createGuillotinePacker<PartToCut>(visualizer, {
+  shelf: () => createShelfPacker<PartToCut>(),
+  guillotine: (pass?: SearchPassDefinition) =>
+    createGuillotinePacker<PartToCut>({
       fitMode: pass?.guillotineFitMode ?? 'bssf',
       splitMode: 'sas',
       rectMerge: true,
     }),
-  tight: (visualizer?: Visualizer) => createTightPacker<PartToCut>(visualizer),
+  tight: () => createTightPacker<PartToCut>(),
 };
 
 function runMultiPassSearch(
   config: Config,
   parts: PartToCut[],
   stock: Stock[],
-  visualizer?: Visualizer,
 ): SearchPassResult {
   const passOrder =
     config.searchPasses == null || config.searchPasses.length === 0
@@ -277,7 +272,7 @@ function runMultiPassSearch(
     if (i > 0 && Date.now() - startedAt >= config.maxSearchMs) break;
 
     const pass = SEARCH_PASS_DEFINITIONS[passOrder[i]];
-    const candidate = runSearchPass(config, parts, stock, pass, visualizer);
+    const candidate = runSearchPass(config, parts, stock, pass);
 
     if (
       best == null ||
@@ -299,9 +294,8 @@ function runSearchPass(
   parts: PartToCut[],
   stock: Stock[],
   pass: SearchPassDefinition,
-  visualizer?: Visualizer,
 ): SearchPassResult {
-  const packer = PACKERS[pass.packerKind](visualizer, pass);
+  const packer = PACKERS[pass.packerKind](pass);
 
   const { layouts, leftovers } = placeAllParts(config, parts, stock, packer, {
     partSortMode: pass.partSortMode,
@@ -381,7 +375,6 @@ function placeAllParts(
       isValidStock(board, targetPart, config.precision),
     );
     if (board == null) {
-      console.warn(`Board not found for part:`, targetPart);
       unplacedParts.delete(targetPart);
       leftovers.push(targetPart);
       continue;
