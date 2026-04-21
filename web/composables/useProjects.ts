@@ -164,8 +164,8 @@ export default function useProjects() {
   async function addProject(name: string) {
     const project = await idb.createProject(name);
     projectList.value = [
-      { id: project.id, name: project.name, updatedAt: project.updatedAt },
       ...projectList.value,
+      { id: project.id, name: project.name, updatedAt: project.updatedAt },
     ];
     activeId.value = project.id;
     activeProjectData.value = { ...project, models: [] };

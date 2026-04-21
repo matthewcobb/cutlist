@@ -147,17 +147,6 @@ function createProject() {
         >studio</span
       >
     </div>
-    <div class="shrink-0 flex items-center px-2 border-r border-white/10">
-      <button
-        class="flex items-center gap-1 px-2 py-1 rounded border border-teal-400/40 text-teal-400 hover:bg-teal-400/10 hover:border-teal-400/70 transition-colors text-xs font-medium"
-        title="New project"
-        @click="openNewProject"
-      >
-        <UIcon name="i-lucide-plus" class="w-3.5 h-3.5" />
-        New
-      </button>
-    </div>
-
     <TabList class="flex-1 min-w-0">
       <TabListItem
         v-for="[id, project] in projects"
@@ -177,6 +166,17 @@ function createProject() {
         @dragend="onDragEnd"
       />
     </TabList>
+
+    <div class="shrink-0 flex items-center px-2 border-l border-white/10">
+      <button
+        class="flex items-center gap-1 px-2 py-1 rounded border border-teal-400/40 text-teal-400 hover:bg-teal-400/10 hover:border-teal-400/70 transition-colors text-xs font-medium"
+        title="New project"
+        @click="openNewProject"
+      >
+        <UIcon name="i-lucide-plus" class="w-3.5 h-3.5" />
+        New
+      </button>
+    </div>
 
     <button
       v-if="activeId"
