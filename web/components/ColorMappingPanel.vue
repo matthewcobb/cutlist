@@ -7,9 +7,9 @@ const { stock } = useProjectSettings();
 const materialOptions = computed<string[]>(() => {
   if (stock.value == null) return [];
   try {
-    const parsed = parseStock(stock.value);
-    const names = Array.from(new Set(parsed.map((s) => s.material))).sort();
-    return names;
+    return Array.from(
+      new Set(parseStock(stock.value).map((s) => s.material)),
+    ).sort();
   } catch {
     return [];
   }

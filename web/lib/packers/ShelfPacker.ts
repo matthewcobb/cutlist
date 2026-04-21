@@ -149,9 +149,10 @@ function fitOnShelf<T>(
   options: PackOptions,
 ): Rectangle<T> | undefined {
   const availableWidth = bin.width - shelf.usedWidth;
-  const orientations = options.allowRotations
-    ? [rect, rect.flipOrientation()]
-    : [rect];
+  const canRotate =
+    options.allowRotations &&
+    (options.canRotateRect == null || options.canRotateRect(rect.data));
+  const orientations = canRotate ? [rect, rect.flipOrientation()] : [rect];
 
   let best: Rectangle<T> | undefined;
   let bestWaste = Infinity;
@@ -185,9 +186,10 @@ function chooseBestOrientation<T>(
   options: PackOptions,
 ): Rectangle<T> | undefined {
   const availableHeight = bin.bottom + bin.height - shelfBottom;
-  const orientations = options.allowRotations
-    ? [rect, rect.flipOrientation()]
-    : [rect];
+  const canRotate =
+    options.allowRotations &&
+    (options.canRotateRect == null || options.canRotateRect(rect.data));
+  const orientations = canRotate ? [rect, rect.flipOrientation()] : [rect];
 
   const fitting = orientations.filter(
     (o) =>

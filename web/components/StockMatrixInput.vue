@@ -99,6 +99,7 @@ function addMaterial() {
     thickness: [],
     width: [],
     length: [],
+    hasGrain: true,
   });
 }
 
@@ -114,13 +115,31 @@ function removeMaterial(index: number) {
       :key="matIndex"
       class="rounded-lg border border-white/10 bg-gray-900 p-4 flex flex-col gap-4"
     >
-      <!-- Material name -->
+      <!-- Material name + default grain toggle -->
       <div class="flex items-center gap-2">
         <UInput
           v-model="mat.material"
           class="flex-1"
           placeholder="Material name"
         />
+        <button
+          type="button"
+          :title="
+            mat.hasGrain
+              ? 'Has grain direction by default — click to disable'
+              : 'No grain direction by default — click to enable'
+          "
+          :class="[
+            'flex items-center gap-1.5 px-2 py-1.5 rounded-md border text-xs transition-colors shrink-0',
+            mat.hasGrain
+              ? 'border-teal-500/60 bg-teal-500/10 text-teal-400'
+              : 'border-white/15 bg-transparent text-white/40 hover:border-white/30 hover:text-white/60',
+          ]"
+          @click="mat.hasGrain = !mat.hasGrain"
+        >
+          <UIcon name="i-lucide-move-horizontal" class="w-3.5 h-3.5" />
+          <span>{{ mat.hasGrain ? 'Grain' : 'No grain' }}</span>
+        </button>
         <UButton
           color="gray"
           variant="ghost"

@@ -113,9 +113,10 @@ function pickBestPlacement<T>(
 
   for (let i = 0; i < freeRects.length; i++) {
     const free = freeRects[i];
-    const orientations = options.allowRotations
-      ? [rect, rect.flipOrientation()]
-      : [rect];
+    const canRotate =
+      options.allowRotations &&
+      (options.canRotateRect == null || options.canRotateRect(rect.data));
+    const orientations = canRotate ? [rect, rect.flipOrientation()] : [rect];
 
     for (const candidateRect of orientations) {
       if (

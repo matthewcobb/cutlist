@@ -45,6 +45,11 @@ export interface Stock {
    * In meters
    */
   length: number;
+  /**
+   * Whether this material has a grain direction. When false, parts of this
+   * material always rotate freely regardless of their grainLock setting.
+   */
+  hasGrain: boolean;
 }
 
 /**
@@ -56,6 +61,11 @@ export const StockMatrix = z.object({
   thickness: z.array(Distance),
   width: z.array(Distance),
   length: z.array(Distance),
+  /**
+   * Whether this material has a grain direction. Set to false for sheet goods
+   * like MDF where orientation doesn't matter. Defaults to true.
+   */
+  hasGrain: z.boolean().default(true),
 });
 export type StockMatrix = z.infer<typeof StockMatrix>;
 
@@ -69,6 +79,14 @@ export interface PartToCut {
   material: string;
   sourcePartId?: string;
   sourceElementId?: string;
+  /**
+   * Locks the part to a specific grain orientation. Only takes effect when the
+   * matched stock material has `hasGrain` enabled.
+   * - `'length'`: part's length dimension runs with the grain (↕ in layout)
+   * - `'width'`: part's width dimension runs with the grain (↔ in layout)
+   * - `undefined`: free rotation — optimizer chooses best orientation
+   */
+  grainLock?: 'length' | 'width';
   size: {
     /**
      * In meters
@@ -146,6 +164,7 @@ export interface BoardLayoutLeftover {
   widthM: number;
   lengthM: number;
   thicknessM: number;
+  grainLock?: 'length' | 'width';
 }
 
 export interface BoardLayoutPlacement extends BoardLayoutLeftover {

@@ -33,10 +33,14 @@ export function createGenericPacker<T>({
           possiblePoints.sort((a, b) => sortPlacements(a, b, options));
         const possiblePlacements = possiblePoints.flatMap((point) => {
           const moved = rect.moveTo(point);
-          if (options.allowRotations) {
+          const canRotate =
+            options.allowRotations &&
+            (options.canRotateRect == null ||
+              options.canRotateRect(moved.data));
+          if (canRotate) {
             return [moved, moved.flipOrientation()];
           }
-          return moved;
+          return [moved];
         });
 
         const validPlacements = possiblePlacements.filter((placement) =>

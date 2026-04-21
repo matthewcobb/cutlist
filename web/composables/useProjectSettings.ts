@@ -2,7 +2,7 @@ import type { CutlistSettings } from '~/utils';
 
 export default createSharedComposable(() => {
   const store = useProjectSettingsStore();
-  const { activeId: projectId } = useProjects();
+  const { activeId: projectId, activeProject, updateStock } = useProjects();
 
   const defineSettingValue = <T extends keyof CutlistSettings>(key: T) =>
     computed({
@@ -20,7 +20,17 @@ export default createSharedComposable(() => {
   const extraSpace = defineSettingValue('extraSpace');
   const optimize = defineSettingValue('optimize');
   const showPartNumbers = defineSettingValue('showPartNumbers');
-  const stock = defineSettingValue('stock');
+
+  // Stock lives per-project, not in global settings.
+  const stock = computed({
+    get() {
+      return activeProject.value?.stock;
+    },
+    set(value: string | undefined) {
+      const id = toValue(projectId);
+      if (id && value != null) updateStock(id, value);
+    },
+  });
 
   const { data: settings, isLoading } = useSettingsQuery();
 
@@ -31,6 +41,8 @@ export default createSharedComposable(() => {
     optimize.value = settings.value?.optimize;
     showPartNumbers.value = settings.value?.showPartNumbers;
   };
+
+  /** Reset project stock to global defaults. */
   const resetStock = () => {
     stock.value = settings.value?.stock;
   };
@@ -41,7 +53,6 @@ export default createSharedComposable(() => {
     (value) => {
       if (!value) return;
       resetSettings();
-      resetStock();
     },
     { immediate: true },
   );
@@ -51,9 +62,9 @@ export default createSharedComposable(() => {
   watch(projectId, (id) => {
     if (!id || !settings.value) return;
     resetSettings();
-    resetStock();
   });
 
+  // Changes tracks only global settings diffs (stock is per-project now).
   const changes = computed(() => {
     const changes: Partial<CutlistSettings> = {};
     if (settings.value?.bladeWidth !== bladeWidth.value)
@@ -66,7 +77,6 @@ export default createSharedComposable(() => {
       changes.optimize = optimize.value;
     if (settings.value?.showPartNumbers !== showPartNumbers.value)
       changes.showPartNumbers = showPartNumbers.value;
-    if (settings.value?.stock !== stock.value) changes.stock = stock.value;
     return changes;
   });
 

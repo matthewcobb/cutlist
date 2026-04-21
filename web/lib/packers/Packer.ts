@@ -21,6 +21,9 @@ export interface PackOptions {
   gap: number;
   precision: number;
   allowRotations: boolean;
+  /** Optional per-rect override. When provided, a rect can only be rotated if both
+   * `allowRotations` is true AND this function returns true for that rect's data. */
+  canRotateRect?: (data: unknown) => boolean;
 }
 
 export interface PackResult<T> {

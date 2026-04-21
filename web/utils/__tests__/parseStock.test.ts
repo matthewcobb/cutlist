@@ -16,6 +16,7 @@ describe('parseStock', () => {
       thickness: [0.018],
       width: [1.2],
       length: [2.4],
+      hasGrain: true,
     });
   });
 

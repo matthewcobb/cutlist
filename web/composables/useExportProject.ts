@@ -8,6 +8,7 @@ export interface ProjectExport {
     id: string;
     name: string;
     colorMap: Record<string, string>;
+    stock: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -44,6 +45,7 @@ export default function useExportProject() {
         id: idbProject.id,
         name: idbProject.name,
         colorMap: idbProject.colorMap,
+        stock: idbProject.stock,
         createdAt: idbProject.createdAt,
         updatedAt: idbProject.updatedAt,
       },

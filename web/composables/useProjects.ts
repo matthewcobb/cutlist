@@ -1,10 +1,11 @@
 import type { ColorInfo, NodePartMapping, PartDraft } from '~/utils/parseGltf';
 import type { IdbModelMeta } from '~/composables/useIdb';
+import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
 
 export interface Model {
   id: string;
   filename: string;
-  source?: 'gltf' | 'manual';
+  source: 'gltf' | 'manual';
   drafts: PartDraft[];
   colors: ColorInfo[];
   enabled: boolean;
@@ -19,6 +20,7 @@ export interface ManualPartInput {
   thicknessMm: number;
   qty: number;
   material: string;
+  grainLock?: 'length' | 'width';
 }
 
 export interface Project {
@@ -26,6 +28,8 @@ export interface Project {
   name: string;
   models: Model[];
   colorMap: Record<string, string>;
+  /** Per-project stock definition (YAML string). */
+  stock: string;
 }
 
 interface ProjectListItem {
@@ -48,7 +52,7 @@ const archivedList = ref<ArchivedProjectItem[]>([]);
 const activeProjectData = ref<Project | null>(null);
 let initialized = false;
 
-function modelMetaToModel(meta: IdbModelMeta): Model {
+function toModel(meta: IdbModelMeta): Model {
   return {
     id: meta.id,
     filename: meta.filename,
@@ -74,7 +78,7 @@ async function init() {
   if (activeId.value) {
     const full = await idb.getProjectWithModels(activeId.value);
     activeProjectData.value = full
-      ? { ...full, models: full.models.map(modelMetaToModel) }
+      ? { ...full, models: full.models.map(toModel) }
       : null;
   }
   initialized = true;
@@ -98,7 +102,7 @@ export default function useProjects() {
     }
     const full = await idb.getProjectWithModels(id);
     activeProjectData.value = full
-      ? { ...full, models: full.models.map(modelMetaToModel) }
+      ? { ...full, models: full.models.map(toModel) }
       : null;
   });
 
@@ -112,7 +116,13 @@ export default function useProjects() {
       ) {
         map.set(p.id, activeProjectData.value);
       } else {
-        map.set(p.id, { id: p.id, name: p.name, models: [], colorMap: {} });
+        map.set(p.id, {
+          id: p.id,
+          name: p.name,
+          models: [],
+          colorMap: {},
+          stock: '',
+        });
       }
     }
     return map;
@@ -221,6 +231,7 @@ export default function useProjects() {
       id: model.id,
       projectId,
       filename: model.filename,
+      source: model.source,
       drafts: model.drafts,
       colors: model.colors,
       enabled: model.enabled,
@@ -269,6 +280,13 @@ export default function useProjects() {
     await idb.updateProject(id, { colorMap: newColorMap });
   }
 
+  async function updateStock(projectId: string, stock: string) {
+    const project = activeProjectData.value;
+    if (!project || project.id !== projectId) return;
+    activeProjectData.value = { ...project, stock };
+    await idb.updateProject(projectId, { stock });
+  }
+
   async function addManualPart(projectId: string, data: ManualPartInput) {
     const project = activeProjectData.value;
     if (!project || project.id !== projectId) return;
@@ -283,6 +301,7 @@ export default function useProjects() {
       instanceNumber: i + 1,
       name: data.name,
       colorKey: data.material,
+      grainLock: data.grainLock,
       size: {
         width: data.widthMm / 1000,
         length: data.lengthMm / 1000,
@@ -350,6 +369,7 @@ export default function useProjects() {
       instanceNumber: i + 1,
       name: data.name,
       colorKey: data.material,
+      grainLock: data.grainLock,
       size: {
         width: data.widthMm / 1000,
         length: data.lengthMm / 1000,
@@ -423,6 +443,37 @@ export default function useProjects() {
     projectList.value = ids.map((id) => map.get(id)!).filter(Boolean);
   }
 
+  async function updatePartGrainLock(
+    projectId: string,
+    adjustedPartNumber: number,
+    grainLock: 'length' | 'width' | undefined,
+  ) {
+    const project = activeProjectData.value;
+    if (!project || project.id !== projectId) return;
+
+    const enabled = project.models.filter((m) => m.enabled);
+    const offsets = computePartNumberOffsets(enabled);
+
+    for (let i = 0; i < enabled.length; i++) {
+      const model = enabled[i];
+      const targetPartNumber = adjustedPartNumber - offsets[i];
+      if (!model.drafts.some((d) => d.partNumber === targetPartNumber))
+        continue;
+
+      const updatedDrafts: PartDraft[] = model.drafts.map((d) =>
+        d.partNumber === targetPartNumber ? { ...d, grainLock } : d,
+      );
+      activeProjectData.value = {
+        ...project,
+        models: project.models.map((m) =>
+          m.id === model.id ? { ...m, drafts: updatedDrafts } : m,
+        ),
+      };
+      await idb.updateModel(model.id, { drafts: updatedDrafts });
+      break;
+    }
+  }
+
   return {
     projects,
     activeId,
@@ -443,9 +494,11 @@ export default function useProjects() {
     removeModel,
     toggleModel,
     updateColorMap,
+    updateStock,
     addManualPart,
     updateManualPart,
     removeManualPart,
+    updatePartGrainLock,
     reloadProjectList,
   };
 }

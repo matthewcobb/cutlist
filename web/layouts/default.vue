@@ -1,8 +1,24 @@
 <template>
-  <div class="fixed inset-0 overflow-hidden">
-    <slot />
+  <div class="fixed inset-0 flex flex-col overflow-hidden">
+    <div class="relative flex-1 min-h-0 overflow-hidden">
+      <slot />
+    </div>
+    <footer
+      class="shrink-0 flex items-center justify-between px-4 border-t border-white/10 bg-black text-white/30 text-xs"
+      style="height: 26px"
+    >
+      <span>v{{ appConfig.version }} &mdash; beta</span>
+      <NuxtLink to="/terms" class="hover:text-white/60 transition-colors"
+        >Terms of Use</NuxtLink
+      >
+      <span>Built by Matt</span>
+    </footer>
   </div>
 </template>
+
+<script lang="ts" setup>
+const appConfig = useAppConfig();
+</script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');

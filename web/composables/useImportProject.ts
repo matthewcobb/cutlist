@@ -1,5 +1,4 @@
 import type { ProjectExport } from '~/composables/useExportProject';
-import type { IdbBuildStep } from '~/composables/useIdb';
 
 export default function useImportProject() {
   const { reloadProjectList, setActive } = useProjects();
@@ -8,17 +7,17 @@ export default function useImportProject() {
 
   async function importFromFile(file: File) {
     const text = await file.text();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = JSON.parse(text) as any;
+    const data = JSON.parse(text) as ProjectExport;
 
-    if (raw.version !== 1 && raw.version !== 2) {
-      throw new Error(`Unsupported export version: ${raw.version}`);
+    if (data.version !== 2) {
+      throw new Error(`Unsupported export version: ${data.version}`);
     }
 
-    const data = raw as ProjectExport;
-
     // Create a new project (new UUID to avoid collisions)
-    const newProject = await idb.createProject(data.project.name);
+    const newProject = await idb.createProject(
+      data.project.name,
+      data.project.stock,
+    );
     await idb.updateProject(newProject.id, { colorMap: data.project.colorMap });
 
     // Import all models with fresh UUIDs bound to the new project.
@@ -34,7 +33,7 @@ export default function useImportProject() {
       });
     }
 
-    // Import build steps (v2 only), remapping modelIds to new UUIDs
+    // Import build steps, remapping modelIds to new UUIDs
     for (const step of data.buildSteps ?? []) {
       await idb.createBuildStep({
         ...step,
@@ -46,9 +45,6 @@ export default function useImportProject() {
         })),
       });
     }
-
-    // Settings from the export are intentionally not applied —
-    // the user's global settings should not be silently overwritten on import.
 
     await reloadProjectList();
     setActive(newProject.id);

@@ -2,6 +2,7 @@
 import { parseGltf } from '~/utils/parseGltf';
 import { groupPartsByNumber } from '~/lib/utils/bom-utils';
 import { parseStock } from '~/utils/parseStock';
+import { cycleGrainLock } from '~/utils/grain';
 import type { ManualPartInput } from '~/composables/useProjects';
 
 const { data } = useBoardLayoutsQuery();
@@ -15,6 +16,7 @@ const {
   addManualPart,
   updateManualPart,
   removeManualPart,
+  updatePartGrainLock,
 } = useProjects();
 const { distanceUnit, stock } = useProjectSettings();
 const formatDistance = useFormatDistance();
@@ -33,6 +35,7 @@ async function importFiles(files: File[]) {
       addModel(activeId.value, {
         id: crypto.randomUUID(),
         filename: file.name,
+        source: 'gltf',
         drafts,
         colors,
         enabled: true,
@@ -119,6 +122,7 @@ const manualPartGroups = computed(() => {
       lengthMm: Math.round(drafts[0].size.length * 1000),
       thicknessMm: Math.round(drafts[0].size.thickness * 1000),
       material: drafts[0].colorKey,
+      grainLock: drafts[0].grainLock,
     }));
 });
 
@@ -161,6 +165,7 @@ const columns = computed(() => [
   { key: 'qty', label: 'QTY' },
   { key: 'material', label: 'Material' },
   { key: 'size', label: `Size (${distanceUnit.value})` },
+  { key: 'grain', label: 'Grain' },
   { key: 'warning', label: '' },
 ]);
 
@@ -186,6 +191,7 @@ const rows = computed(() => {
       qty: instanceList.length,
       material: part.material,
       size: `${formatDistance(part.thicknessM)} × ${formatDistance(part.widthM)} × ${formatDistance(part.lengthM)}`,
+      grainLock: part.grainLock,
       leftoverCount: leftoverCounts.get(part.partNumber) ?? 0,
     };
   });
@@ -356,6 +362,7 @@ const rows = computed(() => {
             thicknessMm: group.thicknessMm,
             qty: group.qty,
             material: group.material,
+            grainLock: group.grainLock,
           }"
           @save="(data) => handleUpdatePart(group.partNumber, data)"
           @cancel="cancelEdit"
@@ -415,6 +422,44 @@ const rows = computed(() => {
 
     <div v-else-if="rows.length > 0">
       <UTable :rows="rows" :columns="columns">
+        <template #grain-data="{ row }">
+          <button
+            v-if="activeId"
+            type="button"
+            :title="
+              row.grainLock === 'length'
+                ? 'Length with grain (↕) — click to lock width with grain'
+                : row.grainLock === 'width'
+                  ? 'Width with grain (↔) — click to unlock'
+                  : 'Free rotation — click to lock length with grain'
+            "
+            :class="[
+              'flex items-center gap-1 px-1.5 py-0.5 rounded text-xs transition-colors',
+              row.grainLock
+                ? 'text-teal-400 hover:text-teal-300'
+                : 'text-white/25 hover:text-white/50',
+            ]"
+            @click="
+              updatePartGrainLock(
+                activeId!,
+                row.number,
+                cycleGrainLock(row.grainLock),
+              )
+            "
+          >
+            <UIcon
+              :name="row.grainLock ? 'i-lucide-lock' : 'i-lucide-lock-open'"
+              class="w-3 h-3 shrink-0"
+            />
+            <span>{{
+              row.grainLock === 'length'
+                ? '↕'
+                : row.grainLock === 'width'
+                  ? '↔'
+                  : ''
+            }}</span>
+          </button>
+        </template>
         <template #warning-data="{ row }">
           <span
             v-if="row.leftoverCount > 0"

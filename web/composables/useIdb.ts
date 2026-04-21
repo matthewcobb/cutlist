@@ -1,6 +1,10 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { ColorInfo, NodePartMapping, PartDraft } from '~/utils/parseGltf';
-import { DEFAULT_SETTINGS, type CutlistSettings } from '~/utils/settings';
+import {
+  DEFAULT_SETTINGS,
+  DEFAULT_STOCK_YAML,
+  type CutlistSettings,
+} from '~/utils/settings';
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -8,6 +12,8 @@ export interface IdbProject {
   id: string;
   name: string;
   colorMap: Record<string, string>;
+  /** Per-project stock definition (YAML string). */
+  stock: string;
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
@@ -17,7 +23,7 @@ export interface IdbModel {
   id: string;
   projectId: string;
   filename: string;
-  source?: 'gltf' | 'manual';
+  source: 'gltf' | 'manual';
   drafts: PartDraft[];
   colors: ColorInfo[];
   enabled: boolean;
@@ -165,13 +171,17 @@ export function useIdb() {
     return { ...project, models };
   }
 
-  async function createProject(name: string): Promise<IdbProject> {
+  async function createProject(
+    name: string,
+    stock?: string,
+  ): Promise<IdbProject> {
     const db = await getDb();
     const now = new Date().toISOString();
     const project: IdbProject = {
       id: crypto.randomUUID(),
       name,
       colorMap: {},
+      stock: stock ?? DEFAULT_STOCK_YAML,
       createdAt: now,
       updatedAt: now,
     };
@@ -181,7 +191,9 @@ export function useIdb() {
 
   async function updateProject(
     id: string,
-    patch: Partial<Pick<IdbProject, 'name' | 'colorMap' | 'updatedAt'>>,
+    patch: Partial<
+      Pick<IdbProject, 'name' | 'colorMap' | 'stock' | 'updatedAt'>
+    >,
   ): Promise<IdbProject> {
     const db = await getDb();
     const existing = await db.get('projects', id);
@@ -262,12 +274,14 @@ export function useIdb() {
 
   async function updateModel(
     id: string,
-    patch: Partial<Pick<IdbModel, 'enabled' | 'drafts' | 'colors' | 'source'>>,
+    patch: Partial<Pick<IdbModel, 'enabled' | 'drafts' | 'colors'>>,
   ): Promise<void> {
     const db = await getDb();
     const existing = await db.get('models', id);
     if (!existing) throw new Error(`Model ${id} not found`);
-    await db.put('models', { ...existing, ...patch });
+    // JSON round-trip strips Vue reactive proxies that IDB can't structured-clone.
+    const rawPatch = JSON.parse(JSON.stringify(patch));
+    await db.put('models', { ...existing, ...rawPatch });
   }
 
   async function deleteModel(id: string): Promise<void> {

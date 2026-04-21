@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { BoardLayoutPlacement } from 'cutlist';
 import { useElementHover } from '@vueuse/core';
+import { cycleGrainLock } from '~/utils/grain';
 
 const props = defineProps<{
   placement: BoardLayoutPlacement;
@@ -26,6 +27,16 @@ const fontSize = computed(() =>
 );
 
 const { showPartNumbers } = useProjectSettings();
+const { activeId, updatePartGrainLock } = useProjects();
+
+function onClickGrainLock() {
+  if (!activeId.value) return;
+  updatePartGrainLock(
+    activeId.value,
+    props.placement.partNumber,
+    cycleGrainLock(props.placement.grainLock),
+  );
+}
 </script>
 
 <template>
@@ -33,9 +44,10 @@ const { showPartNumbers } = useProjectSettings();
     ref="container"
     class="absolute cursor-pointer group"
     :style="`bottom:${bottom};left:${left}`"
+    @click="onClickGrainLock"
   >
     <UPlaceholder
-      class="overflow-hidden"
+      class="overflow-hidden relative"
       :color="isHovered ? 'primary' : 'white'"
       :style="`width:${width};height:${height}`"
     >
@@ -46,6 +58,14 @@ const { showPartNumbers } = useProjectSettings();
       >
         {{ placement.partNumber }}
       </p>
+      <!-- Grain lock indicator -->
+      <div
+        v-if="placement.grainLock"
+        class="absolute bottom-0.5 left-0.5 flex items-center gap-px text-teal-400/80"
+        :style="`font-size:${fontSize};line-height:${fontSize}`"
+      >
+        <span>{{ placement.grainLock === 'length' ? '↕' : '↔' }}</span>
+      </div>
     </UPlaceholder>
     <Teleport to="body">
       <PartDetailsTooltip

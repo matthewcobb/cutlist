@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { ManualPartInput } from '~/composables/useProjects';
+import { cycleGrainLock, GRAIN_LABELS } from '~/utils/grain';
 
 const props = defineProps<{
   materials: string[];
@@ -17,6 +18,7 @@ const lengthMm = ref<number | null>(props.initial?.lengthMm ?? null);
 const thicknessMm = ref<number | null>(props.initial?.thicknessMm ?? null);
 const qty = ref(props.initial?.qty ?? 1);
 const material = ref(props.initial?.material ?? props.materials[0] ?? '');
+const grainLock = ref<'length' | 'width' | undefined>(props.initial?.grainLock);
 
 const isValid = computed(
   () =>
@@ -46,6 +48,7 @@ function submit() {
     thicknessMm: thicknessMm.value,
     qty: qty.value,
     material: material.value,
+    grainLock: grainLock.value,
   });
   if (!props.initial) {
     name.value = '';
@@ -121,6 +124,27 @@ function onKeydown(e: KeyboardEvent) {
       </div>
     </div>
     <div class="flex items-center gap-2">
+      <button
+        type="button"
+        :title="
+          grainLock
+            ? `Grain: ${GRAIN_LABELS[grainLock]} — click to cycle`
+            : 'Free rotation — click to lock grain'
+        "
+        :class="[
+          'flex items-center gap-1 px-2 py-1.5 rounded-md border text-xs transition-colors whitespace-nowrap',
+          grainLock
+            ? 'border-teal-500/60 bg-teal-500/10 text-teal-400'
+            : 'border-white/15 bg-transparent text-white/40 hover:border-white/30 hover:text-white/60',
+        ]"
+        @click="grainLock = cycleGrainLock(grainLock)"
+      >
+        <UIcon
+          :name="grainLock ? 'i-lucide-lock' : 'i-lucide-lock-open'"
+          class="w-3.5 h-3.5"
+        />
+        <span>{{ grainLock ? GRAIN_LABELS[grainLock] : 'Free' }}</span>
+      </button>
       <select
         v-model="material"
         class="manual-select flex-1 bg-black border border-white/15 rounded-md px-2 py-1.5 text-sm text-white/80 cursor-pointer focus:outline-none focus:border-white/30"

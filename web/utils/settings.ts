@@ -16,14 +16,21 @@ export const DEFAULT_STOCK: StockMatrix[] = [
     thickness: ['18mm', '12mm', '9mm', '6mm'],
     width: ['1220mm'],
     length: ['2440mm'],
+    hasGrain: true,
   },
   {
     material: 'MDF',
     thickness: ['18mm', '12mm', '9mm', '6mm', '3mm'],
     width: ['1220mm'],
     length: ['2440mm'],
+    hasGrain: false,
   },
 ];
+
+export const DEFAULT_STOCK_YAML = YAML.dump(DEFAULT_STOCK, {
+  indent: 2,
+  flowLevel: 2,
+});
 
 export const DEFAULT_SETTINGS: CutlistSettings = {
   bladeWidth: 3,
@@ -31,5 +38,5 @@ export const DEFAULT_SETTINGS: CutlistSettings = {
   extraSpace: 3,
   optimize: 'Auto',
   showPartNumbers: true,
-  stock: YAML.dump(DEFAULT_STOCK, { indent: 2, flowLevel: 2 }),
+  stock: DEFAULT_STOCK_YAML,
 };

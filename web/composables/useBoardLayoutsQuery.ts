@@ -28,6 +28,7 @@ export default function () {
           name: draft.name,
           size: draft.size,
           material: project.colorMap[draft.colorKey] ?? 'Unknown',
+          grainLock: draft.grainLock,
         });
       }
     }
