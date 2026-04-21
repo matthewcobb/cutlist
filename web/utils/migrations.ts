@@ -5,7 +5,7 @@ import { DEFAULT_STOCK_YAML, DEFAULT_SETTINGS } from '~/utils/settings';
  * Schema version for record shapes (independent of IDB database version).
  * Bump when any record type's fields change. Never decrement.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 type StoreName = 'projects' | 'models' | 'buildSteps' | 'settings';
 
@@ -52,6 +52,15 @@ export const migrations: RecordMigration[] = [
       settings: s.settings
         ? { ...DEFAULT_SETTINGS, ...s.settings }
         : { ...DEFAULT_SETTINGS },
+    }),
+  },
+  // v4: distanceUnit moves from global settings to per-project
+  {
+    version: 4,
+    store: 'projects',
+    migrate: (p) => ({
+      ...p,
+      distanceUnit: p.distanceUnit ?? 'mm',
     }),
   },
 ];

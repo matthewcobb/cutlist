@@ -24,7 +24,7 @@ export const useUnitConverter = createSharedComposable(() => {
   });
 });
 
-function roundDistance(value: number, unit: 'in' | 'm' | 'mm') {
+function roundDistance(value: number, unit: 'in' | 'mm') {
   if (unit === 'mm') return Number(value.toFixed(3));
   return Number(value.toFixed(5));
 }

@@ -2,7 +2,12 @@ import type { CutlistSettings } from '~/utils';
 
 export default createSharedComposable(() => {
   const store = useProjectSettingsStore();
-  const { activeId: projectId, activeProject, updateStock } = useProjects();
+  const {
+    activeId: projectId,
+    activeProject,
+    updateStock,
+    updateDistanceUnit,
+  } = useProjects();
 
   const defineSettingValue = <T extends keyof CutlistSettings>(key: T) =>
     computed({
@@ -16,10 +21,20 @@ export default createSharedComposable(() => {
     });
 
   const bladeWidth = defineSettingValue('bladeWidth');
-  const distanceUnit = defineSettingValue('distanceUnit');
   const extraSpace = defineSettingValue('extraSpace');
   const optimize = defineSettingValue('optimize');
   const showPartNumbers = defineSettingValue('showPartNumbers');
+
+  // distanceUnit lives per-project, not in global settings.
+  const distanceUnit = computed({
+    get() {
+      return activeProject.value?.distanceUnit;
+    },
+    set(value: 'in' | 'mm' | undefined) {
+      const id = toValue(projectId);
+      if (id && value != null) updateDistanceUnit(id, value);
+    },
+  });
 
   // Stock lives per-project, not in global settings.
   const stock = computed({
@@ -36,7 +51,6 @@ export default createSharedComposable(() => {
 
   const resetSettings = () => {
     bladeWidth.value = settings.value?.bladeWidth;
-    distanceUnit.value = settings.value?.distanceUnit;
     extraSpace.value = settings.value?.extraSpace;
     optimize.value = settings.value?.optimize;
     showPartNumbers.value = settings.value?.showPartNumbers;
@@ -64,13 +78,11 @@ export default createSharedComposable(() => {
     resetSettings();
   });
 
-  // Changes tracks only global settings diffs (stock is per-project now).
+  // Changes tracks only global settings diffs (stock + distanceUnit are per-project).
   const changes = computed(() => {
     const changes: Partial<CutlistSettings> = {};
     if (settings.value?.bladeWidth !== bladeWidth.value)
       changes.bladeWidth = bladeWidth.value;
-    if (settings.value?.distanceUnit !== distanceUnit.value)
-      changes.distanceUnit = distanceUnit.value;
     if (settings.value?.extraSpace !== extraSpace.value)
       changes.extraSpace = extraSpace.value;
     if (settings.value?.optimize !== optimize.value)

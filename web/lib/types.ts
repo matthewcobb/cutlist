@@ -58,6 +58,12 @@ export interface Stock {
  */
 export const StockMatrix = z.object({
   material: z.string(),
+  /**
+   * Unit for numeric dimensions. When a dimension is a plain number, it is
+   * interpreted in this unit. String dimensions (e.g. "18mm") carry their own
+   * unit and ignore this field. Defaults to 'mm'.
+   */
+  unit: z.enum(['mm', 'in']).default('mm'),
   thickness: z.array(Distance),
   width: z.array(Distance),
   length: z.array(Distance),

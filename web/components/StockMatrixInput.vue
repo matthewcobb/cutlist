@@ -79,9 +79,11 @@ function addDimension(
   field: 'thickness' | 'width' | 'length',
 ) {
   const key = inputKey(matIndex, field);
-  const val = (newInputs.value[key] ?? '').trim();
-  if (!val) return;
-  matrix.value[matIndex][field].push(val);
+  const raw = newInputs.value[key];
+  if (raw == null || raw === '') return;
+  const num = Number(raw);
+  if (!Number.isFinite(num) || num <= 0) return;
+  matrix.value[matIndex][field].push(num);
   newInputs.value[key] = '';
 }
 
@@ -96,6 +98,7 @@ function removeDimension(
 function addMaterial() {
   matrix.value.push({
     material: 'New Material',
+    unit: 'mm',
     thickness: [],
     width: [],
     length: [],
@@ -115,12 +118,21 @@ function removeMaterial(index: number) {
       :key="matIndex"
       class="rounded-lg border border-white/10 bg-gray-900 p-4 flex flex-col gap-4"
     >
-      <!-- Material name + default grain toggle -->
+      <!-- Material name + unit + grain toggle -->
       <div class="flex items-center gap-2">
         <UInput
           v-model="mat.material"
           class="flex-1"
           placeholder="Material name"
+        />
+        <USelect
+          v-model="mat.unit"
+          :options="[
+            { label: 'mm', value: 'mm' },
+            { label: 'in', value: 'in' },
+          ]"
+          size="sm"
+          :ui="{ base: 'w-18' }"
         />
         <button
           type="button"
@@ -164,7 +176,7 @@ function removeMaterial(index: number) {
             :key="i"
             class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-white/10 bg-white/5 text-sm text-teal-300 font-mono"
           >
-            {{ dim }}
+            {{ typeof dim === 'number' ? `${dim}${mat.unit ?? 'mm'}` : dim }}
             <button
               class="text-dim hover:text-body leading-none ml-0.5 transition-colors"
               @click="removeDimension(matIndex, field, i)"
@@ -174,7 +186,10 @@ function removeMaterial(index: number) {
           </span>
           <input
             v-model="newInputs[inputKey(matIndex, field)]"
-            class="bg-transparent text-sm text-teal-300/70 font-mono w-20 outline-none border-b border-white/20 focus:border-teal-600 placeholder:text-white/20 transition-colors"
+            type="number"
+            min="0"
+            step="any"
+            class="bg-transparent text-sm text-teal-300/70 font-mono w-20 outline-none border-b border-white/20 focus:border-teal-600 placeholder:text-white/20 transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             placeholder="+ add"
             @keydown.enter.prevent="addDimension(matIndex, field)"
             @blur="addDimension(matIndex, field)"

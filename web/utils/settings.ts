@@ -3,7 +3,7 @@ import type { StockMatrix } from 'cutlist';
 
 export interface CutlistSettings {
   bladeWidth: number;
-  distanceUnit: 'in' | 'm' | 'mm';
+  distanceUnit: 'in' | 'mm';
   extraSpace: number;
   optimize: 'Auto' | 'Cuts' | 'CNC';
   showPartNumbers: boolean;
@@ -13,16 +13,18 @@ export interface CutlistSettings {
 export const DEFAULT_STOCK: StockMatrix[] = [
   {
     material: 'Plywood',
-    thickness: ['18mm', '12mm', '9mm', '6mm'],
-    width: ['1220mm'],
-    length: ['2440mm'],
+    unit: 'mm',
+    thickness: [18, 12, 9, 6],
+    width: [1220],
+    length: [2440],
     hasGrain: true,
   },
   {
     material: 'MDF',
-    thickness: ['18mm', '12mm', '9mm', '6mm', '3mm'],
-    width: ['1220mm'],
-    length: ['2440mm'],
+    unit: 'mm',
+    thickness: [18, 12, 9, 6, 3],
+    width: [1220],
+    length: [2440],
     hasGrain: false,
   },
 ];

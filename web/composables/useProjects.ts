@@ -30,6 +30,8 @@ export interface Project {
   colorMap: Record<string, string>;
   /** Per-project stock definition (YAML string). */
   stock: string;
+  /** Per-project distance unit. */
+  distanceUnit: 'in' | 'mm';
 }
 
 interface ProjectListItem {
@@ -122,6 +124,7 @@ export default function useProjects() {
           models: [],
           colorMap: {},
           stock: '',
+          distanceUnit: 'mm',
         });
       }
     }
@@ -285,6 +288,16 @@ export default function useProjects() {
     if (!project || project.id !== projectId) return;
     activeProjectData.value = { ...project, stock };
     await idb.updateProject(projectId, { stock });
+  }
+
+  async function updateDistanceUnit(
+    projectId: string,
+    distanceUnit: 'in' | 'mm',
+  ) {
+    const project = activeProjectData.value;
+    if (!project || project.id !== projectId) return;
+    activeProjectData.value = { ...project, distanceUnit };
+    await idb.updateProject(projectId, { distanceUnit });
   }
 
   async function addManualPart(projectId: string, data: ManualPartInput) {
@@ -495,6 +508,7 @@ export default function useProjects() {
     toggleModel,
     updateColorMap,
     updateStock,
+    updateDistanceUnit,
     addManualPart,
     updateManualPart,
     removeManualPart,

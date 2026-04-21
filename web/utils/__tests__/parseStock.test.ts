@@ -13,6 +13,7 @@ describe('parseStock', () => {
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
       material: 'MDF',
+      unit: 'mm',
       thickness: [0.018],
       width: [1.2],
       length: [2.4],

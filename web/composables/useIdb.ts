@@ -15,6 +15,8 @@ export interface IdbProject {
   colorMap: Record<string, string>;
   /** Per-project stock definition (YAML string). */
   stock: string;
+  /** Per-project distance unit. */
+  distanceUnit: 'in' | 'mm';
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
@@ -125,6 +127,7 @@ export function applyProjectDefaults(p: any): IdbProject {
     ...p,
     stock: p.stock ?? DEFAULT_STOCK_YAML,
     colorMap: p.colorMap ?? {},
+    distanceUnit: p.distanceUnit ?? 'mm',
   };
 }
 
@@ -202,7 +205,7 @@ export function useIdb() {
 
   async function createProject(
     name: string,
-    stock?: string,
+    opts?: { stock?: string; distanceUnit?: 'in' | 'mm' },
   ): Promise<IdbProject> {
     const db = await getDb();
     const now = new Date().toISOString();
@@ -210,7 +213,8 @@ export function useIdb() {
       id: crypto.randomUUID(),
       name,
       colorMap: {},
-      stock: stock ?? DEFAULT_STOCK_YAML,
+      stock: opts?.stock ?? DEFAULT_STOCK_YAML,
+      distanceUnit: opts?.distanceUnit ?? 'mm',
       createdAt: now,
       updatedAt: now,
     };
@@ -221,7 +225,10 @@ export function useIdb() {
   async function updateProject(
     id: string,
     patch: Partial<
-      Pick<IdbProject, 'name' | 'colorMap' | 'stock' | 'updatedAt'>
+      Pick<
+        IdbProject,
+        'name' | 'colorMap' | 'stock' | 'distanceUnit' | 'updatedAt'
+      >
     >,
   ): Promise<IdbProject> {
     const db = await getDb();

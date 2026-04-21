@@ -34,7 +34,7 @@ function makePart(
 describe('generateBoardLayouts edge cases', () => {
   it('puts all parts in leftovers when material is not in stock', () => {
     const stock: StockMatrix[] = [
-      { material: 'MDF', thickness: [0.018], width: [1], length: [2] },
+      { material: 'MDF', thickness: ['18mm'], width: ['1m'], length: ['2m'] },
     ];
     const parts = [
       makePart(1, 0.5, 0.5, 'Unknown'),
@@ -50,8 +50,13 @@ describe('generateBoardLayouts edge cases', () => {
   // 2. Multiple materials — each material's parts land on correct stock
   it('places parts on the correct stock when multiple materials are present', () => {
     const stock: StockMatrix[] = [
-      { material: 'MDF', thickness: [0.018], width: [1], length: [2] },
-      { material: 'Plywood', thickness: [0.018], width: [1], length: [2] },
+      { material: 'MDF', thickness: ['18mm'], width: ['1m'], length: ['2m'] },
+      {
+        material: 'Plywood',
+        thickness: ['18mm'],
+        width: ['1m'],
+        length: ['2m'],
+      },
     ];
     const parts = [
       makePart(1, 0.4, 0.4, 'MDF'),
@@ -97,7 +102,7 @@ describe('generateBoardLayouts edge cases', () => {
     // Bin is 1m×1m; extraSpace is 10mm → effective area is 0.99m×0.99m
     // Part is 0.995m×0.995m which fits the raw board but not the reduced area
     const stock: StockMatrix[] = [
-      { material: 'MDF', thickness: [0.018], width: [1], length: [1] },
+      { material: 'MDF', thickness: ['18mm'], width: ['1m'], length: ['1m'] },
     ];
     const configWithExtraSpace: Config = {
       ...baseConfig,
@@ -115,7 +120,7 @@ describe('generateBoardLayouts edge cases', () => {
   // 5. Empty parts list → layouts=[], leftovers=[]
   it('returns empty layouts and leftovers for an empty parts list', () => {
     const stock: StockMatrix[] = [
-      { material: 'MDF', thickness: [0.018], width: [1], length: [2] },
+      { material: 'MDF', thickness: ['18mm'], width: ['1m'], length: ['2m'] },
     ];
 
     const result = generateBoardLayouts([], stock, baseConfig);
@@ -137,7 +142,12 @@ describe('generateBoardLayouts edge cases', () => {
   it('uses two boards when parts do not all fit on one', () => {
     // Board is 0.5m×0.5m; each part is 0.4m×0.4m — two parts cannot share one board
     const stock: StockMatrix[] = [
-      { material: 'MDF', thickness: [0.018], width: [0.5], length: [0.5] },
+      {
+        material: 'MDF',
+        thickness: ['18mm'],
+        width: ['500mm'],
+        length: ['500mm'],
+      },
     ];
     const parts = [makePart(1, 0.4, 0.4), makePart(2, 0.4, 0.4)];
 
@@ -150,7 +160,12 @@ describe('generateBoardLayouts edge cases', () => {
   // 8. Part larger than all stock → in leftovers
   it('puts a part that is larger than every stock board into leftovers', () => {
     const stock: StockMatrix[] = [
-      { material: 'MDF', thickness: [0.018], width: [0.5], length: [0.5] },
+      {
+        material: 'MDF',
+        thickness: ['18mm'],
+        width: ['500mm'],
+        length: ['500mm'],
+      },
     ];
     // Part is 1m×1m — larger than the 0.5m×0.5m board
     const parts = [makePart(1, 1, 1)];
@@ -166,7 +181,7 @@ describe('generateBoardLayouts edge cases', () => {
   // 9. Config with specific searchPasses → deterministic single-pass result
   it('produces a deterministic result when searchPasses is set to a single pass', () => {
     const stock: StockMatrix[] = [
-      { material: 'MDF', thickness: [0.018], width: [1], length: [3] },
+      { material: 'MDF', thickness: ['18mm'], width: ['1m'], length: ['3m'] },
     ];
     const config: Config = {
       ...baseConfig,
@@ -194,7 +209,7 @@ describe('generateBoardLayouts edge cases', () => {
     // total to 0.49+0.03+0.49 = 1.01m which exceeds the board, so only 2 fit per row
     // and the 3rd / 4th part must spill onto a second board.
     const stock: StockMatrix[] = [
-      { material: 'MDF', thickness: [0.018], width: [1], length: [1] },
+      { material: 'MDF', thickness: ['18mm'], width: ['1m'], length: ['1m'] },
     ];
 
     const noBladeConfig: Config = { ...baseConfig, bladeWidth: 0 };

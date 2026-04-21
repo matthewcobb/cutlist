@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 const {
   bladeWidth,
-  distanceUnit,
   extraSpace,
   optimize,
   showPartNumbers,
@@ -63,16 +62,6 @@ onBeforeUnmount(() => {
         type="number"
         size="xs"
         :ui="{ base: 'w-20' }"
-      />
-    </div>
-
-    <div class="flex items-center gap-1.5">
-      <label class="text-xs text-muted whitespace-nowrap">Unit</label>
-      <USelect
-        v-model="distanceUnit"
-        :options="['in', 'm', 'mm']"
-        size="xs"
-        :ui="{ base: 'w-16' }"
       />
     </div>
 

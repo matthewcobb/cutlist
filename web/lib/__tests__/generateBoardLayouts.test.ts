@@ -22,9 +22,9 @@ function createPart(
 const stock = [
   {
     material: 'MDF',
-    thickness: [0.018],
-    width: [1],
-    length: [3],
+    thickness: ['0.018m'],
+    width: ['1m'],
+    length: ['3m'],
   },
 ];
 

@@ -8,23 +8,25 @@ optimize: CNC
 showPartNumbers: true
 stock:
   - material: Plywood
+    unit: mm
     thickness:
-      - 18mm
-      - 12mm
-      - 9mm
-      - 6mm
+      - 18
+      - 12
+      - 9
+      - 6
     width:
-      - 1220mm
+      - 1220
     length:
-      - 2440mm
+      - 2440
   - material: MDF
+    unit: mm
     thickness:
-      - 18mm
-      - 12mm
-      - 9mm
-      - 6mm
-      - 3mm
+      - 18
+      - 12
+      - 9
+      - 6
+      - 3
     width:
-      - 1220mm
+      - 1220
     length:
-      - 2440mm
+      - 2440

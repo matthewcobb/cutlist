@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 const { activeProject, activeId, renameProject, closeProject } = useProjects();
+const { distanceUnit } = useProjectSettings();
 
 const projectName = ref('');
 watch(
@@ -35,6 +36,16 @@ function deleteProject() {
           v-model="projectName"
           @blur="saveProjectName"
           @keydown.enter="($event.target as HTMLInputElement).blur()"
+        />
+      </UFormGroup>
+
+      <UFormGroup label="Units">
+        <USelect
+          v-model="distanceUnit"
+          :options="[
+            { label: 'Millimeters (mm)', value: 'mm' },
+            { label: 'Inches (in)', value: 'in' },
+          ]"
         />
       </UFormGroup>
     </div>

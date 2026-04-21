@@ -79,6 +79,7 @@ describe('migrateRecord — projects', () => {
     const result = migrateRecord('projects', V1_PROJECT, 2);
     expect(result.stock).toBe(DEFAULT_STOCK_YAML);
     expect(result.colorMap).toEqual({});
+    expect(result.distanceUnit).toBe('mm');
     // Existing fields preserved
     expect(result.id).toBe('p-001');
     expect(result.name).toBe('My Desk');
@@ -115,6 +116,18 @@ describe('migrateRecord — projects', () => {
   it('skips when ahead of current version', () => {
     const result = migrateRecord('projects', V1_PROJECT, SCHEMA_VERSION + 1);
     expect(result).toEqual(V1_PROJECT);
+  });
+
+  it('v3 project (no distanceUnit) gets default mm', () => {
+    const result = migrateRecord('projects', V2_PROJECT, 3);
+    expect(result.distanceUnit).toBe('mm');
+    expect(result.stock).toBe(V2_PROJECT.stock); // unchanged
+  });
+
+  it('project with existing distanceUnit keeps it', () => {
+    const withUnit = { ...V2_PROJECT, distanceUnit: 'in' };
+    const result = migrateRecord('projects', withUnit, 3);
+    expect(result.distanceUnit).toBe('in');
   });
 
   it('preserves unknown extra fields (forward compat)', () => {
@@ -399,10 +412,11 @@ describe('migrateExport', () => {
 // ─── applyDefaults (safety net layer) ────────────────────────────────────────
 
 describe('applyProjectDefaults', () => {
-  it('fills missing stock and colorMap', () => {
+  it('fills missing stock, colorMap, and distanceUnit', () => {
     const result = applyProjectDefaults(V1_PROJECT);
     expect(result.stock).toBe(DEFAULT_STOCK_YAML);
     expect(result.colorMap).toEqual({});
+    expect(result.distanceUnit).toBe('mm');
   });
 
   it('preserves existing stock and colorMap', () => {
@@ -453,6 +467,8 @@ describe('full migration chain: v1 → current', () => {
     expect(withDefaults.stock).toBe(DEFAULT_STOCK_YAML);
     expect(migrated.colorMap).toEqual({});
     expect(withDefaults.colorMap).toEqual({});
+    expect(migrated.distanceUnit).toBe('mm');
+    expect(withDefaults.distanceUnit).toBe('mm');
   });
 
   it('model goes from bare minimum to fully populated', () => {
@@ -481,6 +497,7 @@ describe('full migration chain: v1 → current', () => {
     const result = applyProjectDefaults(unmigrated);
     expect(result.stock).toBe(DEFAULT_STOCK_YAML);
     expect(result.colorMap).toEqual({});
+    expect(result.distanceUnit).toBe('mm');
   });
 });
 
@@ -512,7 +529,7 @@ async function openTestDb(): Promise<IDBPDatabase<any>> {
 describe('runStartupSweep', () => {
   it('migrates v1 project records in IDB', async () => {
     const db = await openTestDb();
-    // Seed a bare v1-era project (no stock, no colorMap)
+    // Seed a bare v1-era project (no stock, no colorMap, no distanceUnit)
     await db.put('projects', { ...V1_PROJECT });
 
     await runStartupSweep(db);
@@ -520,6 +537,7 @@ describe('runStartupSweep', () => {
     const project = await db.get('projects', V1_PROJECT.id);
     expect(project.stock).toBe(DEFAULT_STOCK_YAML);
     expect(project.colorMap).toEqual({});
+    expect(project.distanceUnit).toBe('mm');
     expect(project.name).toBe('My Desk');
     db.close();
   });

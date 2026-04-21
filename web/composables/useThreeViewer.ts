@@ -262,9 +262,10 @@ export default function useThreeViewer(
 
     const edgeMaterial = new modules.LineMaterial({
       color: 0x1a1a2e,
-      linewidth: 2.5,
+      linewidth: 3,
       transparent: true,
-      opacity: 0.65,
+      opacity: 0.6,
+      depthWrite: false,
       resolution: new THREE.Vector2(rect.width, rect.height),
     });
 

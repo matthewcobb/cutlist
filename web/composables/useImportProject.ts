@@ -1,5 +1,6 @@
 import type { ProjectExport } from '~/composables/useExportProject';
 import { migrateExport } from '~/utils/migrations';
+import { gzipDecompress } from '~/utils/compress';
 import { z } from 'zod';
 
 const ProjectExportSchema = z.object({
@@ -9,6 +10,7 @@ const ProjectExportSchema = z.object({
     name: z.string(),
     colorMap: z.record(z.string()),
     stock: z.string(),
+    distanceUnit: z.enum(['in', 'mm']).default('mm'),
     createdAt: z.string(),
     updatedAt: z.string(),
   }),
@@ -36,7 +38,7 @@ export default function useImportProject() {
   const idb = useIdb();
 
   async function importFromFile(file: File) {
-    const text = await file.text();
+    const text = await gzipDecompress(file);
     const raw = JSON.parse(text);
 
     // Migrate old exports to current schema (also rejects future versions)
@@ -52,10 +54,10 @@ export default function useImportProject() {
     const data = migrated as ProjectExport;
 
     // Create a new project (new UUID to avoid collisions)
-    const newProject = await idb.createProject(
-      data.project.name,
-      data.project.stock,
-    );
+    const newProject = await idb.createProject(data.project.name, {
+      stock: data.project.stock,
+      distanceUnit: data.project.distanceUnit,
+    });
     await idb.updateProject(newProject.id, { colorMap: data.project.colorMap });
 
     // Import all models with fresh UUIDs bound to the new project.
@@ -92,7 +94,7 @@ export default function useImportProject() {
   function pickAndImport() {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
+    input.accept = '.gz';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) await importFromFile(file);

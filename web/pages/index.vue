@@ -189,7 +189,7 @@ async function onDrop(e: DragEvent) {
         >
           <div class="text-xl font-bold tracking-tight">
             <span class="text-white">cutlist</span
-            ><span class="text-teal-400">.studio</span>
+            ><span class="text-teal-400">studio</span>
           </div>
 
           <div
@@ -245,8 +245,7 @@ async function onDrop(e: DragEvent) {
 
             <p v-if="!isDragging" class="mt-4 text-xs text-muted">
               or drop a
-              <span class="font-mono text-dim">.cutlist.json</span> file
-              anywhere
+              <span class="font-mono text-dim">.cutlist.gz</span> file anywhere
             </p>
           </div>
 

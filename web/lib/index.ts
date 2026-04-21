@@ -224,21 +224,31 @@ export function generateBoardLayouts(
 }
 
 /**
+ * Convert a dimension to meters. String dimensions carry their own unit;
+ * plain numbers use the material's `unit` field.
+ */
+function dimToMeters(dim: number | string, unit: 'mm' | 'in'): number {
+  if (typeof dim === 'string') return new Distance(dim).m;
+  return new Distance(dim + unit).m;
+}
+
+/**
  * Given a stock matrix, reduce it down to the individual boards available.
  */
 export function reduceStockMatrix(matrix: StockMatrix[]): Stock[] {
-  return matrix.flatMap((item) =>
-    item.length.flatMap((length) =>
+  return matrix.flatMap((item) => {
+    const unit = item.unit ?? 'mm';
+    return item.length.flatMap((length) =>
       item.width.flatMap((width) =>
         item.thickness.map((thickness) => ({
           ...item,
-          thickness: new Distance(thickness).m,
-          width: new Distance(width).m,
-          length: new Distance(length).m,
+          thickness: dimToMeters(thickness, unit),
+          width: dimToMeters(width, unit),
+          length: dimToMeters(length, unit),
         })),
       ),
-    ),
-  );
+    );
+  });
 }
 
 export const PACKERS: Record<

@@ -1,6 +1,7 @@
 import type { CutlistSettings } from '~/utils/settings';
 import type { IdbBuildStep, IdbModel } from '~/composables/useIdb';
 import { SCHEMA_VERSION } from '~/utils/migrations';
+import { gzipCompress } from '~/utils/compress';
 
 export interface ProjectExport {
   version: number;
@@ -10,6 +11,7 @@ export interface ProjectExport {
     name: string;
     colorMap: Record<string, string>;
     stock: string;
+    distanceUnit: 'in' | 'mm';
     createdAt: string;
     updatedAt: string;
   };
@@ -47,6 +49,7 @@ export default function useExportProject() {
         name: idbProject.name,
         colorMap: idbProject.colorMap,
         stock: idbProject.stock,
+        distanceUnit: idbProject.distanceUnit,
         createdAt: idbProject.createdAt,
         updatedAt: idbProject.updatedAt,
       },
@@ -55,13 +58,11 @@ export default function useExportProject() {
       settings,
     };
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: 'application/json',
-    });
+    const blob = await gzipCompress(JSON.stringify(data));
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${idbProject.name.replace(/\s+/g, '-')}.cutlist.json`;
+    a.download = `${idbProject.name.replace(/\s+/g, '-')}.cutlist.gz`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

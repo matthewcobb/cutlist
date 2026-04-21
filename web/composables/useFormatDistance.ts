@@ -10,10 +10,7 @@ export default function () {
     if (toValue(distanceUnit) === 'in') {
       return `${toFraction(distance.in)}"`;
     }
-    if (toValue(distanceUnit) === 'mm') {
-      return `${roundMetric(distance.mm, 2)}mm`;
-    }
-    return `${roundMetric(distance.m)}m`;
+    return `${roundMetric(distance.mm, 2)}mm`;
   };
 }
 
