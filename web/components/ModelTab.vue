@@ -2,7 +2,10 @@
 import type { BoardLayoutLeftover } from 'cutlist';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
 
-const { activeId, enabledModels } = useProjects();
+const { activeId, enabledModels: allEnabledModels } = useProjects();
+const enabledModels = computed(() =>
+  allEnabledModels.value.filter((m) => m.source !== 'manual'),
+);
 const { data: boardLayouts } = useBoardLayoutsQuery();
 const store = useModelViewerStore();
 const formatDistance = useFormatDistance();
@@ -34,6 +37,12 @@ const displayModels = computed(() => {
 // Check if any enabled model has gltfJson stored (via nodePartMap presence)
 const hasGltfData = computed(() =>
   enabledModels.value.some((m) => m.nodePartMap && m.nodePartMap.length > 0),
+);
+
+const hasOnlyManualModels = computed(
+  () =>
+    enabledModels.value.length > 0 &&
+    enabledModels.value.every((m) => m.source === 'manual'),
 );
 
 const allGltfData = ref<Array<{
@@ -115,8 +124,18 @@ const infoPart = computed(
         v-if="enabledModels.length === 0"
         class="absolute inset-0 flex items-center justify-center"
       >
-        <p class="bg-black border border-white/15 rounded p-4 text-white/50">
+        <p class="bg-black border border-white/15 rounded p-4 text-muted">
           Import a model in the BOM tab to view it in 3D.
+        </p>
+      </div>
+
+      <!-- Empty state: only manual parts, no GLTF -->
+      <div
+        v-else-if="hasOnlyManualModels"
+        class="absolute inset-0 flex items-center justify-center"
+      >
+        <p class="bg-black border border-white/15 rounded p-4 text-muted">
+          Parts were added manually — no 3D model to view.
         </p>
       </div>
 
@@ -125,7 +144,7 @@ const infoPart = computed(
         v-else-if="!hasGltfData"
         class="absolute inset-0 flex items-center justify-center"
       >
-        <p class="bg-black border border-white/15 rounded p-4 text-white/50">
+        <p class="bg-black border border-white/15 rounded p-4 text-muted">
           Re-import your model to enable 3D preview.
         </p>
       </div>
@@ -160,23 +179,23 @@ const infoPart = computed(
         <p class="text-teal-400 font-bold text-lg mb-1">
           #{{ infoPart.partNumber }} {{ infoPart.name }}
         </p>
-        <table class="text-sm text-white/70">
+        <table class="text-sm text-body">
           <tr>
-            <td class="pr-3 text-white/40">Width</td>
+            <td class="pr-3 text-muted">Width</td>
             <td>{{ formatDistance(infoPart.widthM) }}</td>
           </tr>
           <tr>
-            <td class="pr-3 text-white/40">Length</td>
+            <td class="pr-3 text-muted">Length</td>
             <td>{{ formatDistance(infoPart.lengthM) }}</td>
           </tr>
           <tr>
-            <td class="pr-3 text-white/40">Thickness</td>
+            <td class="pr-3 text-muted">Thickness</td>
             <td>
               {{ formatDistance(infoPart.thicknessM) }}
             </td>
           </tr>
           <tr>
-            <td class="pr-3 text-white/40">Material</td>
+            <td class="pr-3 text-muted">Material</td>
             <td>{{ infoPart.material }}</td>
           </tr>
         </table>
@@ -230,8 +249,8 @@ const infoPart = computed(
                 fill-opacity="0.3"
               />
             </svg>
-            <span class="text-xs text-white/35">Drag</span>
-            <span class="text-xs text-white/60 ml-auto pl-3">Orbit</span>
+            <span class="text-xs text-muted">Drag</span>
+            <span class="text-xs text-body ml-auto pl-3">Orbit</span>
           </div>
           <!-- Scroll → Zoom -->
           <div class="flex items-center gap-2.5">
@@ -269,8 +288,8 @@ const infoPart = computed(
                 fill="currentColor"
               />
             </svg>
-            <span class="text-xs text-white/35">Scroll</span>
-            <span class="text-xs text-white/60 ml-auto pl-3">Zoom</span>
+            <span class="text-xs text-muted">Scroll</span>
+            <span class="text-xs text-body ml-auto pl-3">Zoom</span>
           </div>
           <!-- Right drag → Pan -->
           <div class="flex items-center gap-2.5">
@@ -314,8 +333,8 @@ const infoPart = computed(
                 fill-opacity="0.3"
               />
             </svg>
-            <span class="text-xs text-white/35">Drag</span>
-            <span class="text-xs text-white/60 ml-auto pl-3">Pan</span>
+            <span class="text-xs text-muted">Drag</span>
+            <span class="text-xs text-body ml-auto pl-3">Pan</span>
           </div>
         </div>
 
@@ -325,7 +344,7 @@ const infoPart = computed(
           title="Reset camera"
           @click="viewer.fitCamera()"
         >
-          <span class="i-heroicons-arrow-path w-4 h-4 inline-block" />
+          <span class="i-lucide-refresh-cw w-4 h-4 inline-block" />
         </button>
       </div>
     </div>

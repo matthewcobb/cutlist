@@ -30,7 +30,9 @@ watch(
 <template>
   <li
     class="shrink-0 min-w-[8rem]"
-    :class="isActive ? 'bg-white/5' : 'bg-black'"
+    :class="
+      isActive ? 'bg-gradient-to-b from-teal-400/30 to-transparent' : 'bg-black'
+    "
   >
     <component
       :is="to ? resolveComponent('ULink') : 'button'"
@@ -54,13 +56,13 @@ watch(
       <span
         v-else-if="name"
         class="max-w-[12rem] truncate text-sm font-medium"
-        :class="isActive ? 'text-teal-400' : 'text-white/50'"
+        :class="isActive ? 'text-teal-400' : 'text-muted'"
         >{{ name }}</span
       >
       <UButton
         v-if="!hideClose"
         size="2xs"
-        icon="i-heroicons-x-mark"
+        icon="i-lucide-x"
         color="white"
         variant="soft"
         square

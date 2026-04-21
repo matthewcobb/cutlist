@@ -17,6 +17,7 @@ export interface IdbModel {
   id: string;
   projectId: string;
   filename: string;
+  source?: 'gltf' | 'manual';
   drafts: PartDraft[];
   colors: ColorInfo[];
   enabled: boolean;
@@ -27,6 +28,17 @@ export interface IdbModel {
 
 /** Model record without gltfJson — what we keep in the reactive store. */
 export type IdbModelMeta = Omit<IdbModel, 'gltfJson'>;
+
+export interface IdbBuildStep {
+  id: string;
+  projectId: string;
+  stepNumber: number;
+  title: string;
+  description: string;
+  /** Stable references using modelId + draft partNumber. */
+  partRefs: Array<{ modelId: string; partNumber: number }>;
+  createdAt: string;
+}
 
 interface IdbSettingsRecord {
   key: 'global-settings';
@@ -48,6 +60,11 @@ interface CutlistDb extends DBSchema {
     key: string;
     value: IdbSettingsRecord;
   };
+  buildSteps: {
+    key: string;
+    value: IdbBuildStep;
+    indexes: { projectId: string };
+  };
 }
 
 // ─── DB singleton ─────────────────────────────────────────────────────────────
@@ -56,15 +73,23 @@ let dbPromise: Promise<IDBPDatabase<CutlistDb>> | null = null;
 
 function getDb(): Promise<IDBPDatabase<CutlistDb>> {
   if (!dbPromise) {
-    dbPromise = openDB<CutlistDb>('cutlist-db', 1, {
-      upgrade(db) {
-        const projects = db.createObjectStore('projects', { keyPath: 'id' });
-        projects.createIndex('updatedAt', 'updatedAt');
+    dbPromise = openDB<CutlistDb>('cutlist-db', 2, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          const projects = db.createObjectStore('projects', { keyPath: 'id' });
+          projects.createIndex('updatedAt', 'updatedAt');
 
-        const models = db.createObjectStore('models', { keyPath: 'id' });
-        models.createIndex('projectId', 'projectId');
+          const models = db.createObjectStore('models', { keyPath: 'id' });
+          models.createIndex('projectId', 'projectId');
 
-        db.createObjectStore('settings', { keyPath: 'key' });
+          db.createObjectStore('settings', { keyPath: 'key' });
+        }
+        if (oldVersion < 2) {
+          const buildSteps = db.createObjectStore('buildSteps', {
+            keyPath: 'id',
+          });
+          buildSteps.createIndex('projectId', 'projectId');
+        }
       },
     }).catch((err) => {
       dbPromise = null;
@@ -172,7 +197,10 @@ export function useIdb() {
 
   async function deleteProject(id: string): Promise<void> {
     const db = await getDb();
-    const tx = db.transaction(['projects', 'models'], 'readwrite');
+    const tx = db.transaction(
+      ['projects', 'models', 'buildSteps'],
+      'readwrite',
+    );
     const modelKeys = await tx
       .objectStore('models')
       .index('projectId')
@@ -180,8 +208,49 @@ export function useIdb() {
     for (const key of modelKeys) {
       tx.objectStore('models').delete(key);
     }
+    const stepKeys = await tx
+      .objectStore('buildSteps')
+      .index('projectId')
+      .getAllKeys(id);
+    for (const key of stepKeys) {
+      tx.objectStore('buildSteps').delete(key);
+    }
     tx.objectStore('projects').delete(id);
     await tx.done;
+  }
+
+  // Build Steps
+
+  async function getBuildSteps(projectId: string): Promise<IdbBuildStep[]> {
+    const db = await getDb();
+    const steps = await db.getAllFromIndex(
+      'buildSteps',
+      'projectId',
+      projectId,
+    );
+    return steps.sort((a, b) => a.stepNumber - b.stepNumber);
+  }
+
+  async function createBuildStep(step: IdbBuildStep): Promise<void> {
+    const db = await getDb();
+    await db.put('buildSteps', step);
+  }
+
+  async function updateBuildStep(
+    id: string,
+    patch: Partial<
+      Pick<IdbBuildStep, 'title' | 'description' | 'partRefs' | 'stepNumber'>
+    >,
+  ): Promise<void> {
+    const db = await getDb();
+    const existing = await db.get('buildSteps', id);
+    if (!existing) throw new Error(`BuildStep ${id} not found`);
+    await db.put('buildSteps', { ...existing, ...patch });
+  }
+
+  async function deleteBuildStep(id: string): Promise<void> {
+    const db = await getDb();
+    await db.delete('buildSteps', id);
   }
 
   // Models
@@ -193,7 +262,7 @@ export function useIdb() {
 
   async function updateModel(
     id: string,
-    patch: Partial<Pick<IdbModel, 'enabled'>>,
+    patch: Partial<Pick<IdbModel, 'enabled' | 'drafts' | 'colors' | 'source'>>,
   ): Promise<void> {
     const db = await getDb();
     const existing = await db.get('models', id);
@@ -206,9 +275,7 @@ export function useIdb() {
     await db.delete('models', id);
   }
 
-  async function getModelGltf(
-    id: string,
-  ): Promise<{
+  async function getModelGltf(id: string): Promise<{
     gltfJson: object | null;
     nodePartMap: NodePartMapping[] | null;
   }> {
@@ -263,5 +330,9 @@ export function useIdb() {
     getSettings,
     saveSettings,
     resetSettings,
+    getBuildSteps,
+    createBuildStep,
+    updateBuildStep,
+    deleteBuildStep,
   };
 }

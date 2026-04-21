@@ -1,0 +1,157 @@
+<script lang="ts" setup>
+import type { ManualPartInput } from '~/composables/useProjects';
+
+const props = defineProps<{
+  materials: string[];
+  initial?: ManualPartInput & { partNumber: number };
+}>();
+
+const emit = defineEmits<{
+  save: [data: ManualPartInput];
+  cancel: [];
+}>();
+
+const name = ref(props.initial?.name ?? '');
+const widthMm = ref<number | null>(props.initial?.widthMm ?? null);
+const lengthMm = ref<number | null>(props.initial?.lengthMm ?? null);
+const thicknessMm = ref<number | null>(props.initial?.thicknessMm ?? null);
+const qty = ref(props.initial?.qty ?? 1);
+const material = ref(props.initial?.material ?? props.materials[0] ?? '');
+
+const isValid = computed(
+  () =>
+    name.value.trim() !== '' &&
+    widthMm.value != null &&
+    widthMm.value > 0 &&
+    lengthMm.value != null &&
+    lengthMm.value > 0 &&
+    thicknessMm.value != null &&
+    thicknessMm.value > 0 &&
+    qty.value >= 1 &&
+    material.value !== '',
+);
+
+function submit() {
+  if (
+    !isValid.value ||
+    widthMm.value == null ||
+    lengthMm.value == null ||
+    thicknessMm.value == null
+  )
+    return;
+  emit('save', {
+    name: name.value.trim(),
+    widthMm: widthMm.value,
+    lengthMm: lengthMm.value,
+    thicknessMm: thicknessMm.value,
+    qty: qty.value,
+    material: material.value,
+  });
+  if (!props.initial) {
+    name.value = '';
+    widthMm.value = null;
+    lengthMm.value = null;
+    thicknessMm.value = null;
+    qty.value = 1;
+  }
+}
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Enter') submit();
+  if (e.key === 'Escape') emit('cancel');
+}
+</script>
+
+<template>
+  <div
+    class="flex flex-col gap-2 p-2 rounded-lg border border-white/10 bg-white/3"
+  >
+    <UInput
+      v-model="name"
+      size="sm"
+      placeholder="Part name"
+      class="w-full"
+      autofocus
+      @keydown="onKeydown"
+    />
+    <div class="grid grid-cols-4 gap-1.5">
+      <div class="flex flex-col gap-0.5">
+        <span class="text-xs text-muted px-0.5">W (mm)</span>
+        <UInput
+          v-model.number="widthMm"
+          type="number"
+          size="sm"
+          placeholder="0"
+          :min="0"
+          @keydown="onKeydown"
+        />
+      </div>
+      <div class="flex flex-col gap-0.5">
+        <span class="text-xs text-muted px-0.5">L (mm)</span>
+        <UInput
+          v-model.number="lengthMm"
+          type="number"
+          size="sm"
+          placeholder="0"
+          :min="0"
+          @keydown="onKeydown"
+        />
+      </div>
+      <div class="flex flex-col gap-0.5">
+        <span class="text-xs text-muted px-0.5">T (mm)</span>
+        <UInput
+          v-model.number="thicknessMm"
+          type="number"
+          size="sm"
+          placeholder="0"
+          :min="0"
+          @keydown="onKeydown"
+        />
+      </div>
+      <div class="flex flex-col gap-0.5">
+        <span class="text-xs text-muted px-0.5">Qty</span>
+        <UInput
+          v-model.number="qty"
+          type="number"
+          size="sm"
+          placeholder="1"
+          :min="1"
+          @keydown="onKeydown"
+        />
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <select
+        v-model="material"
+        class="manual-select flex-1 bg-black border border-white/15 rounded-md px-2 py-1.5 text-sm text-white/80 cursor-pointer focus:outline-none focus:border-white/30"
+      >
+        <option
+          v-for="m in materials"
+          :key="m"
+          :value="m"
+          style="background: #111; color: rgba(255, 255, 255, 0.85)"
+        >
+          {{ m }}
+        </option>
+      </select>
+      <UButton
+        size="sm"
+        color="primary"
+        variant="soft"
+        :disabled="!isValid"
+        @click="submit"
+      >
+        {{ initial ? 'Save' : 'Add' }}
+      </UButton>
+      <UButton
+        v-if="initial"
+        size="sm"
+        color="white"
+        variant="ghost"
+        @click="emit('cancel')"
+      >
+        Cancel
+      </UButton>
+    </div>
+  </div>
+</template>

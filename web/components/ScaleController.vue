@@ -19,7 +19,7 @@ const percent = computed(() => `${Math.round(props.scale * 100)}%`);
       square
       size="lg"
       color="gray"
-      icon="i-heroicons-minus"
+      icon="i-lucide-minus"
       @click="emit('zoomOut')"
     />
     <UButton
@@ -36,7 +36,7 @@ const percent = computed(() => `${Math.round(props.scale * 100)}%`);
       square
       size="lg"
       color="gray"
-      icon="i-heroicons-plus"
+      icon="i-lucide-plus"
       @click="emit('zoomIn')"
     />
   </div>

@@ -16,12 +16,12 @@ const thickness = computed(() => formatDistance(props.part.thicknessM));
     <span class="text-teal-400 font-semibold"
       >{{ part.partNumber }}.{{ part.instanceNumber }} {{ part.name }}</span
     >
-    <span class="text-white/70"> &bull; No suitable board found.</span>
+    <span class="text-body"> &bull; No suitable board found.</span>
 
     <br />
-    <span class="text-white/40">Material: {{ part.material }}</span>
+    <span class="text-muted">Material: {{ part.material }}</span>
     <br />
-    <span class="text-white/40"
+    <span class="text-muted"
       >Size: {{ thickness }} &times; {{ width }} &times; {{ length }}</span
     >
   </li>

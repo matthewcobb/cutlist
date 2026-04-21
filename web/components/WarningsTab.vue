@@ -5,10 +5,7 @@ const { data } = useBoardLayoutsQuery();
 <template>
   <ul class="flex flex-col gap-4">
     <LeftoverListItem v-for="part of data?.leftovers" :part="part" />
-    <li
-      v-if="!data?.leftovers?.length"
-      class="text-center font-sm text-white/40"
-    >
+    <li v-if="!data?.leftovers?.length" class="text-center text-sm text-muted">
       No warnings
     </li>
   </ul>

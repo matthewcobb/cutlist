@@ -24,7 +24,7 @@ const length = computed(() => formatDistance(props.layout.stock.lengthM));
         layout.stock.material
       }}</span>
       <br />
-      <span class="text-xs text-nowrap text-white/40"
+      <span class="text-xs text-nowrap text-muted"
         >{{ thickness }} &times; {{ width }} &times; {{ length }}</span
       >
     </p>

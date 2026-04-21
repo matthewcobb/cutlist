@@ -18,6 +18,8 @@ const { pickAndImport } = useImportProject();
 const showModal = ref(false);
 const projectName = ref('');
 const showHistory = ref(false);
+const pendingDeleteId = ref<string | null>(null);
+const showClearConfirm = ref(false);
 
 function formatArchivedDate(iso: string) {
   const d = new Date(iso);
@@ -33,18 +35,38 @@ function formatArchivedDate(iso: string) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-async function handleRestore(id: string) {
+function closeHistory() {
   showHistory.value = false;
+  pendingDeleteId.value = null;
+  showClearConfirm.value = false;
+}
+
+async function handleRestore(id: string) {
+  closeHistory();
   await restoreProject(id);
 }
 
 async function handleDelete(id: string) {
-  await permanentlyDeleteProject(id);
+  if (pendingDeleteId.value === id) {
+    pendingDeleteId.value = null;
+    await permanentlyDeleteProject(id);
+  } else {
+    pendingDeleteId.value = id;
+  }
+}
+
+function cancelDelete() {
+  pendingDeleteId.value = null;
 }
 
 async function handleClearHistory() {
-  showHistory.value = false;
-  await clearHistory();
+  if (showClearConfirm.value) {
+    showClearConfirm.value = false;
+    showHistory.value = false;
+    await clearHistory();
+  } else {
+    showClearConfirm.value = true;
+  }
 }
 
 // ─── Rename ───────────────────────────────────────────────────────────────────
@@ -122,9 +144,20 @@ function createProject() {
       <span class="text-sm font-semibold tracking-tight text-white"
         >cutlist</span
       ><span class="text-sm font-semibold tracking-tight text-teal-400"
-        >.studio</span
+        >studio</span
       >
     </div>
+    <div class="shrink-0 flex items-center px-2 border-r border-white/10">
+      <button
+        class="flex items-center gap-1 px-2 py-1 rounded border border-teal-400/40 text-teal-400 hover:bg-teal-400/10 hover:border-teal-400/70 transition-colors text-xs font-medium"
+        title="New project"
+        @click="openNewProject"
+      >
+        <UIcon name="i-lucide-plus" class="w-3.5 h-3.5" />
+        New
+      </button>
+    </div>
+
     <TabList class="flex-1 min-w-0">
       <TabListItem
         v-for="[id, project] in projects"
@@ -147,34 +180,37 @@ function createProject() {
 
     <button
       v-if="activeId"
-      class="shrink-0 px-3 flex items-center border-l border-white/10 text-white/40 hover:text-teal-400 transition-colors"
-      title="Save project"
+      class="shrink-0 px-3 flex items-center gap-1.5 border-l border-white/10 text-muted hover:text-teal-400 transition-colors"
+      title="Export project"
       @click="exportProject"
     >
-      <UIcon name="i-heroicons-arrow-down-tray" class="w-5 h-5" />
+      <UIcon name="i-lucide-download" class="w-4 h-4" />
+      <span class="text-xs">Export</span>
     </button>
 
     <button
-      class="shrink-0 px-3 flex items-center border-l border-white/10 text-white/40 hover:text-teal-400 transition-colors"
+      class="shrink-0 px-3 flex items-center gap-1.5 border-l border-white/10 text-muted hover:text-teal-400 transition-colors"
       title="Import project"
       @click="pickAndImport"
     >
-      <UIcon name="i-heroicons-arrow-up-tray" class="w-5 h-5" />
+      <UIcon name="i-lucide-upload" class="w-4 h-4" />
+      <span class="text-xs">Import</span>
     </button>
 
     <div class="relative shrink-0">
       <button
-        class="px-3 flex items-center h-full border-l border-white/10 transition-colors"
+        class="px-3 flex items-center gap-1.5 h-full border-l border-white/10 transition-colors"
         :class="
-          showHistory ? 'text-teal-400' : 'text-white/40 hover:text-teal-400'
+          showHistory ? 'text-teal-400' : 'text-muted hover:text-teal-400'
         "
         title="Project history"
-        @click="showHistory = !showHistory"
+        @click="showHistory ? closeHistory() : (showHistory = true)"
       >
-        <UIcon name="i-heroicons-clock" class="w-5 h-5" />
+        <UIcon name="i-lucide-clock" class="w-4 h-4" />
+        <span class="text-xs">History</span>
         <span
           v-if="archivedList.length > 0"
-          class="ml-1 text-xs tabular-nums text-white/30"
+          class="ml-0.5 text-xs tabular-nums text-muted"
           >{{ archivedList.length }}</span
         >
       </button>
@@ -193,13 +229,13 @@ function createProject() {
         >
           <div class="px-3 py-2 border-b border-white/10">
             <span
-              class="text-xs font-semibold text-white/40 uppercase tracking-wider"
+              class="text-xs font-semibold text-muted uppercase tracking-wider"
               >Closed projects</span
             >
           </div>
           <div
             v-if="archivedList.length === 0"
-            class="px-4 py-6 text-sm text-white/30 text-center"
+            class="px-4 py-6 text-sm text-muted text-center"
           >
             No closed projects
           </div>
@@ -210,35 +246,69 @@ function createProject() {
               class="flex items-center gap-2 px-3 py-2 border-b border-white/5 last:border-0 hover:bg-white/5 group"
             >
               <div class="flex-1 min-w-0">
-                <div class="text-sm text-white/80 truncate">{{ p.name }}</div>
-                <div class="text-xs text-white/30">
+                <div class="text-sm text-body truncate">{{ p.name }}</div>
+                <div class="text-xs text-muted">
                   {{ formatArchivedDate(p.archivedAt) }}
                 </div>
               </div>
-              <UButton
-                size="2xs"
-                icon="i-heroicons-arrow-uturn-left"
-                color="white"
-                variant="ghost"
-                title="Reopen"
-                @click="handleRestore(p.id)"
-              />
-              <UButton
-                size="2xs"
-                icon="i-heroicons-trash"
-                color="red"
-                variant="ghost"
-                title="Delete permanently"
-                @click="handleDelete(p.id)"
-              />
+              <template v-if="pendingDeleteId === p.id">
+                <UButton
+                  size="2xs"
+                  color="gray"
+                  variant="ghost"
+                  label="Cancel"
+                  @click="cancelDelete"
+                />
+                <UButton
+                  size="2xs"
+                  color="red"
+                  variant="solid"
+                  label="Delete"
+                  @click="handleDelete(p.id)"
+                />
+              </template>
+              <template v-else>
+                <UButton
+                  size="2xs"
+                  icon="i-lucide-undo-2"
+                  color="white"
+                  variant="ghost"
+                  title="Reopen"
+                  @click="handleRestore(p.id)"
+                />
+                <UButton
+                  size="2xs"
+                  icon="i-lucide-trash-2"
+                  color="red"
+                  variant="ghost"
+                  title="Delete permanently"
+                  @click="handleDelete(p.id)"
+                />
+              </template>
             </li>
           </ul>
           <div
             v-if="archivedList.length > 0"
-            class="px-3 py-2 border-t border-white/10 flex justify-end"
+            class="px-3 py-2 border-t border-white/10 flex justify-end items-center gap-2"
           >
+            <template v-if="showClearConfirm">
+              <span class="text-xs text-muted">Delete all?</span>
+              <button
+                class="text-xs text-muted hover:text-white transition-colors"
+                @click="showClearConfirm = false"
+              >
+                Cancel
+              </button>
+              <button
+                class="text-xs text-red-400 hover:text-red-300 font-medium transition-colors"
+                @click="handleClearHistory"
+              >
+                Confirm
+              </button>
+            </template>
             <button
-              class="text-xs text-white/30 hover:text-red-400 transition-colors"
+              v-else
+              class="text-xs text-muted hover:text-red-400 transition-colors"
               @click="handleClearHistory"
             >
               Clear history
@@ -250,17 +320,9 @@ function createProject() {
       <div
         v-if="showHistory"
         class="fixed inset-0 z-40"
-        @click="showHistory = false"
+        @click="closeHistory"
       />
     </div>
-
-    <button
-      class="shrink-0 px-3 flex items-center border-l border-white/10 text-white/40 hover:text-teal-400 transition-colors"
-      title="New project"
-      @click="openNewProject"
-    >
-      <UIcon name="i-heroicons-plus" class="w-5 h-5" />
-    </button>
 
     <UModal
       v-model="showModal"

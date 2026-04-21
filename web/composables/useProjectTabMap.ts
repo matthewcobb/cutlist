@@ -7,5 +7,5 @@ export type Tab =
   | 'model'
   | 'boards'
   | 'preview'
-  | 'settings'
-  | 'warnings';
+  | 'instructions'
+  | 'settings';

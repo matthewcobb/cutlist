@@ -4,11 +4,21 @@ import type { IdbModelMeta } from '~/composables/useIdb';
 export interface Model {
   id: string;
   filename: string;
+  source?: 'gltf' | 'manual';
   drafts: PartDraft[];
   colors: ColorInfo[];
   enabled: boolean;
   gltfJson?: object;
   nodePartMap?: NodePartMapping[];
+}
+
+export interface ManualPartInput {
+  name: string;
+  widthMm: number;
+  lengthMm: number;
+  thicknessMm: number;
+  qty: number;
+  material: string;
 }
 
 export interface Project {
@@ -42,6 +52,7 @@ function modelMetaToModel(meta: IdbModelMeta): Model {
   return {
     id: meta.id,
     filename: meta.filename,
+    source: meta.source,
     drafts: meta.drafts,
     colors: meta.colors,
     enabled: meta.enabled,
@@ -114,6 +125,10 @@ export default function useProjects() {
 
   const enabledModels = computed(
     () => activeProject.value?.models.filter((m) => m.enabled) ?? [],
+  );
+
+  const manualModel = computed(() =>
+    activeProject.value?.models.find((m) => m.source === 'manual'),
   );
 
   const allColors = computed(() => {
@@ -254,6 +269,136 @@ export default function useProjects() {
     await idb.updateProject(id, { colorMap: newColorMap });
   }
 
+  async function addManualPart(projectId: string, data: ManualPartInput) {
+    const project = activeProjectData.value;
+    if (!project || project.id !== projectId) return;
+
+    const existing = project.models.find((m) => m.source === 'manual');
+    const newPartNumber = existing
+      ? Math.max(0, ...existing.drafts.map((d) => d.partNumber)) + 1
+      : 1;
+
+    const newDrafts: PartDraft[] = Array.from({ length: data.qty }, (_, i) => ({
+      partNumber: newPartNumber,
+      instanceNumber: i + 1,
+      name: data.name,
+      colorKey: data.material,
+      size: {
+        width: data.widthMm / 1000,
+        length: data.lengthMm / 1000,
+        thickness: data.thicknessMm / 1000,
+      },
+    }));
+
+    if (existing) {
+      const updatedDrafts = [...existing.drafts, ...newDrafts];
+      activeProjectData.value = {
+        ...project,
+        models: project.models.map((m) =>
+          m.id === existing.id ? { ...m, drafts: updatedDrafts } : m,
+        ),
+      };
+      await idb.updateModel(existing.id, { drafts: updatedDrafts });
+    } else {
+      const model: Model = {
+        id: crypto.randomUUID(),
+        filename: 'Manual Parts',
+        source: 'manual',
+        drafts: newDrafts,
+        colors: [],
+        enabled: true,
+      };
+      activeProjectData.value = {
+        ...project,
+        models: [...project.models, model],
+      };
+      await idb.createModel({
+        id: model.id,
+        projectId,
+        filename: model.filename,
+        source: 'manual',
+        drafts: newDrafts,
+        colors: [],
+        enabled: true,
+        gltfJson: null,
+        nodePartMap: null,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    if (!project.colorMap[data.material]) {
+      await updateColorMap(projectId, data.material, data.material);
+    }
+  }
+
+  async function updateManualPart(
+    projectId: string,
+    partNumber: number,
+    data: ManualPartInput,
+  ) {
+    const project = activeProjectData.value;
+    if (!project || project.id !== projectId) return;
+
+    const existing = project.models.find((m) => m.source === 'manual');
+    if (!existing) return;
+
+    const remaining = existing.drafts.filter(
+      (d) => d.partNumber !== partNumber,
+    );
+    const updated: PartDraft[] = Array.from({ length: data.qty }, (_, i) => ({
+      partNumber,
+      instanceNumber: i + 1,
+      name: data.name,
+      colorKey: data.material,
+      size: {
+        width: data.widthMm / 1000,
+        length: data.lengthMm / 1000,
+        thickness: data.thicknessMm / 1000,
+      },
+    }));
+    const updatedDrafts = [...remaining, ...updated];
+
+    activeProjectData.value = {
+      ...project,
+      models: project.models.map((m) =>
+        m.id === existing.id ? { ...m, drafts: updatedDrafts } : m,
+      ),
+    };
+    await idb.updateModel(existing.id, { drafts: updatedDrafts });
+
+    if (!project.colorMap[data.material]) {
+      await updateColorMap(projectId, data.material, data.material);
+    }
+  }
+
+  async function removeManualPart(projectId: string, partNumber: number) {
+    const project = activeProjectData.value;
+    if (!project || project.id !== projectId) return;
+
+    const existing = project.models.find((m) => m.source === 'manual');
+    if (!existing) return;
+
+    const remaining = existing.drafts.filter(
+      (d) => d.partNumber !== partNumber,
+    );
+
+    if (remaining.length === 0) {
+      activeProjectData.value = {
+        ...project,
+        models: project.models.filter((m) => m.id !== existing.id),
+      };
+      await idb.deleteModel(existing.id);
+    } else {
+      activeProjectData.value = {
+        ...project,
+        models: project.models.map((m) =>
+          m.id === existing.id ? { ...m, drafts: remaining } : m,
+        ),
+      };
+      await idb.updateModel(existing.id, { drafts: remaining });
+    }
+  }
+
   async function renameProject(id: string, name: string) {
     if (activeProjectData.value?.id === id) {
       activeProjectData.value = { ...activeProjectData.value, name };
@@ -284,6 +429,7 @@ export default function useProjects() {
     activeProject,
     archivedList,
     enabledModels,
+    manualModel,
     allColors,
     addProject,
     closeProject,
@@ -297,6 +443,9 @@ export default function useProjects() {
     removeModel,
     toggleModel,
     updateColorMap,
+    addManualPart,
+    updateManualPart,
+    removeManualPart,
     reloadProjectList,
   };
 }

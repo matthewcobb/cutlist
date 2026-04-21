@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@iconify-json/lucide": "^1.2.102",
     "@types/three": "^0.184.0",
     "idb": "^8.0.3",
     "js-yaml": "^4.1.0",

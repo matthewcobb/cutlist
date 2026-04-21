@@ -24,7 +24,7 @@ async function onDownload() {
   <div>
     <UButton
       title="Export BOM and board layouts as a PDF"
-      icon="i-heroicons-document-arrow-down"
+      icon="i-lucide-file-down"
       color="gray"
       size="sm"
       :disabled="!canExport"
@@ -38,7 +38,7 @@ async function onDownload() {
         class="p-6 flex flex-col gap-4 bg-black border border-white/15 rounded-lg"
       >
         <h2 class="text-lg font-semibold text-white">Export PDF</h2>
-        <p class="text-sm text-white/50">
+        <p class="text-sm text-muted">
           Generates an A4 PDF with the BOM table and each board layout drawn at
           the chosen scale. Boards larger than one page will be tiled with crop
           marks.

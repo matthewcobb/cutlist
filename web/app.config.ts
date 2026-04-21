@@ -47,10 +47,10 @@ export default defineAppConfig({
     },
     formGroup: {
       label: {
-        base: 'block font-medium text-white/60',
+        base: 'block font-medium text-body',
       },
-      help: 'mt-2 text-white/40',
-      description: 'text-white/40',
+      help: 'mt-2 text-muted',
+      description: 'text-muted',
     },
 
     // ── Table ──
@@ -78,10 +78,10 @@ export default defineAppConfig({
       before:
         'before:absolute before:inset-x-0 before:inset-y-2 before:inset-px before:rounded-md hover:before:bg-white/5',
       active: 'text-teal-400 after:bg-teal-500 after:rounded-full',
-      inactive: 'text-white/40 hover:text-white',
+      inactive: 'text-muted hover:text-white',
       icon: {
         active: 'text-teal-400',
-        inactive: 'text-white/30 group-hover:text-white/70',
+        inactive: 'text-dim group-hover:text-body',
       },
     },
 

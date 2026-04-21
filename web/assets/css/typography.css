@@ -1,0 +1,22 @@
+/* ── 4-tier text contrast system (dark background) ──────────────────────── */
+/* Use these instead of scattering text-white/* opacity values everywhere.   */
+
+/* Full white — headings, primary labels, key data */
+.text-hi {
+  color: rgb(255 255 255);
+}
+
+/* 85% — readable body copy, names, descriptions */
+.text-body {
+  color: rgb(255 255 255 / 0.85);
+}
+
+/* 60% — secondary labels, metadata, muted info */
+.text-muted {
+  color: rgb(255 255 255 / 0.6);
+}
+
+/* 40% — tertiary hints, decorative, placeholders */
+.text-dim {
+  color: rgb(255 255 255 / 0.4);
+}

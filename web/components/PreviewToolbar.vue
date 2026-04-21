@@ -35,7 +35,7 @@ onBeforeUnmount(() => {
 <template>
   <div v-if="!isLoading" class="flex items-center gap-3 flex-wrap">
     <div class="flex items-center gap-1.5">
-      <label class="text-xs text-white/50 whitespace-nowrap">Optimize</label>
+      <label class="text-xs text-muted whitespace-nowrap">Optimize</label>
       <USelect
         v-model="optimize"
         :options="['Auto', 'Cuts', 'CNC']"
@@ -45,7 +45,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="flex items-center gap-1.5">
-      <label class="text-xs text-white/50 whitespace-nowrap">Blade</label>
+      <label class="text-xs text-muted whitespace-nowrap">Blade</label>
       <UInput
         v-model="bladeWidth"
         type="number"
@@ -57,7 +57,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="flex items-center gap-1.5">
-      <label class="text-xs text-white/50 whitespace-nowrap">Extra</label>
+      <label class="text-xs text-muted whitespace-nowrap">Extra</label>
       <UInput
         v-model="extraSpace"
         type="number"
@@ -67,7 +67,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="flex items-center gap-1.5">
-      <label class="text-xs text-white/50 whitespace-nowrap">Unit</label>
+      <label class="text-xs text-muted whitespace-nowrap">Unit</label>
       <USelect
         v-model="distanceUnit"
         :options="['in', 'm', 'mm']"
@@ -79,7 +79,7 @@ onBeforeUnmount(() => {
     <UCheckbox
       v-model="showPartNumbers"
       label="Part #s"
-      :ui="{ label: 'text-xs text-white/50' }"
+      :ui="{ label: 'text-xs text-muted' }"
     />
   </div>
 </template>

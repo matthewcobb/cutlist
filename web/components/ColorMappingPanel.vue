@@ -31,7 +31,7 @@ function rgbStyle(rgb: [number, number, number]): string {
 <template>
   <div
     v-if="activeProject && allColors.length > 0"
-    class="border border-white/15 rounded-lg p-3 space-y-2 bg-black"
+    class="space-y-2 pt-2 border-t border-white/10"
   >
     <p class="text-sm font-medium text-white">Map colors to stock materials</p>
     <p v-if="materialOptions.length === 0" class="text-xs text-amber-400">

@@ -27,7 +27,7 @@ function deleteProject() {
 <template>
   <div class="flex flex-col gap-8">
     <div class="flex flex-col gap-4">
-      <h3 class="text-sm font-medium text-white/60 uppercase tracking-wide">
+      <h3 class="text-sm font-medium text-muted uppercase tracking-wide">
         Project
       </h3>
       <UFormGroup label="Project name">
@@ -40,7 +40,7 @@ function deleteProject() {
     </div>
 
     <div class="flex flex-col gap-4 border-t border-white/10 pt-8">
-      <h3 class="text-sm font-medium text-white/60 uppercase tracking-wide">
+      <h3 class="text-sm font-medium text-muted uppercase tracking-wide">
         Danger Zone
       </h3>
       <div
@@ -48,7 +48,7 @@ function deleteProject() {
       >
         <div>
           <p class="text-sm font-medium text-white">Delete project</p>
-          <p class="text-sm text-white/50">This cannot be undone.</p>
+          <p class="text-sm text-muted">This cannot be undone.</p>
         </div>
         <UButton
           v-if="!showDeleteConfirm"

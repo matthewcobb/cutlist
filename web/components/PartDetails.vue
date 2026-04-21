@@ -25,38 +25,38 @@ const bottom = computed(() => formatDistance(props.placement?.bottomM));
     </h3>
     <table class="font-mono">
       <tr>
-        <td class="text-white/40">Width</td>
+        <td class="text-muted">Width</td>
         <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
         <td>{{ width }}</td>
       </tr>
       <tr>
-        <td class="text-white/40">Length</td>
+        <td class="text-muted">Length</td>
         <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
         <td>{{ length }}</td>
       </tr>
       <tr>
-        <td class="text-white/40">Thick</td>
+        <td class="text-muted">Thick</td>
         <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
         <td>{{ thickness }}</td>
       </tr>
       <template v-if="placement">
         <tr>
-          <td class="text-white/40">Left</td>
+          <td class="text-muted">Left</td>
           <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
           <td>{{ left }}</td>
         </tr>
         <tr>
-          <td class="text-white/40">Top</td>
+          <td class="text-muted">Top</td>
           <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
           <td>{{ top }}</td>
         </tr>
         <tr>
-          <td class="text-white/40">Right</td>
+          <td class="text-muted">Right</td>
           <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
           <td>{{ right }}</td>
         </tr>
         <tr>
-          <td class="text-white/40">Bottom</td>
+          <td class="text-muted">Bottom</td>
           <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
           <td>{{ bottom }}</td>
         </tr>

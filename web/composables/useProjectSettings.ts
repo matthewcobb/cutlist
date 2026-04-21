@@ -1,6 +1,6 @@
 import type { CutlistSettings } from '~/utils';
 
-export default function () {
+export default createSharedComposable(() => {
   const store = useProjectSettingsStore();
   const { activeId: projectId } = useProjects();
 
@@ -35,6 +35,7 @@ export default function () {
     stock.value = settings.value?.stock;
   };
 
+  // Populate store from IDB settings once they're ready.
   watch(
     settings,
     (value) => {
@@ -44,6 +45,14 @@ export default function () {
     },
     { immediate: true },
   );
+
+  // Re-populate when the active project changes (handles null → real-id
+  // timing race and project switching).
+  watch(projectId, (id) => {
+    if (!id || !settings.value) return;
+    resetSettings();
+    resetStock();
+  });
 
   const changes = computed(() => {
     const changes: Partial<CutlistSettings> = {};
@@ -73,4 +82,4 @@ export default function () {
     isLoading,
     changes,
   };
-}
+});

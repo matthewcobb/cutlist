@@ -124,7 +124,7 @@ function removeMaterial(index: number) {
         <UButton
           color="gray"
           variant="ghost"
-          icon="i-heroicons-trash"
+          icon="i-lucide-trash-2"
           size="sm"
           @click="removeMaterial(matIndex)"
         />
@@ -136,9 +136,7 @@ function removeMaterial(index: number) {
         :key="field"
         class="flex flex-col gap-1.5"
       >
-        <label
-          class="text-xs font-medium text-white/40 uppercase tracking-wider"
-        >
+        <label class="text-xs font-medium text-muted uppercase tracking-wider">
           {{ field }}
         </label>
         <div class="flex flex-wrap items-center gap-1.5">
@@ -149,7 +147,7 @@ function removeMaterial(index: number) {
           >
             {{ dim }}
             <button
-              class="text-white/30 hover:text-white/70 leading-none ml-0.5 transition-colors"
+              class="text-dim hover:text-body leading-none ml-0.5 transition-colors"
               @click="removeDimension(matIndex, field, i)"
             >
               ×
@@ -168,7 +166,7 @@ function removeMaterial(index: number) {
 
     <!-- Add material -->
     <button
-      class="flex items-center justify-center gap-1.5 w-full rounded-lg border border-dashed border-white/20 text-white/40 hover:border-teal-700 hover:text-teal-400 py-3 text-sm transition-colors"
+      class="flex items-center justify-center gap-1.5 w-full rounded-lg border border-dashed border-white/20 text-muted hover:border-teal-700 hover:text-teal-400 py-3 text-sm transition-colors"
       @click="addMaterial"
     >
       <span>+ Add Material</span>

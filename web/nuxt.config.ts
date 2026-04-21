@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@vueuse/nuxt'],
+  css: ['~/assets/css/typography.css'],
   colorMode: {
     preference: 'dark',
     fallback: 'dark',

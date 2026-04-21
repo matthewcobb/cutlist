@@ -9,11 +9,7 @@ const isExpanded = useIsExpanded();
       square
       size="lg"
       color="gray"
-      :icon="
-        isExpanded
-          ? 'i-heroicons-arrows-pointing-in'
-          : 'i-heroicons-arrows-pointing-out'
-      "
+      :icon="isExpanded ? 'i-lucide-minimize-2' : 'i-lucide-maximize-2'"
       @click="isExpanded = !isExpanded"
     />
   </div>
