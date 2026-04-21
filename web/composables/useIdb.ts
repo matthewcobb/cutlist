@@ -5,6 +5,7 @@ import {
   DEFAULT_STOCK_YAML,
   type CutlistSettings,
 } from '~/utils/settings';
+import { runStartupSweep } from '~/utils/migrations';
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,11 @@ interface IdbSettingsRecord {
   settings: CutlistSettings;
 }
 
+interface IdbSchemaVersionRecord {
+  key: 'schema-version';
+  version: number;
+}
+
 interface CutlistDb extends DBSchema {
   projects: {
     key: string;
@@ -64,7 +70,7 @@ interface CutlistDb extends DBSchema {
   };
   settings: {
     key: string;
-    value: IdbSettingsRecord;
+    value: IdbSettingsRecord | IdbSchemaVersionRecord;
   };
   buildSteps: {
     key: string;
@@ -97,14 +103,37 @@ function getDb(): Promise<IDBPDatabase<CutlistDb>> {
           buildSteps.createIndex('projectId', 'projectId');
         }
       },
-    }).catch((err) => {
-      dbPromise = null;
-      throw new Error(
-        `Browser storage unavailable (private browsing may prevent saving projects): ${err.message}`,
-      );
-    });
+    })
+      .then(async (db) => {
+        await runStartupSweep(db);
+        return db;
+      })
+      .catch((err) => {
+        dbPromise = null;
+        throw new Error(
+          `Browser storage unavailable (private browsing may prevent saving projects): ${err.message}`,
+        );
+      });
   }
   return dbPromise;
+}
+
+// ─── Defensive defaults (safety net for records that missed a sweep) ─────────
+
+export function applyProjectDefaults(p: any): IdbProject {
+  return {
+    ...p,
+    stock: p.stock ?? DEFAULT_STOCK_YAML,
+    colorMap: p.colorMap ?? {},
+  };
+}
+
+export function applyModelDefaults(m: any): IdbModelMeta {
+  return {
+    ...m,
+    source: m.source ?? 'gltf',
+    enabled: m.enabled ?? true,
+  };
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -166,9 +195,9 @@ export function useIdb() {
     const allModels = await db.getAllFromIndex('models', 'projectId', id);
     const models: IdbModelMeta[] = allModels.map(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      ({ gltfJson: _g, ...meta }) => meta,
+      ({ gltfJson: _g, ...meta }) => applyModelDefaults(meta),
     );
-    return { ...project, models };
+    return { ...applyProjectDefaults(project), models };
   }
 
   async function createProject(

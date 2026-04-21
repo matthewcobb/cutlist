@@ -1,8 +1,9 @@
 import type { CutlistSettings } from '~/utils/settings';
 import type { IdbBuildStep, IdbModel } from '~/composables/useIdb';
+import { SCHEMA_VERSION } from '~/utils/migrations';
 
 export interface ProjectExport {
-  version: 2;
+  version: number;
   exportedAt: string;
   project: {
     id: string;
@@ -39,7 +40,7 @@ export default function useExportProject() {
     const settings = await idb.getSettings();
 
     const data: ProjectExport = {
-      version: 2,
+      version: SCHEMA_VERSION,
       exportedAt: new Date().toISOString(),
       project: {
         id: idbProject.id,

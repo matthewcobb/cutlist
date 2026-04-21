@@ -84,6 +84,33 @@ Tests use Bun's built-in test runner. Test files live alongside source in `__tes
 - `web/lib/utils/__tests__/` — utility tests
 - `web/utils/__tests__/` — web utility tests
 
+## Data Migrations (`web/utils/migrations.ts`)
+
+Record shapes in IndexedDB evolve over time. A lightweight migration system handles this:
+
+- **`SCHEMA_VERSION`** — bump when any record type's fields change (independent of IDB database version, which only changes for store/index structure).
+- **Startup sweep** — on app init, migrates all stored records to current schema. Cursor-based for models (avoids loading gltfJson blobs).
+- **`applyDefaults`** in `useIdb.ts` — safety net on read paths in case sweep was interrupted.
+- **`migrateExport`** — applies same migrations to imported `.cutlist.json` files.
+
+### When adding a new field to a record type
+
+1. Update the TypeScript interface in `useIdb.ts`
+2. Bump `SCHEMA_VERSION` in `migrations.ts`
+3. Add a migration entry with a sensible default
+4. Update the matching `applyDefaults` function in `useIdb.ts`
+5. Update `createX` to set the field for new records
+6. Add a test in `utils/__tests__/migrations.test.ts`
+
+### Migration rules
+
+1. **New required fields must have a default** — every non-optional field needs a migration providing one.
+2. **Never delete a field** — mark it optional (`?`) and stop writing it.
+3. **Never change a field's type in place** — add a new field, deprecate the old one.
+4. **Migrations are pure functions** — no side effects, no DB access, no async.
+5. **Migrations are append-only** — never edit or delete a shipped migration.
+6. **`applyDefaults` is the safety net** — even if sweep is interrupted, reads won't crash.
+
 ## Key Config Files
 
 - `web/nuxt.config.ts` — Nuxt config (SSR off, modules)
