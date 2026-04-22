@@ -47,12 +47,12 @@ function onClickGrainLock() {
     @click="onClickGrainLock"
   >
     <div
-      class="overflow-hidden relative rounded-xs ring-1 ring-inset ring-mist-800 group-hover:ring-teal-400/50 bg-mist-700 group-hover:bg-teal-900/30 transition-colors"
+      class="overflow-hidden relative rounded-xs bg-mist-500 group-hover:bg-teal-500/30 transition-colors"
       :style="`width:${width};height:${height}`"
     >
       <p
         v-if="showPartNumbers"
-        class="w-full text-clip text-dim group-hover:text-teal-400 text-right p-px"
+        class="w-full text-clip text-body group-hover:text-teal-400 text-right p-px"
         :style="`font-size:${fontSize};line-height:${fontSize}`"
       >
         {{ placement.partNumber }}
