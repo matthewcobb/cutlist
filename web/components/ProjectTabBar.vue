@@ -23,6 +23,10 @@ const showClearConfirm = ref(false);
 const pendingCloseId = ref<string | null>(null);
 const pendingCloseName = ref('');
 
+function goHome() {
+  activeId.value = null;
+}
+
 function requestClose(id: string) {
   const project = projects.value.get(id);
   pendingCloseName.value = project?.name ?? 'this project';
@@ -166,6 +170,19 @@ function createProject() {
         >studio</span
       >
     </div>
+    <button
+      class="shrink-0 h-10 px-3 flex items-center justify-center border-r border-subtle transition-colors"
+      :class="
+        !activeId
+          ? 'text-teal-400 bg-surface'
+          : 'text-muted hover:text-teal-400 hover:bg-surface'
+      "
+      title="Home"
+      aria-label="Home"
+      @click="goHome"
+    >
+      <UIcon name="i-lucide-house" class="w-4 h-4" />
+    </button>
     <TabList class="flex-1 min-w-0">
       <TabListItem
         v-for="[id, project] in projects"
