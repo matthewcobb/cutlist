@@ -37,7 +37,7 @@ function makeGltf(nodes: FixtureNode[]) {
 }
 
 describe('deriveFromGltf grouping', () => {
-  it('merges same stock + same size with different names into one mixed-name group', () => {
+  it('merges same stock + same size with different names into one group using first name', () => {
     const result = deriveFromGltf(
       makeGltf([
         { name: 'Left Side', size: [0.5, 0.3, 0.018], material: 0 },
@@ -49,10 +49,8 @@ describe('deriveFromGltf grouping', () => {
     expect(new Set(result.parts.map((p) => p.partNumber))).toEqual(
       new Set([1]),
     );
-    expect(result.parts.map((p) => p.name)).toEqual([
-      'Left Side (mixed)',
-      'Left Side (mixed)',
-    ]);
+    // Uses the first-encountered name, no suffix
+    expect(result.parts.map((p) => p.name)).toEqual(['Left Side', 'Left Side']);
   });
 
   it('treats W×L and L×W as the same dimensions for grouping', () => {
@@ -83,6 +81,49 @@ describe('deriveFromGltf grouping', () => {
       'Birch Ply',
       'Walnut',
     ]);
+  });
+
+  it('keeps groups separate when thickness differs', () => {
+    const result = deriveFromGltf(
+      makeGltf([
+        { name: 'Shelf', size: [0.5, 0.3, 0.018], material: 0 },
+        { name: 'Shelf', size: [0.5, 0.3, 0.012], material: 0 },
+      ]),
+    );
+
+    expect(result.parts).toHaveLength(2);
+    expect(result.parts.map((p) => p.partNumber)).toEqual([1, 2]);
+  });
+
+  it('groups parts within 0.1mm tolerance', () => {
+    const result = deriveFromGltf(
+      makeGltf([
+        { name: 'Panel', size: [0.5, 0.3, 0.018], material: 0 },
+        // Differs by 0.04mm — within 0.1mm grid cell
+        { name: 'Panel', size: [0.50004, 0.3, 0.018], material: 0 },
+      ]),
+    );
+
+    expect(result.parts).toHaveLength(2);
+    expect(new Set(result.parts.map((p) => p.partNumber))).toEqual(
+      new Set([1]),
+    );
+  });
+
+  it('stores canonical dimensions (width <= length) on grouped parts', () => {
+    const result = deriveFromGltf(
+      makeGltf([
+        { name: 'Panel A', size: [0.5, 0.3, 0.018], material: 0 },
+        { name: 'Panel B', size: [0.3, 0.5, 0.018], material: 0 },
+      ]),
+    );
+
+    // Both instances should have identical canonical dimensions
+    for (const part of result.parts) {
+      expect(part.size.width).toBeLessThanOrEqual(part.size.length);
+    }
+    expect(result.parts[0].size.width).toBe(result.parts[1].size.width);
+    expect(result.parts[0].size.length).toBe(result.parts[1].size.length);
   });
 
   it('assigns deterministic part numbers based on first group appearance order', () => {

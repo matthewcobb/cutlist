@@ -620,10 +620,11 @@ export default function useProjects() {
     projectList.value = ids.map((id) => map.get(id)!).filter(Boolean);
   }
 
-  async function updatePartGrainLock(
+  /** Shared helper: apply a partial override to a part by adjusted number. */
+  async function applyPartOverride(
     projectId: string,
     adjustedPartNumber: number,
-    grainLock: 'length' | 'width' | undefined,
+    patch: Partial<PartOverride>,
   ) {
     const project = activeProjectData.value;
     if (!project || project.id !== projectId) return;
@@ -636,9 +637,9 @@ export default function useProjects() {
       const targetPartNumber = adjustedPartNumber - offsets[i];
       if (!model.parts.some((d) => d.partNumber === targetPartNumber)) continue;
 
-      // Update the reactive store (parts with override applied)
+      // Update the reactive store
       const updatedParts: Part[] = model.parts.map((d) =>
-        d.partNumber === targetPartNumber ? { ...d, grainLock } : d,
+        d.partNumber === targetPartNumber ? { ...d, ...patch } : d,
       );
       activeProjectData.value = {
         ...project,
@@ -647,30 +648,31 @@ export default function useProjects() {
         ),
       };
 
-      // Persist to partOverrides in IDB (not to parts — those are derived)
+      // Persist to partOverrides in IDB
       const existing = await idb.getProjectWithModels(projectId);
       const idbModel = existing?.models.find((m) => m.id === model.id);
-      const currentOverrides = idbModel?.partOverrides ?? {};
-      const updatedOverrides = { ...currentOverrides };
-      if (grainLock) {
-        updatedOverrides[targetPartNumber] = {
-          ...updatedOverrides[targetPartNumber],
-          grainLock,
-        };
+      const currentOverrides = { ...(idbModel?.partOverrides ?? {}) };
+      const merged = { ...currentOverrides[targetPartNumber], ...patch };
+      // Strip undefined values so cleared overrides don't linger
+      const cleaned = Object.fromEntries(
+        Object.entries(merged).filter(([, v]) => v !== undefined),
+      ) as PartOverride;
+      if (Object.keys(cleaned).length === 0) {
+        delete currentOverrides[targetPartNumber];
       } else {
-        // Remove grainLock from override
-        if (updatedOverrides[targetPartNumber]) {
-          const { grainLock: _, ...rest } = updatedOverrides[targetPartNumber];
-          if (Object.keys(rest).length === 0) {
-            delete updatedOverrides[targetPartNumber];
-          } else {
-            updatedOverrides[targetPartNumber] = rest;
-          }
-        }
+        currentOverrides[targetPartNumber] = cleaned;
       }
-      await idb.updateModel(model.id, { partOverrides: updatedOverrides });
+      await idb.updateModel(model.id, { partOverrides: currentOverrides });
       break;
     }
+  }
+
+  async function updatePartGrainLock(
+    projectId: string,
+    adjustedPartNumber: number,
+    grainLock: 'length' | 'width' | undefined,
+  ) {
+    await applyPartOverride(projectId, adjustedPartNumber, { grainLock });
   }
 
   async function updatePartNameOverride(
@@ -678,45 +680,9 @@ export default function useProjects() {
     adjustedPartNumber: number,
     name: string,
   ) {
-    const project = activeProjectData.value;
-    if (!project || project.id !== projectId) return;
-
     const nextName = name.trim();
     if (!nextName) return;
-
-    const enabled = project.models.filter((m) => m.enabled);
-    const offsets = computePartNumberOffsets(enabled);
-
-    for (let i = 0; i < enabled.length; i++) {
-      const model = enabled[i];
-      const targetPartNumber = adjustedPartNumber - offsets[i];
-      if (!model.parts.some((d) => d.partNumber === targetPartNumber)) continue;
-
-      // Update the reactive store with the overridden display name.
-      const updatedParts: Part[] = model.parts.map((d) =>
-        d.partNumber === targetPartNumber ? { ...d, name: nextName } : d,
-      );
-      activeProjectData.value = {
-        ...project,
-        models: project.models.map((m) =>
-          m.id === model.id ? { ...m, parts: updatedParts } : m,
-        ),
-      };
-
-      // Persist name override to partOverrides.
-      const existing = await idb.getProjectWithModels(projectId);
-      const idbModel = existing?.models.find((m) => m.id === model.id);
-      const currentOverrides = idbModel?.partOverrides ?? {};
-      const updatedOverrides = {
-        ...currentOverrides,
-        [targetPartNumber]: {
-          ...currentOverrides[targetPartNumber],
-          name: nextName,
-        },
-      };
-      await idb.updateModel(model.id, { partOverrides: updatedOverrides });
-      break;
-    }
+    await applyPartOverride(projectId, adjustedPartNumber, { name: nextName });
   }
 
   return {

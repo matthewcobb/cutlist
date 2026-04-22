@@ -75,6 +75,8 @@ export interface ParseResult extends DeriveResult {
 }
 
 const PRECISION = 1e-6;
+/** Coarser tolerance for grouping — parts within 0.1mm are the same cut. */
+const GROUP_PRECISION = 1e-4;
 
 /** Derive parts, colors, and node mapping from a raw GLTF JSON object. */
 export function deriveFromGltf(gltfJson: object): DeriveResult {
@@ -100,34 +102,35 @@ export function deriveFromGltf(gltfJson: object): DeriveResult {
 
   // Aggregate identical parts by stock identity + canonical dimensions.
   // Track which node indices belong to each group.
+  const roundGroup = (n: number) =>
+    Math.round(n / GROUP_PRECISION) * GROUP_PRECISION;
   const groups = new Map<
     string,
-    PartInfo & {
-      quantity: number;
-      nodeIndices: number[];
-      hasMixedNames: boolean;
-    }
+    PartInfo & { quantity: number; nodeIndices: number[] }
   >();
   for (const info of partInfos) {
-    const canonicalWidth = round(Math.min(info.size.width, info.size.length));
-    const canonicalLength = round(Math.max(info.size.width, info.size.length));
+    const canonicalWidth = Math.min(info.size.width, info.size.length);
+    const canonicalLength = Math.max(info.size.width, info.size.length);
     const key = [
       info.colorKey,
-      round(info.size.thickness),
-      canonicalWidth,
-      canonicalLength,
+      roundGroup(info.size.thickness),
+      roundGroup(canonicalWidth),
+      roundGroup(canonicalLength),
     ].join('|');
     const existing = groups.get(key);
     if (existing) {
       existing.quantity += 1;
       existing.nodeIndices.push(info.nodeIndex);
-      if (info.name !== existing.name) existing.hasMixedNames = true;
     } else {
       groups.set(key, {
         ...info,
+        size: {
+          thickness: info.size.thickness,
+          width: canonicalWidth,
+          length: canonicalLength,
+        },
         quantity: 1,
         nodeIndices: [info.nodeIndex],
-        hasMixedNames: false,
       });
     }
   }
@@ -141,7 +144,7 @@ export function deriveFromGltf(gltfJson: object): DeriveResult {
       parts.push({
         partNumber,
         instanceNumber: i + 1,
-        name: group.hasMixedNames ? `${group.name} (mixed)` : group.name,
+        name: group.name,
         colorKey: group.colorKey,
         size: group.size,
       });
