@@ -75,26 +75,31 @@ export async function importProjectData(
   // Build a map of old model IDs to new IDs for remapping build-step refs.
   const modelIdMap = new Map<string, string>();
   for (const model of data.models) {
-    const newId = crypto.randomUUID();
-    modelIdMap.set(model.id, newId);
-    await idb.createModel({
-      ...model,
-      id: newId,
-      projectId: newProject.id,
-    });
+    modelIdMap.set(model.id, crypto.randomUUID());
   }
+  await Promise.all(
+    data.models.map((model) =>
+      idb.createModel({
+        ...model,
+        id: modelIdMap.get(model.id)!,
+        projectId: newProject.id,
+      }),
+    ),
+  );
 
-  for (const step of data.buildSteps ?? []) {
-    await idb.createBuildStep({
-      ...step,
-      id: crypto.randomUUID(),
-      projectId: newProject.id,
-      partRefs: step.partRefs.map((ref: any) => ({
-        modelId: modelIdMap.get(ref.modelId) ?? ref.modelId,
-        partNumber: ref.partNumber,
-      })),
-    });
-  }
+  await Promise.all(
+    (data.buildSteps ?? []).map((step) =>
+      idb.createBuildStep({
+        ...step,
+        id: crypto.randomUUID(),
+        projectId: newProject.id,
+        partRefs: step.partRefs.map((ref: any) => ({
+          modelId: modelIdMap.get(ref.modelId) ?? ref.modelId,
+          partNumber: ref.partNumber,
+        })),
+      }),
+    ),
+  );
 
   return newProject.id;
 }

@@ -2,7 +2,7 @@ import type { ColorInfo, NodePartMapping, Part } from '~/utils/parseGltf';
 import { deriveFromGltf } from '~/utils/parseGltf';
 import type { IdbModelMeta, PartOverride } from '~/composables/useIdb';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
-import { importProjectFromFile as importProjectFromCompressedFile } from '~/utils/projectImport';
+import { importProjectFromFile } from '~/utils/projectImport';
 import { DEMO_PROJECT_FILENAME, shouldSeedDemoProject } from '~/utils/demoSeed';
 
 export interface Model {
@@ -59,21 +59,12 @@ const archivedList = ref<ArchivedProjectItem[]>([]);
 const activeProjectData = ref<Project | null>(null);
 let initialized = false;
 
-function getDemoSeedUrl(): string {
-  const nuxtBaseUrl =
-    import.meta.client &&
-    typeof (globalThis as any).__NUXT__?.config?.app?.baseURL === 'string'
-      ? ((globalThis as any).__NUXT__.config.app.baseURL as string)
-      : '/';
-  const baseUrl = nuxtBaseUrl || '/';
-  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
-  return `${normalizedBase}${DEMO_PROJECT_FILENAME}`;
-}
-
 async function seedDemoProject(
   idb: ReturnType<typeof useIdb>,
 ): Promise<string> {
-  const response = await fetch(getDemoSeedUrl());
+  const base = import.meta.env.BASE_URL ?? '/';
+  const url = `${base.endsWith('/') ? base : `${base}/`}${DEMO_PROJECT_FILENAME}`;
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to load demo project (${response.status})`);
   }
@@ -81,7 +72,7 @@ async function seedDemoProject(
   const file = new File([blob], DEMO_PROJECT_FILENAME, {
     type: blob.type || 'application/gzip',
   });
-  return importProjectFromCompressedFile(file, idb);
+  return importProjectFromFile(file, idb);
 }
 
 /** Apply partOverrides onto derived parts. */
