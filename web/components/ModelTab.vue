@@ -34,9 +34,8 @@ const displayModels = computed(() => {
   return m ? [m] : enabledModels.value;
 });
 
-// Check if any enabled model has gltfJson stored (via nodePartMap presence)
 const hasGltfData = computed(() =>
-  enabledModels.value.some((m) => m.nodePartMap && m.nodePartMap.length > 0),
+  enabledModels.value.some((m) => m.source === 'gltf'),
 );
 
 const hasOnlyManualModels = computed(
@@ -45,22 +44,21 @@ const hasOnlyManualModels = computed(
     enabledModels.value.every((m) => m.source === 'manual'),
 );
 
-const allGltfData = ref<Array<{
-  modelId: string;
-  gltfJson: object | null;
-  nodePartMap: { nodeIndex: number; partNumber: number }[] | null;
-}> | null>(null);
+const allGltfData = ref<Map<string, object> | null>(null);
 
 async function loadGltfData() {
   if (!activeId.value || displayModels.value.length === 0) {
     allGltfData.value = null;
     return;
   }
-  allGltfData.value = await Promise.all(
-    displayModels.value.map(async (m) => ({
-      modelId: m.id,
-      ...(await idb.getModelGltf(m.id)),
-    })),
+  const entries = await Promise.all(
+    displayModels.value.map(async (m) => {
+      const gltfJson = await idb.getModelGltf(m.id);
+      return [m.id, gltfJson] as const;
+    }),
+  );
+  allGltfData.value = new Map(
+    entries.filter(([, json]) => json != null) as [string, object][],
   );
 }
 
@@ -83,9 +81,9 @@ function loadAllModels() {
   for (const model of models) {
     const modelIdx = enabledModels.value.findIndex((m) => m.id === model.id);
     const offset = modelIdx >= 0 ? allOffsets[modelIdx] : 0;
-    const gltfData = data.find((d) => d.modelId === model.id);
-    if (gltfData?.gltfJson && gltfData.nodePartMap) {
-      viewer.loadModel(gltfData.gltfJson, gltfData.nodePartMap, offset);
+    const gltfJson = data.get(model.id);
+    if (gltfJson && model.nodePartMap) {
+      viewer.loadModel(gltfJson, model.nodePartMap, offset);
     }
   }
 }
@@ -117,14 +115,14 @@ const infoPart = computed(
   <ClientOnly>
     <div class="relative h-full overflow-hidden">
       <!-- 3D Canvas -->
-      <div ref="canvasContainer" class="absolute inset-0 bg-gray-950" />
+      <div ref="canvasContainer" class="absolute inset-0 bg-mist-950" />
 
       <!-- Empty state: no models -->
       <div
         v-if="enabledModels.length === 0"
         class="absolute inset-0 flex items-center justify-center"
       >
-        <p class="bg-black border border-white/15 rounded p-4 text-muted">
+        <p class="bg-base border border-default rounded p-4 text-muted">
           Import a model in the BOM tab to view it in 3D.
         </p>
       </div>
@@ -134,7 +132,7 @@ const infoPart = computed(
         v-else-if="hasOnlyManualModels"
         class="absolute inset-0 flex items-center justify-center"
       >
-        <p class="bg-black border border-white/15 rounded p-4 text-muted">
+        <p class="bg-base border border-default rounded p-4 text-muted">
           Parts were added manually — no 3D model to view.
         </p>
       </div>
@@ -144,7 +142,7 @@ const infoPart = computed(
         v-else-if="!hasGltfData"
         class="absolute inset-0 flex items-center justify-center"
       >
-        <p class="bg-black border border-white/15 rounded p-4 text-muted">
+        <p class="bg-base border border-default rounded p-4 text-muted">
           Re-import your model to enable 3D preview.
         </p>
       </div>
@@ -153,7 +151,7 @@ const infoPart = computed(
       <div v-if="enabledModels.length > 1" class="absolute top-4 left-4 z-10">
         <select
           :value="focusedModelIdx === null ? '' : String(focusedModelIdx)"
-          class="model-select bg-black/80 backdrop-blur border border-white/10 rounded-lg px-3 py-2 text-sm text-white/70 hover:text-white cursor-pointer appearance-none pr-8 focus:outline-none focus:border-white/20"
+          class="model-select bg-overlay backdrop-blur border border-subtle rounded-lg px-3 py-2 text-sm text-body hover:text-hi cursor-pointer appearance-none pr-8 focus:outline-none focus:border-default"
           @change="
             (e) => {
               focusedModelIdx = Number((e.target as HTMLSelectElement).value);
@@ -164,7 +162,7 @@ const infoPart = computed(
             v-for="(m, i) in enabledModels"
             :key="m.id"
             :value="String(i)"
-            style="background: #111; color: rgba(255, 255, 255, 0.85)"
+            style="background: #161b1d; color: #e3e7e8"
           >
             {{ m.filename }}
           </option>
@@ -174,30 +172,32 @@ const infoPart = computed(
       <!-- Part info panel -->
       <div
         v-if="infoPart"
-        class="absolute bottom-4 left-4 z-10 bg-black/90 backdrop-blur border border-white/10 rounded-lg p-3 min-w-[200px]"
+        class="absolute bottom-4 left-4 z-10 bg-overlay backdrop-blur border border-subtle rounded-lg p-3 min-w-[200px]"
       >
         <p class="text-teal-400 font-bold text-lg mb-1">
           #{{ infoPart.partNumber }} {{ infoPart.name }}
         </p>
         <table class="text-sm text-body">
-          <tr>
-            <td class="pr-3 text-muted">Width</td>
-            <td>{{ formatDistance(infoPart.widthM) }}</td>
-          </tr>
-          <tr>
-            <td class="pr-3 text-muted">Length</td>
-            <td>{{ formatDistance(infoPart.lengthM) }}</td>
-          </tr>
-          <tr>
-            <td class="pr-3 text-muted">Thickness</td>
-            <td>
-              {{ formatDistance(infoPart.thicknessM) }}
-            </td>
-          </tr>
-          <tr>
-            <td class="pr-3 text-muted">Material</td>
-            <td>{{ infoPart.material }}</td>
-          </tr>
+          <tbody>
+            <tr>
+              <td class="pr-3 text-muted">Width</td>
+              <td>{{ formatDistance(infoPart.widthM) }}</td>
+            </tr>
+            <tr>
+              <td class="pr-3 text-muted">Length</td>
+              <td>{{ formatDistance(infoPart.lengthM) }}</td>
+            </tr>
+            <tr>
+              <td class="pr-3 text-muted">Thickness</td>
+              <td>
+                {{ formatDistance(infoPart.thicknessM) }}
+              </td>
+            </tr>
+            <tr>
+              <td class="pr-3 text-muted">Material</td>
+              <td>{{ infoPart.material }}</td>
+            </tr>
+          </tbody>
         </table>
       </div>
 
@@ -205,7 +205,7 @@ const infoPart = computed(
       <div class="absolute bottom-4 right-4 z-10 flex flex-col items-end gap-2">
         <!-- Mouse controls legend -->
         <div
-          class="bg-black/80 backdrop-blur border border-white/10 rounded-lg px-3 py-2.5 flex flex-col gap-2"
+          class="bg-overlay backdrop-blur border border-subtle rounded-lg px-3 py-2.5 flex flex-col gap-2"
         >
           <!-- Left drag → Orbit -->
           <div class="flex items-center gap-2.5">
@@ -215,7 +215,7 @@ const infoPart = computed(
               viewBox="0 0 18 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              class="shrink-0 text-white/60"
+              class="shrink-0 text-muted"
             >
               <rect
                 x="1"
@@ -260,7 +260,7 @@ const infoPart = computed(
               viewBox="0 0 18 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              class="shrink-0 text-white/60"
+              class="shrink-0 text-muted"
             >
               <rect
                 x="1"
@@ -299,7 +299,7 @@ const infoPart = computed(
               viewBox="0 0 18 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              class="shrink-0 text-white/60"
+              class="shrink-0 text-muted"
             >
               <rect
                 x="1"
@@ -337,15 +337,6 @@ const infoPart = computed(
             <span class="text-xs text-body ml-auto pl-3">Pan</span>
           </div>
         </div>
-
-        <!-- Reset camera -->
-        <button
-          class="bg-black/80 backdrop-blur border border-white/10 rounded-lg px-3 py-2 text-white/70 hover:text-white text-sm"
-          title="Reset camera"
-          @click="viewer.fitCamera()"
-        >
-          <span class="i-lucide-refresh-cw w-4 h-4 inline-block" />
-        </button>
       </div>
     </div>
   </ClientOnly>
@@ -353,7 +344,7 @@ const infoPart = computed(
 
 <style scoped>
 .model-select {
-  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca8ab' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
   background-repeat: no-repeat;
   background-position: right 10px center;
 }

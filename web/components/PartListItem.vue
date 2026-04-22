@@ -46,14 +46,13 @@ function onClickGrainLock() {
     :style="`bottom:${bottom};left:${left}`"
     @click="onClickGrainLock"
   >
-    <UPlaceholder
-      class="overflow-hidden relative"
-      :color="isHovered ? 'primary' : 'white'"
+    <div
+      class="overflow-hidden relative rounded-xs ring-1 ring-inset ring-mist-800 group-hover:ring-teal-400/50 bg-mist-700 group-hover:bg-teal-900/30 transition-colors"
       :style="`width:${width};height:${height}`"
     >
       <p
         v-if="showPartNumbers"
-        class="w-full text-clip text-white/40 group-hover:text-teal-400 text-right p-px"
+        class="w-full text-clip text-dim group-hover:text-teal-400 text-right p-px"
         :style="`font-size:${fontSize};line-height:${fontSize}`"
       >
         {{ placement.partNumber }}
@@ -66,7 +65,7 @@ function onClickGrainLock() {
       >
         <span>{{ placement.grainLock === 'length' ? '↕' : '↔' }}</span>
       </div>
-    </UPlaceholder>
+    </div>
     <Teleport to="body">
       <PartDetailsTooltip
         v-if="isHovered"

@@ -11,9 +11,9 @@ describe('reduceStockMatrix', () => {
       {
         material: 'MDF',
         unit: 'mm',
+        hasGrain: false,
         thickness: [18],
-        width: [1220],
-        length: [2440],
+        sizes: [{ width: 1220, length: 2440 }],
       },
     ]);
     expect(result).toHaveLength(1);
@@ -27,9 +27,9 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Ply',
         unit: 'in',
+        hasGrain: false,
         thickness: [0.75],
-        width: [48],
-        length: [96],
+        sizes: [{ width: 48, length: 96 }],
       },
     ]);
     expect(result).toHaveLength(1);
@@ -40,46 +40,59 @@ describe('reduceStockMatrix', () => {
 
   it('defaults unit to mm when not specified', () => {
     const result = reduceStockMatrix([
-      { material: 'MDF', thickness: [18], width: [1220], length: [2440] },
+      {
+        material: 'MDF',
+        unit: 'mm',
+        hasGrain: false,
+        thickness: [18],
+        sizes: [{ width: 1220, length: 2440 }],
+      },
     ]);
     expect(result[0].thickness).toBeCloseTo(0.018, 6);
   });
 
-  it('returns 2 stocks for a single item with 2 widths × 1 length × 1 thickness', () => {
+  it('returns one stock per size × thickness combination', () => {
     const result = reduceStockMatrix([
       {
         material: 'Ply',
         unit: 'mm',
+        hasGrain: false,
         thickness: [12],
-        width: [600, 1220],
-        length: [2440],
+        sizes: [
+          { width: 600, length: 2440 },
+          { width: 1220, length: 2440 },
+        ],
       },
     ]);
     expect(result).toHaveLength(2);
     expect(result.map((s) => s.width)).toEqual([0.6, 1.22]);
   });
 
-  it('returns the Cartesian product count for multiple thicknesses and widths', () => {
-    // 3 thicknesses × 2 widths × 2 lengths = 12
+  it('returns sizes × thicknesses count', () => {
+    // 2 sizes × 3 thicknesses = 6
     const result = reduceStockMatrix([
       {
         material: 'MDF',
         unit: 'mm',
+        hasGrain: false,
         thickness: [9, 12, 18],
-        width: [600, 1220],
-        length: [1800, 2440],
+        sizes: [
+          { width: 600, length: 1800 },
+          { width: 1220, length: 2440 },
+        ],
       },
     ]);
-    expect(result).toHaveLength(12);
+    expect(result).toHaveLength(6);
   });
 
   it('string dimensions carry their own unit (backward compat)', () => {
     const result = reduceStockMatrix([
       {
         material: 'Ply',
+        unit: 'mm',
+        hasGrain: false,
         thickness: ['1in'],
-        width: ['1220mm'],
-        length: ['2440mm'],
+        sizes: [{ width: '1220mm', length: '2440mm' }],
       },
     ]);
     expect(result).toHaveLength(1);
@@ -92,9 +105,12 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Oak',
         unit: 'mm',
+        hasGrain: false,
         thickness: [18],
-        width: [300, 600],
-        length: [1800, 2400],
+        sizes: [
+          { width: 300, length: 1800 },
+          { width: 600, length: 2400 },
+        ],
       },
     ]);
     expect(result.every((s) => s.material === 'Oak')).toBe(true);
@@ -105,16 +121,16 @@ describe('reduceStockMatrix', () => {
       {
         material: 'MDF',
         unit: 'mm',
+        hasGrain: false,
         thickness: [18],
-        width: [1220],
-        length: [2440],
+        sizes: [{ width: 1220, length: 2440 }],
       },
       {
         material: 'Ply',
         unit: 'mm',
+        hasGrain: false,
         thickness: [12],
-        width: [600],
-        length: [1800],
+        sizes: [{ width: 600, length: 1800 }],
       },
     ]);
     expect(result).toHaveLength(2);
@@ -127,9 +143,9 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Mix',
         unit: 'mm',
+        hasGrain: false,
         thickness: [18, '1in'],
-        width: [1220],
-        length: [2440],
+        sizes: [{ width: 1220, length: 2440 }],
       },
     ]);
     expect(result).toHaveLength(2);

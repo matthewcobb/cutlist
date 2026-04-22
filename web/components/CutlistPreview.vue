@@ -57,13 +57,13 @@ const filteredLayouts = computed(() => {
 <template>
   <div class="relative h-full overflow-hidden">
     <!-- Cutlist Preview -->
-    <div class="absolute inset-0 overflow-none flex bg-gray-700">
+    <div class="absolute inset-0 overflow-none flex bg-mist-900 shadow-lg">
       <p v-if="error" class="m-auto text-red-400">{{ error }}</p>
 
       <template v-else-if="data">
         <p
           v-if="filteredLayouts.length === 0"
-          class="m-auto bg-black border border-white/15 rounded p-4 text-white/50"
+          class="m-auto bg-base border border-default rounded p-4 text-muted"
         >
           No board layouts found
         </p>
@@ -76,7 +76,7 @@ const filteredLayouts = computed(() => {
 
     <!-- Settings toolbar -->
     <div
-      class="absolute top-3 left-3 z-10 bg-black/80 backdrop-blur border border-white/10 rounded-lg px-3 py-2"
+      class="absolute top-3 left-3 z-10 bg-overlay backdrop-blur border border-subtle rounded-lg px-3 py-2"
     >
       <PreviewToolbar />
     </div>
@@ -84,25 +84,23 @@ const filteredLayouts = computed(() => {
     <!-- Stock filter -->
     <div
       v-if="stockOptions.length > 1"
-      class="absolute top-3 right-3 z-10 bg-black/80 backdrop-blur border border-white/10 rounded-lg px-3 py-2 flex items-center gap-2"
+      class="absolute top-3 right-3 z-10 bg-overlay backdrop-blur border border-subtle rounded-lg px-3 py-2 flex items-center gap-2"
     >
       <label class="text-xs text-muted whitespace-nowrap">Stock</label>
       <USelect
         v-model="selectedStock"
-        :options="[{ label: 'All', value: ALL }, ...stockOptions]"
-        value-attribute="value"
-        option-attribute="label"
+        :items="[{ label: 'All', value: ALL }, ...stockOptions]"
         size="xs"
-        :ui="{ base: 'w-36' }"
+        class="w-36"
       />
     </div>
 
     <!-- Controls -->
-    <div class="absolute bottom-4 right-4 flex gap-4 z-10">
-      <RulerToggle class="bg-black rounded" />
+    <div class="absolute bottom-4 right-4 flex gap-3 z-10">
+      <RulerToggle class="bg-default rounded-lg" />
       <ScaleController
         v-if="scale != null"
-        class="bg-black rounded"
+        class="bg-default rounded-lg"
         :scale="scale"
         @reset-zoom="resetZoom"
         @zoom-in="zoomIn"
@@ -118,7 +116,7 @@ const filteredLayouts = computed(() => {
 }
 
 .canvas-grid {
-  --dot-color: rgba(0, 0, 0, 0.15);
+  --dot-color: #394447;
   --dot-size: 1px;
   --dot-gap: 24px;
   position: absolute;

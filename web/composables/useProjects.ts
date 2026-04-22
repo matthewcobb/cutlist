@@ -1,12 +1,13 @@
-import type { ColorInfo, NodePartMapping, PartDraft } from '~/utils/parseGltf';
-import type { IdbModelMeta } from '~/composables/useIdb';
+import type { ColorInfo, NodePartMapping, Part } from '~/utils/parseGltf';
+import { deriveFromGltf } from '~/utils/parseGltf';
+import type { IdbModelMeta, PartOverride } from '~/composables/useIdb';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
 
 export interface Model {
   id: string;
   filename: string;
   source: 'gltf' | 'manual';
-  drafts: PartDraft[];
+  parts: Part[];
   colors: ColorInfo[];
   enabled: boolean;
   gltfJson?: object;
@@ -28,6 +29,8 @@ export interface Project {
   name: string;
   models: Model[];
   colorMap: Record<string, string>;
+  /** Color keys excluded from BOM (unchecked in mapping panel). */
+  excludedColors: string[];
   /** Per-project stock definition (YAML string). */
   stock: string;
   /** Per-project distance unit. */
@@ -54,16 +57,81 @@ const archivedList = ref<ArchivedProjectItem[]>([]);
 const activeProjectData = ref<Project | null>(null);
 let initialized = false;
 
-function toModel(meta: IdbModelMeta): Model {
-  return {
-    id: meta.id,
-    filename: meta.filename,
-    source: meta.source,
-    drafts: meta.drafts,
-    colors: meta.colors,
-    enabled: meta.enabled,
-    nodePartMap: meta.nodePartMap ?? undefined,
-  };
+/** Apply partOverrides onto derived parts. */
+function applyOverrides(
+  parts: Part[],
+  overrides: Record<number, PartOverride>,
+): Part[] {
+  if (Object.keys(overrides).length === 0) return parts;
+  return parts.map((p) => {
+    const o = overrides[p.partNumber];
+    return o ? { ...p, ...o } : p;
+  });
+}
+
+/** Build a Model from IDB metadata. GLTF models re-derive from stored gltfJson. */
+async function hydrateModel(
+  meta: IdbModelMeta,
+  idb: ReturnType<typeof useIdb>,
+): Promise<Model> {
+  // Manual models: stored parts are the source of truth
+  if (meta.source === 'manual') {
+    return {
+      id: meta.id,
+      filename: meta.filename,
+      source: meta.source,
+      parts: applyOverrides(meta.parts, meta.partOverrides),
+      colors: [],
+      enabled: meta.enabled,
+    };
+  }
+
+  // GLTF models: re-derive from stored gltfJson
+  const gltfJson = await idb.getModelGltf(meta.id);
+  if (!gltfJson) {
+    return {
+      id: meta.id,
+      filename: meta.filename,
+      source: meta.source,
+      parts: applyOverrides(meta.parts, meta.partOverrides),
+      colors: [],
+      enabled: meta.enabled,
+    };
+  }
+
+  try {
+    const derived = deriveFromGltf(gltfJson);
+    return {
+      id: meta.id,
+      filename: meta.filename,
+      source: meta.source,
+      parts: applyOverrides(derived.parts, meta.partOverrides),
+      colors: derived.colors,
+      enabled: meta.enabled,
+      nodePartMap: derived.nodePartMap,
+    };
+  } catch {
+    return {
+      id: meta.id,
+      filename: meta.filename,
+      source: meta.source,
+      parts: applyOverrides(meta.parts, meta.partOverrides),
+      colors: [],
+      enabled: meta.enabled,
+    };
+  }
+}
+
+async function loadProject(
+  idb: ReturnType<typeof useIdb>,
+  id: string,
+): Promise<Project | null> {
+  const full = await idb.getProjectWithModels(id);
+  if (!full) return null;
+  const models = await Promise.all(
+    full.models.map((meta) => hydrateModel(meta, idb)),
+  );
+  return { ...full, models };
 }
 
 async function init() {
@@ -78,10 +146,7 @@ async function init() {
     activeId.value = list[0].id;
   }
   if (activeId.value) {
-    const full = await idb.getProjectWithModels(activeId.value);
-    activeProjectData.value = full
-      ? { ...full, models: full.models.map(toModel) }
-      : null;
+    activeProjectData.value = await loadProject(idb, activeId.value);
   }
   initialized = true;
 }
@@ -102,10 +167,7 @@ export default function useProjects() {
       activeProjectData.value = null;
       return;
     }
-    const full = await idb.getProjectWithModels(id);
-    activeProjectData.value = full
-      ? { ...full, models: full.models.map(toModel) }
-      : null;
+    activeProjectData.value = await loadProject(idb, id);
   });
 
   // Build a Map matching the old interface
@@ -123,6 +185,7 @@ export default function useProjects() {
           name: p.name,
           models: [],
           colorMap: {},
+          excludedColors: [],
           stock: '',
           distanceUnit: 'mm',
         });
@@ -229,17 +292,16 @@ export default function useProjects() {
         models: [...activeProjectData.value.models, meta],
       };
     }
-    // Write full model (with gltfJson) to IDB
+    // Write to IDB (gltfJson stored for GLTF, parts stored for manual)
     await idb.createModel({
       id: model.id,
       projectId,
       filename: model.filename,
       source: model.source,
-      drafts: model.drafts,
-      colors: model.colors,
+      parts: model.source === 'manual' ? model.parts : [],
       enabled: model.enabled,
       gltfJson: model.gltfJson ?? null,
-      nodePartMap: model.nodePartMap ?? null,
+      partOverrides: {},
       createdAt: new Date().toISOString(),
     });
   }
@@ -283,6 +345,17 @@ export default function useProjects() {
     await idb.updateProject(id, { colorMap: newColorMap });
   }
 
+  async function toggleColorExcluded(id: string, colorKey: string) {
+    const project = activeProjectData.value;
+    if (!project || project.id !== id) return;
+    const excluded = project.excludedColors ?? [];
+    const newExcluded = excluded.includes(colorKey)
+      ? excluded.filter((k) => k !== colorKey)
+      : [...excluded, colorKey];
+    activeProjectData.value = { ...project, excludedColors: newExcluded };
+    await idb.updateProject(id, { excludedColors: newExcluded });
+  }
+
   async function updateStock(projectId: string, stock: string) {
     const project = activeProjectData.value;
     if (!project || project.id !== projectId) return;
@@ -306,15 +379,14 @@ export default function useProjects() {
 
     const existing = project.models.find((m) => m.source === 'manual');
     const newPartNumber = existing
-      ? Math.max(0, ...existing.drafts.map((d) => d.partNumber)) + 1
+      ? Math.max(0, ...existing.parts.map((d) => d.partNumber)) + 1
       : 1;
 
-    const newDrafts: PartDraft[] = Array.from({ length: data.qty }, (_, i) => ({
+    const newParts: Part[] = Array.from({ length: data.qty }, (_, i) => ({
       partNumber: newPartNumber,
       instanceNumber: i + 1,
       name: data.name,
       colorKey: data.material,
-      grainLock: data.grainLock,
       size: {
         width: data.widthMm / 1000,
         length: data.lengthMm / 1000,
@@ -322,21 +394,42 @@ export default function useProjects() {
       },
     }));
 
+    // grainLock goes into partOverrides, not onto the Part
+    const newOverrides: Record<number, PartOverride> = {};
+    if (data.grainLock) {
+      newOverrides[newPartNumber] = { grainLock: data.grainLock };
+    }
+
     if (existing) {
-      const updatedDrafts = [...existing.drafts, ...newDrafts];
+      const updatedParts = [...existing.parts, ...newParts];
+      // Merge new overrides with existing (get current from IDB)
+      const idbModel = (await idb.getProjectWithModels(projectId))?.models.find(
+        (m) => m.id === existing.id,
+      );
+      const mergedOverrides = {
+        ...(idbModel?.partOverrides ?? {}),
+        ...newOverrides,
+      };
+      // Reactive store sees parts with overrides applied
       activeProjectData.value = {
         ...project,
         models: project.models.map((m) =>
-          m.id === existing.id ? { ...m, drafts: updatedDrafts } : m,
+          m.id === existing.id
+            ? { ...m, parts: applyOverrides(updatedParts, mergedOverrides) }
+            : m,
         ),
       };
-      await idb.updateModel(existing.id, { drafts: updatedDrafts });
+      await idb.updateModel(existing.id, {
+        parts: updatedParts,
+        partOverrides: mergedOverrides,
+      });
     } else {
+      const modelId = crypto.randomUUID();
       const model: Model = {
-        id: crypto.randomUUID(),
+        id: modelId,
         filename: 'Manual Parts',
         source: 'manual',
-        drafts: newDrafts,
+        parts: applyOverrides(newParts, newOverrides),
         colors: [],
         enabled: true,
       };
@@ -345,15 +438,14 @@ export default function useProjects() {
         models: [...project.models, model],
       };
       await idb.createModel({
-        id: model.id,
+        id: modelId,
         projectId,
         filename: model.filename,
         source: 'manual',
-        drafts: newDrafts,
-        colors: [],
+        parts: newParts,
         enabled: true,
         gltfJson: null,
-        nodePartMap: null,
+        partOverrides: newOverrides,
         createdAt: new Date().toISOString(),
       });
     }
@@ -374,30 +466,57 @@ export default function useProjects() {
     const existing = project.models.find((m) => m.source === 'manual');
     if (!existing) return;
 
-    const remaining = existing.drafts.filter(
-      (d) => d.partNumber !== partNumber,
-    );
-    const updated: PartDraft[] = Array.from({ length: data.qty }, (_, i) => ({
+    const remaining = existing.parts.filter((d) => d.partNumber !== partNumber);
+    const updated: Part[] = Array.from({ length: data.qty }, (_, i) => ({
       partNumber,
       instanceNumber: i + 1,
       name: data.name,
       colorKey: data.material,
-      grainLock: data.grainLock,
       size: {
         width: data.widthMm / 1000,
         length: data.lengthMm / 1000,
         thickness: data.thicknessMm / 1000,
       },
     }));
-    const updatedDrafts = [...remaining, ...updated];
+    // Strip overrides from remaining parts (they live in partOverrides)
+    const cleanParts = [...remaining, ...updated].map(
+      ({ grainLock: _, ...rest }) => rest,
+    );
+
+    // Update partOverrides for this part number
+    const idbModel = (await idb.getProjectWithModels(projectId))?.models.find(
+      (m) => m.id === existing.id,
+    );
+    const updatedOverrides = { ...(idbModel?.partOverrides ?? {}) };
+    if (data.grainLock) {
+      updatedOverrides[partNumber] = {
+        ...updatedOverrides[partNumber],
+        grainLock: data.grainLock,
+      };
+    } else {
+      // Clear grainLock if removed
+      if (updatedOverrides[partNumber]) {
+        const { grainLock: _, ...rest } = updatedOverrides[partNumber];
+        if (Object.keys(rest).length === 0) {
+          delete updatedOverrides[partNumber];
+        } else {
+          updatedOverrides[partNumber] = rest;
+        }
+      }
+    }
 
     activeProjectData.value = {
       ...project,
       models: project.models.map((m) =>
-        m.id === existing.id ? { ...m, drafts: updatedDrafts } : m,
+        m.id === existing.id
+          ? { ...m, parts: applyOverrides(cleanParts, updatedOverrides) }
+          : m,
       ),
     };
-    await idb.updateModel(existing.id, { drafts: updatedDrafts });
+    await idb.updateModel(existing.id, {
+      parts: cleanParts,
+      partOverrides: updatedOverrides,
+    });
 
     if (!project.colorMap[data.material]) {
       await updateColorMap(projectId, data.material, data.material);
@@ -411,9 +530,7 @@ export default function useProjects() {
     const existing = project.models.find((m) => m.source === 'manual');
     if (!existing) return;
 
-    const remaining = existing.drafts.filter(
-      (d) => d.partNumber !== partNumber,
-    );
+    const remaining = existing.parts.filter((d) => d.partNumber !== partNumber);
 
     if (remaining.length === 0) {
       activeProjectData.value = {
@@ -425,10 +542,10 @@ export default function useProjects() {
       activeProjectData.value = {
         ...project,
         models: project.models.map((m) =>
-          m.id === existing.id ? { ...m, drafts: remaining } : m,
+          m.id === existing.id ? { ...m, parts: remaining } : m,
         ),
       };
-      await idb.updateModel(existing.id, { drafts: remaining });
+      await idb.updateModel(existing.id, { parts: remaining });
     }
   }
 
@@ -470,19 +587,41 @@ export default function useProjects() {
     for (let i = 0; i < enabled.length; i++) {
       const model = enabled[i];
       const targetPartNumber = adjustedPartNumber - offsets[i];
-      if (!model.drafts.some((d) => d.partNumber === targetPartNumber))
-        continue;
+      if (!model.parts.some((d) => d.partNumber === targetPartNumber)) continue;
 
-      const updatedDrafts: PartDraft[] = model.drafts.map((d) =>
+      // Update the reactive store (parts with override applied)
+      const updatedParts: Part[] = model.parts.map((d) =>
         d.partNumber === targetPartNumber ? { ...d, grainLock } : d,
       );
       activeProjectData.value = {
         ...project,
         models: project.models.map((m) =>
-          m.id === model.id ? { ...m, drafts: updatedDrafts } : m,
+          m.id === model.id ? { ...m, parts: updatedParts } : m,
         ),
       };
-      await idb.updateModel(model.id, { drafts: updatedDrafts });
+
+      // Persist to partOverrides in IDB (not to parts — those are derived)
+      const existing = await idb.getProjectWithModels(projectId);
+      const idbModel = existing?.models.find((m) => m.id === model.id);
+      const currentOverrides = idbModel?.partOverrides ?? {};
+      const updatedOverrides = { ...currentOverrides };
+      if (grainLock) {
+        updatedOverrides[targetPartNumber] = {
+          ...updatedOverrides[targetPartNumber],
+          grainLock,
+        };
+      } else {
+        // Remove grainLock from override
+        if (updatedOverrides[targetPartNumber]) {
+          const { grainLock: _, ...rest } = updatedOverrides[targetPartNumber];
+          if (Object.keys(rest).length === 0) {
+            delete updatedOverrides[targetPartNumber];
+          } else {
+            updatedOverrides[targetPartNumber] = rest;
+          }
+        }
+      }
+      await idb.updateModel(model.id, { partOverrides: updatedOverrides });
       break;
     }
   }
@@ -507,6 +646,7 @@ export default function useProjects() {
     removeModel,
     toggleModel,
     updateColorMap,
+    toggleColorExcluded,
     updateStock,
     updateDistanceUnit,
     addManualPart,

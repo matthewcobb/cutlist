@@ -7,7 +7,7 @@ const EPSILON = 1e-5;
 // Helpers to build minimal fixture objects
 
 function makeStock(material: string, thickness: number): Stock {
-  return { material, thickness, width: 0.6, length: 2.4 };
+  return { material, thickness, width: 0.6, length: 2.4, hasGrain: false };
 }
 
 function makeBoardLayoutStock(

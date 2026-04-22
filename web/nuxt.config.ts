@@ -1,20 +1,20 @@
 import { resolve } from 'node:path';
-import pkg from './package.json';
+import pkg from '../package.json';
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  compatibilityDate: '2025-01-01',
   appConfig: {
     version: pkg.version,
   },
   modules: ['@nuxt/ui', '@vueuse/nuxt'],
-  css: ['~/assets/css/typography.css'],
+  css: ['~/assets/css/main.css'],
+  ssr: false,
   colorMode: {
     preference: 'dark',
-    fallback: 'dark',
   },
-  ssr: false,
   alias: {
-    cutlist: resolve('./lib'),
+    cutlist: resolve(__dirname, 'lib'),
   },
   app: {
     head: {

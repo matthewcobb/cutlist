@@ -5,15 +5,15 @@
  * max part numbers to avoid collisions.
  */
 export function computePartNumberOffsets(
-  models: { drafts: { partNumber: number }[] }[],
+  models: { parts: { partNumber: number }[] }[],
 ): number[] {
   const offsets: number[] = [];
   let cumulative = 0;
   for (const model of models) {
     offsets.push(cumulative);
     let max = 0;
-    for (const draft of model.drafts) {
-      if (draft.partNumber > max) max = draft.partNumber;
+    for (const part of model.parts) {
+      if (part.partNumber > max) max = part.partNumber;
     }
     cumulative += max;
   }

@@ -29,7 +29,7 @@ parseAndSet(value.value);
 function serialize() {
   const yaml = YAML.dump(JSON.parse(JSON.stringify(matrix.value)), {
     indent: 2,
-    flowLevel: 2,
+    flowLevel: 3,
   });
   lastSerialized = yaml;
   value.value = yaml;
@@ -67,32 +67,37 @@ function commit() {
 
 defineExpose({ commit });
 
-// Per-field add inputs: key = `{matIndex}-{field}`
-const newInputs = ref<Record<string, string>>({});
+// Thickness add inputs: key = matIndex
+const newThickness = ref<Record<number, string>>({});
 
-function inputKey(matIndex: number, field: string) {
-  return `${matIndex}-${field}`;
-}
-
-function addDimension(
-  matIndex: number,
-  field: 'thickness' | 'width' | 'length',
-) {
-  const key = inputKey(matIndex, field);
-  const raw = newInputs.value[key];
+function addThickness(matIndex: number) {
+  const raw = newThickness.value[matIndex];
   if (raw == null || raw === '') return;
   const num = Number(raw);
   if (!Number.isFinite(num) || num <= 0) return;
-  matrix.value[matIndex][field].push(num);
-  newInputs.value[key] = '';
+  matrix.value[matIndex].thickness.push(num);
+  newThickness.value[matIndex] = '';
 }
 
-function removeDimension(
-  matIndex: number,
-  field: 'thickness' | 'width' | 'length',
-  dimIndex: number,
-) {
-  matrix.value[matIndex][field].splice(dimIndex, 1);
+function removeThickness(matIndex: number, dimIndex: number) {
+  matrix.value[matIndex].thickness.splice(dimIndex, 1);
+}
+
+// Size add inputs: keyed by matIndex
+const newSizeWidth = ref<Record<number, string>>({});
+const newSizeLength = ref<Record<number, string>>({});
+
+function addSize(matIndex: number) {
+  const w = Number(newSizeWidth.value[matIndex]);
+  const l = Number(newSizeLength.value[matIndex]);
+  if (!Number.isFinite(w) || w <= 0 || !Number.isFinite(l) || l <= 0) return;
+  matrix.value[matIndex].sizes.push({ width: w, length: l });
+  newSizeWidth.value[matIndex] = '';
+  newSizeLength.value[matIndex] = '';
+}
+
+function removeSize(matIndex: number, sizeIndex: number) {
+  matrix.value[matIndex].sizes.splice(sizeIndex, 1);
 }
 
 function addMaterial() {
@@ -100,8 +105,7 @@ function addMaterial() {
     material: 'New Material',
     unit: 'mm',
     thickness: [],
-    width: [],
-    length: [],
+    sizes: [],
     hasGrain: true,
   });
 }
@@ -116,9 +120,9 @@ function removeMaterial(index: number) {
     <div
       v-for="(mat, matIndex) in matrix"
       :key="matIndex"
-      class="rounded-lg border border-white/10 bg-gray-900 p-4 flex flex-col gap-4"
+      class="rounded-lg border border-default bg-surface p-4 flex flex-col gap-3"
     >
-      <!-- Material name + unit + grain toggle -->
+      <!-- Header: name + unit + grain + delete -->
       <div class="flex items-center gap-2">
         <UInput
           v-model="mat.material"
@@ -127,33 +131,16 @@ function removeMaterial(index: number) {
         />
         <USelect
           v-model="mat.unit"
-          :options="[
+          :items="[
             { label: 'mm', value: 'mm' },
             { label: 'in', value: 'in' },
           ]"
           size="sm"
-          :ui="{ base: 'w-18' }"
+          class="w-18"
         />
-        <button
-          type="button"
-          :title="
-            mat.hasGrain
-              ? 'Has grain direction by default — click to disable'
-              : 'No grain direction by default — click to enable'
-          "
-          :class="[
-            'flex items-center gap-1.5 px-2 py-1.5 rounded-md border text-xs transition-colors shrink-0',
-            mat.hasGrain
-              ? 'border-teal-500/60 bg-teal-500/10 text-teal-400'
-              : 'border-white/15 bg-transparent text-white/40 hover:border-white/30 hover:text-white/60',
-          ]"
-          @click="mat.hasGrain = !mat.hasGrain"
-        >
-          <UIcon name="i-lucide-move-horizontal" class="w-3.5 h-3.5" />
-          <span>{{ mat.hasGrain ? 'Grain' : 'No grain' }}</span>
-        </button>
+        <UCheckbox v-model="mat.hasGrain" label="Grain" />
         <UButton
-          color="gray"
+          color="neutral"
           variant="ghost"
           icon="i-lucide-trash-2"
           size="sm"
@@ -161,46 +148,102 @@ function removeMaterial(index: number) {
         />
       </div>
 
-      <!-- Thickness / Width / Length -->
-      <div
-        v-for="field in ['thickness', 'width', 'length'] as const"
-        :key="field"
-        class="flex flex-col gap-1.5"
-      >
+      <!-- Thicknesses -->
+      <div class="flex flex-col gap-1.5">
         <label class="text-xs font-medium text-muted uppercase tracking-wider">
-          {{ field }}
+          Thicknesses
         </label>
         <div class="flex flex-wrap items-center gap-1.5">
           <span
-            v-for="(dim, i) in mat[field]"
+            v-for="(dim, i) in mat.thickness"
             :key="i"
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded border border-white/10 bg-white/5 text-sm text-teal-300 font-mono"
+            class="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-subtle bg-elevated text-[13px] text-teal-300 font-mono"
           >
             {{ typeof dim === 'number' ? `${dim}${mat.unit ?? 'mm'}` : dim }}
             <button
               class="text-dim hover:text-body leading-none ml-0.5 transition-colors"
-              @click="removeDimension(matIndex, field, i)"
+              @click="removeThickness(matIndex, i)"
             >
-              ×
+              &times;
             </button>
           </span>
           <input
-            v-model="newInputs[inputKey(matIndex, field)]"
+            v-model="newThickness[matIndex]"
             type="number"
             min="0"
             step="any"
-            class="bg-transparent text-sm text-teal-300/70 font-mono w-20 outline-none border-b border-white/20 focus:border-teal-600 placeholder:text-white/20 transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            class="bg-elevated rounded px-2 py-1 text-[13px] text-teal-300/70 font-mono w-20 outline-none border border-subtle focus:border-teal-600 placeholder:text-dim transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             placeholder="+ add"
-            @keydown.enter.prevent="addDimension(matIndex, field)"
-            @blur="addDimension(matIndex, field)"
+            @keydown.enter.prevent="addThickness(matIndex)"
+            @blur="addThickness(matIndex)"
           />
+        </div>
+      </div>
+
+      <!-- Board sizes -->
+      <div class="flex flex-col gap-1.5">
+        <label class="text-xs font-medium text-muted uppercase tracking-wider">
+          Board sizes
+        </label>
+        <div class="flex flex-col gap-1.5">
+          <!-- Existing sizes -->
+          <div
+            v-for="(size, sizeIndex) in mat.sizes"
+            :key="sizeIndex"
+            class="inline-flex items-center gap-2 group"
+          >
+            <span
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-subtle bg-elevated text-[13px] text-teal-300 font-mono"
+            >
+              {{ typeof size.width === 'number' ? size.width : size.width
+              }}{{ mat.unit ?? 'mm' }}
+              <span class="text-dim">&times;</span>
+              {{ typeof size.length === 'number' ? size.length : size.length
+              }}{{ mat.unit ?? 'mm' }}
+            </span>
+            <button
+              class="text-dim hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-sm"
+              @click="removeSize(matIndex, sizeIndex)"
+            >
+              <span class="i-lucide-x w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <!-- Add size row -->
+          <div class="flex items-center gap-1.5">
+            <input
+              v-model="newSizeWidth[matIndex]"
+              type="number"
+              min="0"
+              step="any"
+              class="bg-elevated rounded px-2 py-1 text-[13px] text-teal-300/70 font-mono w-20 outline-none border border-subtle focus:border-teal-600 placeholder:text-dim transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              placeholder="width"
+              @keydown.enter.prevent="addSize(matIndex)"
+            />
+            <span class="text-dim text-sm">&times;</span>
+            <input
+              v-model="newSizeLength[matIndex]"
+              type="number"
+              min="0"
+              step="any"
+              class="bg-elevated rounded px-2 py-1 text-[13px] text-teal-300/70 font-mono w-20 outline-none border border-subtle focus:border-teal-600 placeholder:text-dim transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              placeholder="length"
+              @keydown.enter.prevent="addSize(matIndex)"
+            />
+            <button
+              class="text-dim hover:text-teal-400 transition-colors text-sm px-1"
+              @click="addSize(matIndex)"
+            >
+              + add
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Add material -->
     <button
-      class="flex items-center justify-center gap-1.5 w-full rounded-lg border border-dashed border-white/20 text-muted hover:border-teal-700 hover:text-teal-400 py-3 text-sm transition-colors"
+      class="flex items-center justify-center gap-1.5 w-full rounded-lg border border-dashed border-default text-muted hover:border-teal-700 hover:text-teal-400 py-3 text-sm transition-colors"
       @click="addMaterial"
     >
       <span>+ Add Material</span>

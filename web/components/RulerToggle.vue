@@ -8,7 +8,8 @@ const { isRulerActive, toggleRuler } = useRulerStore();
       :title="isRulerActive ? 'Disable ruler (Esc)' : 'Measure distance'"
       square
       size="lg"
-      :color="isRulerActive ? 'primary' : 'gray'"
+      :color="isRulerActive ? 'primary' : 'neutral'"
+      :variant="isRulerActive ? 'solid' : 'ghost'"
       @click="toggleRuler"
     >
       <svg

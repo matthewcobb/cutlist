@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { ColorInfo, NodePartMapping, PartDraft } from '~/utils/parseGltf';
+import type { Part } from '~/utils/parseGltf';
 import {
   DEFAULT_SETTINGS,
   DEFAULT_STOCK_YAML,
@@ -13,6 +13,8 @@ export interface IdbProject {
   id: string;
   name: string;
   colorMap: Record<string, string>;
+  /** Color keys excluded from BOM (unchecked in mapping panel). */
+  excludedColors: string[];
   /** Per-project stock definition (YAML string). */
   stock: string;
   /** Per-project distance unit. */
@@ -22,16 +24,22 @@ export interface IdbProject {
   archivedAt?: string;
 }
 
+export interface PartOverride {
+  grainLock?: 'length' | 'width';
+}
+
 export interface IdbModel {
   id: string;
   projectId: string;
   filename: string;
   source: 'gltf' | 'manual';
-  drafts: PartDraft[];
-  colors: ColorInfo[];
+  /** Source of truth for manual models. GLTF models re-derive from gltfJson on load. */
+  parts: Part[];
   enabled: boolean;
+  /** Raw GLTF JSON. Null for manual models. */
   gltfJson: object | null;
-  nodePartMap: NodePartMapping[] | null;
+  /** Per-part user overrides, keyed by partNumber. Extensible for future fields. */
+  partOverrides: Record<number, PartOverride>;
   createdAt: string;
 }
 
@@ -127,6 +135,7 @@ export function applyProjectDefaults(p: any): IdbProject {
     ...p,
     stock: p.stock ?? DEFAULT_STOCK_YAML,
     colorMap: p.colorMap ?? {},
+    excludedColors: p.excludedColors ?? [],
     distanceUnit: p.distanceUnit ?? 'mm',
   };
 }
@@ -136,6 +145,7 @@ export function applyModelDefaults(m: any): IdbModelMeta {
     ...m,
     source: m.source ?? 'gltf',
     enabled: m.enabled ?? true,
+    partOverrides: m.partOverrides ?? {},
   };
 }
 
@@ -213,6 +223,7 @@ export function useIdb() {
       id: crypto.randomUUID(),
       name,
       colorMap: {},
+      excludedColors: [],
       stock: opts?.stock ?? DEFAULT_STOCK_YAML,
       distanceUnit: opts?.distanceUnit ?? 'mm',
       createdAt: now,
@@ -227,7 +238,12 @@ export function useIdb() {
     patch: Partial<
       Pick<
         IdbProject,
-        'name' | 'colorMap' | 'stock' | 'distanceUnit' | 'updatedAt'
+        | 'name'
+        | 'colorMap'
+        | 'excludedColors'
+        | 'stock'
+        | 'distanceUnit'
+        | 'updatedAt'
       >
     >,
   ): Promise<IdbProject> {
@@ -310,7 +326,7 @@ export function useIdb() {
 
   async function updateModel(
     id: string,
-    patch: Partial<Pick<IdbModel, 'enabled' | 'drafts' | 'colors'>>,
+    patch: Partial<Pick<IdbModel, 'enabled' | 'parts' | 'partOverrides'>>,
   ): Promise<void> {
     const db = await getDb();
     const existing = await db.get('models', id);
@@ -325,16 +341,10 @@ export function useIdb() {
     await db.delete('models', id);
   }
 
-  async function getModelGltf(id: string): Promise<{
-    gltfJson: object | null;
-    nodePartMap: NodePartMapping[] | null;
-  }> {
+  async function getModelGltf(id: string): Promise<object | null> {
     const db = await getDb();
     const model = await db.get('models', id);
-    return {
-      gltfJson: model?.gltfJson ?? null,
-      nodePartMap: model?.nodePartMap ?? null,
-    };
+    return model?.gltfJson ?? null;
   }
 
   // Settings
@@ -342,7 +352,11 @@ export function useIdb() {
   async function getSettings(): Promise<CutlistSettings> {
     const db = await getDb();
     const record = await db.get('settings', 'global-settings');
-    return record?.settings ?? { ...DEFAULT_SETTINGS };
+    return (
+      (record as IdbSettingsRecord | undefined)?.settings ?? {
+        ...DEFAULT_SETTINGS,
+      }
+    );
   }
 
   async function saveSettings(

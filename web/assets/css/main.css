@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+@import '@nuxt/ui';
+
+@import './typography.css';
+
+/* ── Base resets ── */
+@layer base {
+  button,
+  [role='button'],
+  a,
+  select,
+  summary,
+  [type='button'],
+  [type='reset'],
+  [type='submit'] {
+    cursor: pointer;
+  }
+}
+
+/* ── Custom theme overrides ── */
+@theme {
+  --color-mist-50: #f9fbfb;
+  --color-mist-100: #f1f3f3;
+  --color-mist-200: #e3e7e8;
+  --color-mist-300: #d0d6d8;
+  --color-mist-400: #9ca8ab;
+  --color-mist-500: #67787c;
+  --color-mist-600: #4b585b;
+  --color-mist-700: #394447;
+  --color-mist-800: #22292b;
+  --color-mist-900: #161b1d;
+  --color-mist-950: #090b0c;
+}

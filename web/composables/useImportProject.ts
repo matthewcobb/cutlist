@@ -8,7 +8,8 @@ const ProjectExportSchema = z.object({
   project: z.object({
     id: z.string(),
     name: z.string(),
-    colorMap: z.record(z.string()),
+    colorMap: z.record(z.string(), z.string()),
+    excludedColors: z.array(z.string()).default([]),
     stock: z.string(),
     distanceUnit: z.enum(['in', 'mm']).default('mm'),
     createdAt: z.string(),
@@ -20,11 +21,10 @@ const ProjectExportSchema = z.object({
       projectId: z.string(),
       filename: z.string(),
       source: z.enum(['gltf', 'manual']),
-      drafts: z.array(z.any()),
-      colors: z.array(z.any()),
+      parts: z.array(z.any()).default([]),
       enabled: z.boolean(),
       gltfJson: z.any(),
-      nodePartMap: z.any(),
+      partOverrides: z.record(z.string(), z.any()).default({}),
       createdAt: z.string(),
     }),
   ),
@@ -58,7 +58,10 @@ export default function useImportProject() {
       stock: data.project.stock,
       distanceUnit: data.project.distanceUnit,
     });
-    await idb.updateProject(newProject.id, { colorMap: data.project.colorMap });
+    await idb.updateProject(newProject.id, {
+      colorMap: data.project.colorMap,
+      excludedColors: data.project.excludedColors,
+    });
 
     // Import all models with fresh UUIDs bound to the new project.
     // Build a map of old model IDs → new model IDs for fixing step partRefs.

@@ -37,9 +37,9 @@ onBeforeUnmount(() => {
       <label class="text-xs text-muted whitespace-nowrap">Optimize</label>
       <USelect
         v-model="optimize"
-        :options="['Auto', 'Cuts', 'CNC']"
+        :items="['Auto', 'Cuts', 'CNC']"
         size="xs"
-        :ui="{ base: 'w-20' }"
+        class="w-20"
       />
     </div>
 
@@ -51,24 +51,18 @@ onBeforeUnmount(() => {
         min="0"
         step="0.00001"
         size="xs"
-        :ui="{ base: 'w-20' }"
+        class="w-20"
       />
     </div>
 
     <div class="flex items-center gap-1.5">
       <label class="text-xs text-muted whitespace-nowrap">Extra</label>
-      <UInput
-        v-model="extraSpace"
-        type="number"
-        size="xs"
-        :ui="{ base: 'w-20' }"
-      />
+      <UInput v-model="extraSpace" type="number" size="xs" class="w-20" />
     </div>
 
-    <UCheckbox
-      v-model="showPartNumbers"
-      label="Part #s"
-      :ui="{ label: 'text-xs text-muted' }"
-    />
+    <label class="flex items-center gap-1.5 cursor-pointer">
+      <UCheckbox v-model="showPartNumbers" />
+      <span class="text-xs text-muted whitespace-nowrap">Part #s</span>
+    </label>
   </div>
 </template>

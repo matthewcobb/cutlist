@@ -6,8 +6,9 @@ describe('parseStock', () => {
     const yaml = `
 - material: MDF
   thickness: [0.018]
-  width: [1.2]
-  length: [2.4]
+  sizes:
+    - width: 1.2
+      length: 2.4
 `;
     const result = parseStock(yaml);
     expect(result).toHaveLength(1);
@@ -15,8 +16,7 @@ describe('parseStock', () => {
       material: 'MDF',
       unit: 'mm',
       thickness: [0.018],
-      width: [1.2],
-      length: [2.4],
+      sizes: [{ width: 1.2, length: 2.4 }],
       hasGrain: true,
     });
   });
@@ -25,12 +25,14 @@ describe('parseStock', () => {
     const yaml = `
 - material: MDF
   thickness: [0.018]
-  width: [1.2]
-  length: [2.4]
+  sizes:
+    - width: 1.2
+      length: 2.4
 - material: Ply
   thickness: [0.012]
-  width: [0.6]
-  length: [1.8]
+  sizes:
+    - width: 0.6
+      length: 1.8
 `;
     const result = parseStock(yaml);
     expect(result).toHaveLength(2);

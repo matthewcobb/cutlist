@@ -19,16 +19,18 @@ export default function () {
 
     const merged: PartToCut[] = [];
     const offsets = computePartNumberOffsets(models);
+    const excluded = new Set(project.excludedColors ?? []);
 
     for (let i = 0; i < models.length; i++) {
-      for (const draft of models[i].drafts) {
+      for (const part of models[i].parts) {
+        if (excluded.has(part.colorKey)) continue;
         merged.push({
-          partNumber: draft.partNumber + offsets[i],
-          instanceNumber: draft.instanceNumber,
-          name: draft.name,
-          size: draft.size,
-          material: project.colorMap[draft.colorKey] ?? 'Unknown',
-          grainLock: draft.grainLock,
+          partNumber: part.partNumber + offsets[i],
+          instanceNumber: part.instanceNumber,
+          name: part.name,
+          size: part.size,
+          material: project.colorMap[part.colorKey] ?? 'Unknown',
+          grainLock: part.grainLock,
         });
       }
     }

@@ -25,7 +25,7 @@ async function onDownload() {
     <UButton
       title="Export BOM and board layouts as a PDF"
       icon="i-lucide-file-down"
-      color="gray"
+      color="neutral"
       size="sm"
       :disabled="!canExport"
       @click="isOpen = true"
@@ -33,46 +33,53 @@ async function onDownload() {
       Print
     </UButton>
 
-    <UModal v-model="isOpen">
-      <div
-        class="p-6 flex flex-col gap-4 bg-black border border-white/15 rounded-lg"
-      >
-        <h2 class="text-lg font-semibold text-white">Export PDF</h2>
-        <p class="text-sm text-muted">
-          Generates an A4 PDF with the BOM table and each board layout drawn at
-          the chosen scale. Boards larger than one page will be tiled with crop
-          marks.
-        </p>
-
-        <UFormGroup label="Scale">
-          <USelect
-            v-model="scale"
-            :options="scaleOptions"
-            value-attribute="value"
-            option-attribute="label"
-          />
-        </UFormGroup>
-
+    <UModal
+      v-model:open="isOpen"
+      title="Export PDF"
+      description="Export board layouts as PDF"
+    >
+      <template #content>
         <div
-          v-if="error"
-          class="p-3 rounded border border-red-700 bg-red-950 text-red-300 text-sm"
+          class="p-6 flex flex-col gap-4 bg-elevated border border-default rounded-lg"
         >
-          {{ error }}
-        </div>
+          <h2 class="text-lg font-semibold text-white">Export PDF</h2>
+          <p class="text-sm text-muted">
+            Generates an A4 PDF with the BOM table and each board layout drawn
+            at the chosen scale. Boards larger than one page will be tiled with
+            crop marks.
+          </p>
 
-        <div class="flex flex-row-reverse gap-2">
-          <UButton
-            :loading="isExporting"
-            :disabled="!canExport"
-            @click="onDownload"
+          <UFormField label="Scale" class="w-full">
+            <USelect
+              v-model="scale"
+              :items="scaleOptions"
+              value-key="value"
+              label-key="label"
+              class="w-full"
+            />
+          </UFormField>
+
+          <div
+            v-if="error"
+            class="p-3 rounded border border-red-700 bg-red-950 text-red-300 text-sm"
           >
-            Download
-          </UButton>
-          <UButton color="gray" variant="ghost" @click="isOpen = false">
-            Cancel
-          </UButton>
+            {{ error }}
+          </div>
+
+          <div class="flex flex-row-reverse gap-2">
+            <UButton
+              :loading="isExporting"
+              :disabled="!canExport"
+              @click="onDownload"
+            >
+              Download
+            </UButton>
+            <UButton color="neutral" variant="ghost" @click="isOpen = false">
+              Cancel
+            </UButton>
+          </div>
         </div>
-      </div>
+      </template>
     </UModal>
   </div>
 </template>

@@ -46,20 +46,20 @@ async function onDrop(e: DragEvent) {
     toast.add({
       title: 'Import failed',
       description: err instanceof Error ? err.message : String(err),
-      color: 'red',
+      color: 'error',
     });
   }
 }
 </script>
 
 <template>
-  <div class="absolute inset-0 flex flex-col bg-black">
-    <ProjectTabBar class="shrink-0 border-b border-white/10" />
+  <div class="absolute inset-0 flex flex-col bg-base">
+    <ProjectTabBar class="shrink-0 border-b border-subtle" />
 
     <ClientOnly>
       <ProjectSidebar
         v-if="activeProject"
-        class="flex-1 min-w-0 bg-black relative z-10"
+        class="flex-1 min-w-0 bg-base relative z-10"
       />
 
       <div
@@ -180,7 +180,7 @@ async function onDrop(e: DragEvent) {
 
         <!-- Gradient: dark center, boards bleed through at edges -->
         <div
-          class="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_50%,rgba(0,0,0,0.94)_0%,rgba(0,0,0,0.72)_55%,rgba(0,0,0,0.42)_100%)]"
+          class="absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_50%_50%,rgba(9,11,12,0.94)_0%,rgba(9,11,12,0.72)_55%,rgba(9,11,12,0.42)_100%)]"
         />
 
         <!-- Content -->
@@ -197,7 +197,7 @@ async function onDrop(e: DragEvent) {
             :class="
               isDragging
                 ? 'border-teal-400/50 bg-teal-500/5 shadow-[0_0_40px_rgba(20,184,166,0.12)]'
-                : 'border-white/10 bg-black/40'
+                : 'border-subtle bg-mist-950/40'
             "
           >
             <div class="flex justify-center mb-4">
@@ -206,7 +206,7 @@ async function onDrop(e: DragEvent) {
                 :class="
                   isDragging
                     ? 'bg-teal-400/15 text-teal-400 scale-110'
-                    : 'bg-white/5 text-white/25'
+                    : 'bg-surface text-dim'
                 "
               >
                 <UIcon
@@ -236,7 +236,7 @@ async function onDrop(e: DragEvent) {
                 New Project
               </button>
               <button
-                class="w-full py-2 px-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-muted hover:text-body text-sm transition-colors"
+                class="w-full py-2 px-4 rounded-lg border border-subtle bg-surface hover:bg-mist-800 text-muted hover:text-body text-sm transition-colors"
                 @click="pickAndImport"
               >
                 Import Project
@@ -256,17 +256,17 @@ async function onDrop(e: DragEvent) {
           <!-- How it works -->
           <div class="w-full">
             <div class="flex items-center gap-3 mb-5">
-              <div class="flex-1 h-px bg-white/[0.06]" />
+              <div class="flex-1 h-px bg-surface" />
               <span class="text-xs text-dim uppercase tracking-widest"
                 >How it works</span
               >
-              <div class="flex-1 h-px bg-white/[0.06]" />
+              <div class="flex-1 h-px bg-surface" />
             </div>
 
             <div class="grid grid-cols-3 gap-4 mb-6">
               <div class="flex flex-col items-center gap-2">
                 <div
-                  class="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.07] flex items-center justify-center"
+                  class="w-8 h-8 rounded-lg bg-surface border border-subtle flex items-center justify-center"
                 >
                   <span class="text-xs font-mono text-teal-400">1</span>
                 </div>
@@ -277,7 +277,7 @@ async function onDrop(e: DragEvent) {
               </div>
               <div class="flex flex-col items-center gap-2">
                 <div
-                  class="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.07] flex items-center justify-center"
+                  class="w-8 h-8 rounded-lg bg-surface border border-subtle flex items-center justify-center"
                 >
                   <span class="text-xs font-mono text-teal-400">2</span>
                 </div>
@@ -288,7 +288,7 @@ async function onDrop(e: DragEvent) {
               </div>
               <div class="flex flex-col items-center gap-2">
                 <div
-                  class="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.07] flex items-center justify-center"
+                  class="w-8 h-8 rounded-lg bg-surface border border-subtle flex items-center justify-center"
                 >
                   <span class="text-xs font-mono text-teal-400">3</span>
                 </div>
@@ -310,7 +310,7 @@ async function onDrop(e: DragEvent) {
                   'No account needed',
                 ]"
                 :key="feature"
-                class="px-2.5 py-1 rounded-md text-xs text-muted border border-white/[0.07]"
+                class="px-2.5 py-1 rounded-md text-xs text-muted border border-subtle"
                 >{{ feature }}</span
               >
             </div>
@@ -320,34 +320,38 @@ async function onDrop(e: DragEvent) {
     </ClientOnly>
 
     <UModal
-      v-model="showNewProject"
-      :ui="{ overlay: { background: 'bg-black/75' }, background: 'bg-black' }"
+      v-model:open="showNewProject"
+      title="New Project"
+      description="Create a new project"
     >
-      <div class="p-6 space-y-4 bg-black border border-white/15 rounded-lg">
-        <h3 class="text-lg font-medium text-white">New Project</h3>
-        <UInput
-          v-model="projectName"
-          placeholder="Project name"
-          autofocus
-          @keydown.enter="createProject"
-        />
-        <div class="flex justify-end gap-2">
-          <UButton
-            color="white"
-            variant="ghost"
-            @click="showNewProject = false"
-          >
-            Cancel
-          </UButton>
-          <UButton
-            color="primary"
-            :disabled="!projectName.trim()"
-            @click="createProject"
-          >
-            Create
-          </UButton>
+      <template #content>
+        <div class="p-6 space-y-4 bg-elevated border border-default rounded-lg">
+          <h3 class="text-lg font-medium text-white">New Project</h3>
+          <UInput
+            v-model="projectName"
+            placeholder="Project name"
+            class="w-full"
+            autofocus
+            @keydown.enter="createProject"
+          />
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              @click="showNewProject = false"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              color="primary"
+              :disabled="!projectName.trim()"
+              @click="createProject"
+            >
+              Create
+            </UButton>
+          </div>
         </div>
-      </div>
+      </template>
     </UModal>
   </div>
 </template>

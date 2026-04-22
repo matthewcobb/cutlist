@@ -4,7 +4,7 @@ Future improvements to the bin-packing tournament, roughly ordered by ROI.
 
 ## Current state (2026-04)
 
-- **Tournament**: 11 deterministic passes, scored by board count → waste → cut complexity. See `npm/src/index.ts`.
+- **Tournament**: 11 deterministic passes, scored by board count → waste → cut complexity. See `web/lib/index.ts`.
 - **`cuts` mode**: `GuillotinePacker` — free-rectangle tracking, BSSF/BAF/BLSF fit heuristics, SAS split, rectangle merge. Strictly guillotine-cuttable.
 - **`cnc` mode**: `TightPacker` — greedy bottom-left placement. Allows non-guillotine layouts (use with CNC routers only).
 
@@ -32,7 +32,7 @@ When a material has multiple available stock sizes (e.g., 4×8 + 5×5 plywood), 
 
 Currently `compareLayoutScores` goes board count → waste area → cut complexity. Two layouts using the same board count but one with `[95%, 95%]` utilization vs. `[98%, 40%]` score similarly on waste area, but the first is clearly better for practical reasons (leftover piece is reusable).
 
-- **Where**: `npm/src/packers/layout-score.ts`.
+- **Where**: `web/lib/packers/layout-score.ts`.
 - **Ideas**: penalize variance in per-board fill ratios; or add a "largest offcut" term that rewards keeping one big usable remnant.
 - **Risk**: medium — requires calibrating weights against real-world layouts; regression-test against a corpus of known-good outputs.
 

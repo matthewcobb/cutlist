@@ -15,17 +15,33 @@ export const DEFAULT_STOCK: StockMatrix[] = [
     material: 'Plywood',
     unit: 'mm',
     thickness: [18, 12, 9, 6],
-    width: [1220],
-    length: [2440],
+    sizes: [{ width: 1220, length: 2440 }],
     hasGrain: true,
   },
   {
     material: 'MDF',
     unit: 'mm',
     thickness: [18, 12, 9, 6, 3],
-    width: [1220],
-    length: [2440],
+    sizes: [{ width: 1220, length: 2440 }],
     hasGrain: false,
+  },
+  {
+    material: 'Plywood',
+    unit: 'in',
+    thickness: [0.75, 0.5, 0.25],
+    sizes: [{ width: 48, length: 96 }],
+    hasGrain: true,
+  },
+  {
+    material: 'Hardwood',
+    unit: 'in',
+    thickness: [0.75, 1, 1.5],
+    sizes: [
+      { width: 6, length: 96 },
+      { width: 8, length: 96 },
+      { width: 12, length: 96 },
+    ],
+    hasGrain: true,
   },
 ];
 

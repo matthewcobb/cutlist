@@ -29,7 +29,7 @@ const length = computed(() => formatDistance(props.layout.stock.lengthM));
       >
     </p>
     <div
-      class="bg-black rounded relative ring-1 ring-white/20 ring-inset"
+      class="bg-mist-800 rounded relative ring-1 ring-mist-700 ring-inset"
       :style="`width:${widthPx};height:${heightPx}`"
     >
       <PartListItem

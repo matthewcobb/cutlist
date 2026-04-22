@@ -137,6 +137,7 @@ export default function useThreeViewer(
   let needsRender = true;
   let rafId = 0;
   let loadGeneration = 0;
+  let cameraMoving = false;
 
   // ─── Render scheduling ──────────────────────────────────────────
 
@@ -171,10 +172,11 @@ export default function useThreeViewer(
     state.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     state.raycaster.setFromCamera(state.mouse, state.camera);
     const hit = state.raycaster.intersectObjects(getRaycastTargets(), false)[0];
-    return hit ? meshToPart.get(hit.object as Mesh) ?? null : null;
+    return hit ? (meshToPart.get(hit.object as Mesh) ?? null) : null;
   }
 
   function onPointerMove(event: PointerEvent) {
+    if (cameraMoving) return;
     const partNum = raycastPart(event);
     store.hoveredPartNumber.value = partNum;
     if (state)
@@ -219,6 +221,13 @@ export default function useThreeViewer(
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
     controls.addEventListener('change', requestRender);
+    controls.addEventListener('start', () => {
+      cameraMoving = true;
+    });
+    controls.addEventListener('end', () => {
+      cameraMoving = false;
+      store.hoveredPartNumber.value = null;
+    });
 
     // Hemisphere light — cool sky + warm earth gradient fill
     scene.add(new THREE.HemisphereLight(0xc8d8f0, 0x3a2820, 0.4));

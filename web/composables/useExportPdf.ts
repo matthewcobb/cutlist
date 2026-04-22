@@ -27,7 +27,7 @@ export default function () {
         showPartNumbers: !!showPartNumbers.value,
         measurements: measurements.value,
       });
-      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const safeName = name.replace(/[^a-z0-9-_]+/gi, '_');
       const a = document.createElement('a');

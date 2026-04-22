@@ -21,18 +21,18 @@ const availableParts = computed<PartSummary[]>(() => {
   const result: PartSummary[] = [];
   for (const model of enabledModels.value) {
     const partMap = new Map<number, PartSummary>();
-    for (const draft of model.drafts) {
-      const existing = partMap.get(draft.partNumber);
+    for (const part of model.parts) {
+      const existing = partMap.get(part.partNumber);
       if (existing) {
         existing.qty++;
       } else {
-        partMap.set(draft.partNumber, {
+        partMap.set(part.partNumber, {
           modelId: model.id,
-          partNumber: draft.partNumber,
-          name: draft.name,
-          colorKey: draft.colorKey,
+          partNumber: part.partNumber,
+          name: part.name,
+          colorKey: part.colorKey,
           qty: 1,
-          size: draft.size,
+          size: part.size,
         });
       }
     }
@@ -172,7 +172,7 @@ function sizeLabel(part: PartSummary): string {
       v-if="!activeProject"
       class="flex flex-col items-center justify-center gap-3 py-16 text-center"
     >
-      <UIcon name="i-lucide-book-open" class="w-10 h-10 text-white/15" />
+      <UIcon name="i-lucide-book-open" class="w-10 h-10 text-dim" />
       <p class="text-sm text-muted">Create a project to get started.</p>
     </div>
 
@@ -181,9 +181,9 @@ function sizeLabel(part: PartSummary): string {
       class="flex flex-col items-center justify-center gap-4 py-16 text-center"
     >
       <div
-        class="w-14 h-14 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center"
+        class="w-14 h-14 rounded-2xl bg-surface border border-subtle flex items-center justify-center"
       >
-        <UIcon name="i-lucide-list-ordered" class="w-7 h-7 text-white/20" />
+        <UIcon name="i-lucide-list-ordered" class="w-7 h-7 text-dim" />
       </div>
       <div class="space-y-1">
         <p class="text-sm font-medium text-muted">No steps yet</p>
@@ -206,7 +206,7 @@ function sizeLabel(part: PartSummary): string {
       <div
         v-for="step in buildSteps"
         :key="step.id"
-        class="border border-white/10 rounded-xl bg-white/2 overflow-hidden"
+        class="border border-subtle rounded-xl bg-surface overflow-hidden"
       >
         <!-- View mode -->
         <template v-if="editingId !== step.id">
@@ -242,37 +242,33 @@ function sizeLabel(part: PartSummary): string {
                 <!-- Actions -->
                 <div class="flex items-center gap-0.5 shrink-0 ml-1">
                   <UButton
-                    size="2xs"
+                    size="xs"
                     icon="i-lucide-chevron-up"
-                    color="white"
+                    color="neutral"
                     variant="ghost"
                     :disabled="step.stepNumber === 1"
-                    :ui="{ rounded: 'rounded-md' }"
                     @click="moveStep(step.id, 'up')"
                   />
                   <UButton
-                    size="2xs"
+                    size="xs"
                     icon="i-lucide-chevron-down"
-                    color="white"
+                    color="neutral"
                     variant="ghost"
                     :disabled="step.stepNumber === buildSteps.length"
-                    :ui="{ rounded: 'rounded-md' }"
                     @click="moveStep(step.id, 'down')"
                   />
                   <UButton
-                    size="2xs"
+                    size="xs"
                     icon="i-lucide-pencil"
-                    color="white"
+                    color="neutral"
                     variant="ghost"
-                    :ui="{ rounded: 'rounded-md' }"
                     @click="startEdit(step)"
                   />
                   <UButton
-                    size="2xs"
+                    size="xs"
                     icon="i-lucide-trash-2"
-                    color="red"
+                    color="error"
                     variant="ghost"
-                    :ui="{ rounded: 'rounded-md' }"
                     @click="removeStep(step.id)"
                   />
                 </div>
@@ -286,10 +282,10 @@ function sizeLabel(part: PartSummary): string {
                 <div
                   v-for="part in resolveStepParts(step)"
                   :key="partKey(part.modelId, part.partNumber)"
-                  class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/5 border border-white/10"
+                  class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-surface border border-subtle"
                 >
                   <span
-                    class="w-3 h-3 rounded-sm shrink-0 border border-white/20"
+                    class="w-3 h-3 rounded-sm shrink-0 border border-default"
                     :style="partColor(part.colorKey)"
                   />
                   <span
@@ -312,7 +308,7 @@ function sizeLabel(part: PartSummary): string {
         <!-- Edit mode -->
         <template v-else>
           <div class="p-3 space-y-3">
-            <div class="flex gap-3">
+            <div class="flex items-center gap-3">
               <!-- Step number bubble -->
               <div
                 class="shrink-0 w-10 h-10 rounded-lg bg-teal-500/15 border border-teal-500/30 flex items-center justify-center"
@@ -324,23 +320,23 @@ function sizeLabel(part: PartSummary): string {
                 </span>
               </div>
 
-              <!-- Inputs -->
-              <div class="flex-1 min-w-0 space-y-2">
-                <UInput
-                  v-model="editDraft.title"
-                  size="sm"
-                  placeholder="Step title…"
-                  autofocus
-                />
-                <UTextarea
-                  v-model="editDraft.description"
-                  size="sm"
-                  placeholder="Description (optional)…"
-                  :rows="2"
-                  autoresize
-                />
-              </div>
+              <!-- Title input -->
+              <UInput
+                v-model="editDraft.title"
+                size="sm"
+                placeholder="Step title…"
+                class="flex-1 min-w-0"
+                autofocus
+              />
             </div>
+            <UTextarea
+              v-model="editDraft.description"
+              size="sm"
+              placeholder="Description (optional)…"
+              class="w-full"
+              :rows="2"
+              autoresize
+            />
 
             <!-- Part picker -->
             <div v-if="availableParts.length > 0" class="space-y-1.5">
@@ -359,18 +355,18 @@ function sizeLabel(part: PartSummary): string {
                       partKey(part.modelId, part.partNumber),
                     )
                       ? 'bg-teal-500/12 border border-teal-500/30'
-                      : 'bg-white/3 border border-white/8 hover:bg-white/6'
+                      : 'bg-surface border border-subtle hover:bg-mist-800'
                   "
                   @click="togglePartRef(part)"
                 >
                   <span
-                    class="w-4 h-4 rounded border border-white/20 flex items-center justify-center shrink-0"
+                    class="w-4 h-4 rounded border border-default flex items-center justify-center shrink-0"
                     :class="
                       editDraft.partRefs.has(
                         partKey(part.modelId, part.partNumber),
                       )
                         ? 'bg-teal-500 border-teal-400'
-                        : 'bg-white/5'
+                        : 'bg-surface'
                     "
                   >
                     <UIcon
@@ -384,7 +380,7 @@ function sizeLabel(part: PartSummary): string {
                     />
                   </span>
                   <span
-                    class="w-3 h-3 rounded-sm shrink-0 border border-white/20"
+                    class="w-3 h-3 rounded-sm shrink-0 border border-default"
                     :style="partColor(part.colorKey)"
                   />
                   <span class="flex-1 text-sm text-body truncate">
@@ -404,7 +400,7 @@ function sizeLabel(part: PartSummary): string {
             </p>
 
             <!-- Save / Cancel -->
-            <div class="flex items-center gap-2 pt-1 border-t border-white/8">
+            <div class="flex items-center gap-2 pt-1 border-t border-subtle">
               <UButton
                 size="sm"
                 color="primary"
@@ -413,7 +409,7 @@ function sizeLabel(part: PartSummary): string {
               />
               <UButton
                 size="sm"
-                color="white"
+                color="neutral"
                 variant="ghost"
                 label="Cancel"
                 @click="cancelEdit"

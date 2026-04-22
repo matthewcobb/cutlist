@@ -20,6 +20,25 @@ const projectName = ref('');
 const showHistory = ref(false);
 const pendingDeleteId = ref<string | null>(null);
 const showClearConfirm = ref(false);
+const pendingCloseId = ref<string | null>(null);
+const pendingCloseName = ref('');
+
+function requestClose(id: string) {
+  const project = projects.value.get(id);
+  pendingCloseName.value = project?.name ?? 'this project';
+  pendingCloseId.value = id;
+}
+
+function confirmClose() {
+  if (pendingCloseId.value) {
+    closeProject(pendingCloseId.value);
+    pendingCloseId.value = null;
+  }
+}
+
+function cancelClose() {
+  pendingCloseId.value = null;
+}
 
 function formatArchivedDate(iso: string) {
   const d = new Date(iso);
@@ -137,9 +156,9 @@ function createProject() {
 </script>
 
 <template>
-  <div class="flex items-stretch bg-black min-h-10">
+  <div class="flex items-stretch bg-base min-h-10">
     <div
-      class="shrink-0 flex items-center px-3 border-r border-white/10 select-none"
+      class="shrink-0 flex items-center px-3 border-r border-subtle select-none"
     >
       <span class="text-sm font-semibold tracking-tight text-white"
         >cutlist</span
@@ -157,7 +176,7 @@ function createProject() {
         :draggable="editingId !== id"
         :class="dragOverId === id ? 'border-l-2 border-teal-400' : ''"
         @click="setActive(id)"
-        @close="closeProject(id)"
+        @close="requestClose(id)"
         @dblclick="startEdit(id, project.name)"
         @rename="(name) => finishEdit(id, name)"
         @dragstart="(e: DragEvent) => onDragStart(id, e)"
@@ -167,7 +186,7 @@ function createProject() {
       />
     </TabList>
 
-    <div class="shrink-0 flex items-center px-2 border-l border-white/10">
+    <div class="shrink-0 flex items-center px-2 border-l border-subtle">
       <button
         class="flex items-center gap-1 px-2 py-1 rounded border border-teal-400/40 text-teal-400 hover:bg-teal-400/10 hover:border-teal-400/70 transition-colors text-xs font-medium"
         title="New project"
@@ -180,7 +199,7 @@ function createProject() {
 
     <button
       v-if="activeId"
-      class="shrink-0 px-3 flex items-center gap-1.5 border-l border-white/10 text-muted hover:text-teal-400 transition-colors"
+      class="shrink-0 px-3 flex items-center gap-1.5 border-l border-subtle text-muted hover:text-teal-400 transition-colors"
       title="Export project"
       @click="exportProject"
     >
@@ -189,7 +208,7 @@ function createProject() {
     </button>
 
     <button
-      class="shrink-0 px-3 flex items-center gap-1.5 border-l border-white/10 text-muted hover:text-teal-400 transition-colors"
+      class="shrink-0 px-3 flex items-center gap-1.5 border-l border-subtle text-muted hover:text-teal-400 transition-colors"
       title="Import project"
       @click="pickAndImport"
     >
@@ -199,7 +218,7 @@ function createProject() {
 
     <div class="relative shrink-0">
       <button
-        class="px-3 flex items-center gap-1.5 h-full border-l border-white/10 transition-colors"
+        class="px-3 flex items-center gap-1.5 h-full border-l border-subtle transition-colors"
         :class="
           showHistory ? 'text-teal-400' : 'text-muted hover:text-teal-400'
         "
@@ -225,9 +244,9 @@ function createProject() {
       >
         <div
           v-if="showHistory"
-          class="absolute top-full right-0 mt-1 w-72 bg-zinc-950 border border-white/15 rounded-lg shadow-2xl z-50 origin-top-right"
+          class="absolute top-full right-0 mt-1 w-72 bg-elevated border border-default rounded-lg shadow-2xl z-50 origin-top-right"
         >
-          <div class="px-3 py-2 border-b border-white/10">
+          <div class="px-3 py-2 border-b border-subtle">
             <span
               class="text-xs font-semibold text-muted uppercase tracking-wider"
               >Closed projects</span
@@ -243,7 +262,7 @@ function createProject() {
             <li
               v-for="p in archivedList"
               :key="p.id"
-              class="flex items-center gap-2 px-3 py-2 border-b border-white/5 last:border-0 hover:bg-white/5 group"
+              class="flex items-center gap-2 px-3 py-2 border-b border-subtle last:border-0 hover:bg-surface group"
             >
               <div class="flex-1 min-w-0">
                 <div class="text-sm text-body truncate">{{ p.name }}</div>
@@ -253,15 +272,15 @@ function createProject() {
               </div>
               <template v-if="pendingDeleteId === p.id">
                 <UButton
-                  size="2xs"
-                  color="gray"
+                  size="xs"
+                  color="neutral"
                   variant="ghost"
                   label="Cancel"
                   @click="cancelDelete"
                 />
                 <UButton
-                  size="2xs"
-                  color="red"
+                  size="xs"
+                  color="error"
                   variant="solid"
                   label="Delete"
                   @click="handleDelete(p.id)"
@@ -269,17 +288,17 @@ function createProject() {
               </template>
               <template v-else>
                 <UButton
-                  size="2xs"
+                  size="xs"
                   icon="i-lucide-undo-2"
-                  color="white"
+                  color="neutral"
                   variant="ghost"
                   title="Reopen"
                   @click="handleRestore(p.id)"
                 />
                 <UButton
-                  size="2xs"
+                  size="xs"
                   icon="i-lucide-trash-2"
-                  color="red"
+                  color="error"
                   variant="ghost"
                   title="Delete permanently"
                   @click="handleDelete(p.id)"
@@ -289,7 +308,7 @@ function createProject() {
           </ul>
           <div
             v-if="archivedList.length > 0"
-            class="px-3 py-2 border-t border-white/10 flex justify-end items-center gap-2"
+            class="px-3 py-2 border-t border-subtle flex justify-end items-center gap-2"
           >
             <template v-if="showClearConfirm">
               <span class="text-xs text-muted">Delete all?</span>
@@ -325,30 +344,63 @@ function createProject() {
     </div>
 
     <UModal
-      v-model="showModal"
-      :ui="{ overlay: { background: 'bg-black/75' }, background: 'bg-black' }"
+      :open="!!pendingCloseId"
+      title="Close Project"
+      description="Confirm closing project"
+      @update:open="
+        (v: boolean) => {
+          if (!v) cancelClose();
+        }
+      "
     >
-      <div class="p-6 space-y-4 bg-black border border-white/15 rounded-lg">
-        <h3 class="text-lg font-medium text-white">New Project</h3>
-        <UInput
-          v-model="projectName"
-          placeholder="Project name"
-          autofocus
-          @keydown.enter="createProject"
-        />
-        <div class="flex justify-end gap-2">
-          <UButton color="white" variant="ghost" @click="showModal = false">
-            Cancel
-          </UButton>
-          <UButton
-            color="primary"
-            :disabled="!projectName.trim()"
-            @click="createProject"
-          >
-            Create
-          </UButton>
+      <template #content>
+        <div class="p-6 space-y-4 bg-elevated border border-default rounded-lg">
+          <h3 class="text-lg font-medium text-white">Close project?</h3>
+          <p class="text-sm text-muted">
+            <span class="text-body font-medium">{{ pendingCloseName }}</span>
+            will be moved to History where you can restore it later.
+          </p>
+          <div class="flex justify-end gap-2">
+            <UButton color="neutral" variant="ghost" @click="cancelClose">
+              Cancel
+            </UButton>
+            <UButton color="primary" @click="confirmClose">
+              Close project
+            </UButton>
+          </div>
         </div>
-      </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="showModal"
+      title="New Project"
+      description="Create a new project"
+    >
+      <template #content>
+        <div class="p-6 space-y-4 bg-elevated border border-default rounded-lg">
+          <h3 class="text-lg font-medium text-white">New Project</h3>
+          <UInput
+            v-model="projectName"
+            placeholder="Project name"
+            class="w-full"
+            autofocus
+            @keydown.enter="createProject"
+          />
+          <div class="flex justify-end gap-2">
+            <UButton color="neutral" variant="ghost" @click="showModal = false">
+              Cancel
+            </UButton>
+            <UButton
+              color="primary"
+              :disabled="!projectName.trim()"
+              @click="createProject"
+            >
+              Create
+            </UButton>
+          </div>
+        </div>
+      </template>
     </UModal>
   </div>
 </template>

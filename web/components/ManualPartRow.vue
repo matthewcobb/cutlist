@@ -67,7 +67,7 @@ function onKeydown(e: KeyboardEvent) {
 
 <template>
   <div
-    class="flex flex-col gap-2 p-2 rounded-lg border border-white/10 bg-white/3"
+    class="flex flex-col gap-2 p-2 rounded-lg border border-subtle bg-surface"
   >
     <UInput
       v-model="name"
@@ -135,7 +135,7 @@ function onKeydown(e: KeyboardEvent) {
           'flex items-center gap-1 px-2 py-1.5 rounded-md border text-xs transition-colors whitespace-nowrap',
           grainLock
             ? 'border-teal-500/60 bg-teal-500/10 text-teal-400'
-            : 'border-white/15 bg-transparent text-white/40 hover:border-white/30 hover:text-white/60',
+            : 'border-default bg-transparent text-dim hover:border-mist-600 hover:text-muted',
         ]"
         @click="grainLock = cycleGrainLock(grainLock)"
       >
@@ -147,13 +147,13 @@ function onKeydown(e: KeyboardEvent) {
       </button>
       <select
         v-model="material"
-        class="manual-select flex-1 bg-black border border-white/15 rounded-md px-2 py-1.5 text-sm text-white/80 cursor-pointer focus:outline-none focus:border-white/30"
+        class="manual-select flex-1 bg-base border border-default rounded-md px-2 py-1.5 text-sm text-body cursor-pointer focus:outline-none focus:border-mist-600"
       >
         <option
           v-for="m in materials"
           :key="m"
           :value="m"
-          style="background: #111; color: rgba(255, 255, 255, 0.85)"
+          style="background: #161b1d; color: #e3e7e8"
         >
           {{ m }}
         </option>
@@ -170,7 +170,7 @@ function onKeydown(e: KeyboardEvent) {
       <UButton
         v-if="initial"
         size="sm"
-        color="white"
+        color="neutral"
         variant="ghost"
         @click="emit('cancel')"
       >

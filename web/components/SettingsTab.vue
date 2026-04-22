@@ -31,31 +31,31 @@ function deleteProject() {
       <h3 class="text-sm font-medium text-muted uppercase tracking-wide">
         Project
       </h3>
-      <UFormGroup label="Project name">
+      <UFormField label="Project name">
         <UInput
           v-model="projectName"
           @blur="saveProjectName"
           @keydown.enter="($event.target as HTMLInputElement).blur()"
         />
-      </UFormGroup>
+      </UFormField>
 
-      <UFormGroup label="Units">
+      <UFormField label="Units">
         <USelect
           v-model="distanceUnit"
-          :options="[
+          :items="[
             { label: 'Millimeters (mm)', value: 'mm' },
             { label: 'Inches (in)', value: 'in' },
           ]"
         />
-      </UFormGroup>
+      </UFormField>
     </div>
 
-    <div class="flex flex-col gap-4 border-t border-white/10 pt-8">
+    <div class="flex flex-col gap-4 border-t border-subtle pt-8">
       <h3 class="text-sm font-medium text-muted uppercase tracking-wide">
         Danger Zone
       </h3>
       <div
-        class="flex items-center justify-between p-4 rounded-lg border border-red-900/50 bg-red-950/20"
+        class="flex items-center justify-between p-4 rounded-lg border border-red-900/50 bg-red-950/50"
       >
         <div>
           <p class="text-sm font-medium text-white">Delete project</p>
@@ -63,7 +63,7 @@ function deleteProject() {
         </div>
         <UButton
           v-if="!showDeleteConfirm"
-          color="red"
+          color="error"
           variant="outline"
           @click="showDeleteConfirm = true"
         >
@@ -71,12 +71,12 @@ function deleteProject() {
         </UButton>
         <div v-else class="flex gap-2">
           <UButton
-            color="gray"
+            color="neutral"
             variant="ghost"
             @click="showDeleteConfirm = false"
             >Cancel</UButton
           >
-          <UButton color="red" @click="deleteProject">Confirm Delete</UButton>
+          <UButton color="error" @click="deleteProject">Confirm Delete</UButton>
         </div>
       </div>
     </div>

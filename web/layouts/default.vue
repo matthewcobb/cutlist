@@ -4,11 +4,11 @@
       <slot />
     </div>
     <footer
-      class="shrink-0 flex items-center justify-between px-4 border-t border-white/10 bg-black text-white/30 text-xs"
+      class="shrink-0 flex items-center justify-between px-4 border-t border-subtle bg-base text-muted text-xs"
       style="height: 26px"
     >
-      <span>v{{ appConfig.version }} &mdash; beta</span>
-      <NuxtLink to="/terms" class="hover:text-white/60 transition-colors"
+      <span>v{{ appConfig.version }} &mdash; BETA</span>
+      <NuxtLink to="/terms" class="hover:text-body transition-colors"
         >Terms of Use</NuxtLink
       >
       <span>Built by Matt</span>
@@ -33,25 +33,12 @@ html {
 }
 
 body {
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo,
-    Consolas, 'Liberation Mono', monospace;
+  font-family:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
   -webkit-font-smoothing: antialiased;
-  background: #000000;
+  background: #090b0c;
   color: #ffffff;
-}
-
-/* Force Nuxt UI select dropdown to match dark theme */
-[role='listbox'] {
-  background: #000000 !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-}
-[role='listbox'] [role='option'] {
-  color: #ffffff !important;
-}
-[role='listbox'] [role='option']:hover,
-[role='listbox'] [role='option'][aria-selected='true'] {
-  background: rgba(255, 255, 255, 0.08) !important;
-  color: #6ee7b7 !important;
 }
 
 /* ── Scrollbar styling ── */
@@ -60,13 +47,13 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #000000;
+  background: #090b0c;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: #394447;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.35);
+  background: #4b585b;
 }
 </style>

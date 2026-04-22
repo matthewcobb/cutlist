@@ -1,22 +1,56 @@
-/* ── 4-tier text contrast system (dark background) ──────────────────────── */
-/* Use these instead of scattering text-white/* opacity values everywhere.   */
+/* ── Design tokens ────────────────────────────────────────────────────────── */
+/* Semantic utilities for the dark-background UI.                             */
+/* All colors use the mist palette (solid values) for reliable theming.      */
+/* Registered as @utility so Tailwind variants (hover:, focus:, etc) work.   */
+
+/* ── Text (4-tier contrast) ──────────────────────────────────────────────── */
 
 /* Full white — headings, primary labels, key data */
-.text-hi {
+@utility text-hi {
   color: rgb(255 255 255);
 }
 
-/* 85% — readable body copy, names, descriptions */
-.text-body {
-  color: rgb(255 255 255 / 0.85);
+/* mist-200 — readable body copy, names, descriptions */
+@utility text-body {
+  color: #e3e7e8;
 }
 
-/* 60% — secondary labels, metadata, muted info */
-.text-muted {
-  color: rgb(255 255 255 / 0.6);
+/* NOTE: text-muted is provided by Nuxt UI (resolves to mist-400 via neutral palette).
+   Do not redefine it here — the names would collide. */
+
+/* mist-500 — tertiary hints, decorative, placeholders */
+@utility text-dim {
+  color: #67787c;
 }
 
-/* 40% — tertiary hints, decorative, placeholders */
-.text-dim {
-  color: rgb(255 255 255 / 0.4);
+/* ── Borders (2-tier) ────────────────────────────────────────────────────── */
+
+/* mist-800 — dividers, separators, subtle edges */
+@utility border-subtle {
+  border-color: #22292b;
+}
+
+/* mist-700 — card/container outlines, input rings */
+@utility border-default {
+  border-color: #394447 !important;
+}
+
+/* ── Surfaces ────────────────────────────────────────────────────────────── */
+
+/* mist-950 — page background, base layer */
+@utility bg-base {
+  background-color: #090b0c;
+}
+
+/* mist-900 — subtle tinted surface (cards, inputs, hover fills) */
+@utility bg-surface {
+  background-color: #161b1d;
+}
+
+/* NOTE: bg-elevated is provided by Nuxt UI (resolves to mist-800 via neutral palette).
+   Do not redefine it here — the names would collide. */
+
+/* 80% black — floating panels, overlays, backdrops */
+@utility bg-overlay {
+  background-color: rgb(0 0 0 / 0.8);
 }

@@ -53,8 +53,18 @@ export interface Stock {
 }
 
 /**
- * For a material, define a combination of widths, lengths, and thicknesses
- * that can be combined to form multiple stocks.
+ * A board size — a linked width × length pair.
+ */
+export const StockSize = z.object({
+  width: Distance,
+  length: Distance,
+});
+export type StockSize = z.infer<typeof StockSize>;
+
+/**
+ * For a material, define board sizes and thicknesses. Each size is a linked
+ * width × length pair. Thicknesses are independent — every size is available
+ * in every thickness.
  */
 export const StockMatrix = z.object({
   material: z.string(),
@@ -65,8 +75,10 @@ export const StockMatrix = z.object({
    */
   unit: z.enum(['mm', 'in']).default('mm'),
   thickness: z.array(Distance),
-  width: z.array(Distance),
-  length: z.array(Distance),
+  /**
+   * Available board sizes. Each entry is a specific width × length pair.
+   */
+  sizes: z.array(StockSize),
   /**
    * Whether this material has a grain direction. Set to false for sheet goods
    * like MDF where orientation doesn't matter. Defaults to true.

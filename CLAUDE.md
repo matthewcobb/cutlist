@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-All commands run from repo root via Bun workspaces. The web app lives in `web/`.
+All commands run from repo root. The web app source lives in `web/`.
 
 ```bash
 bun dev          # Start dev server
@@ -29,13 +29,23 @@ Formatting runs automatically via lint-staged on commit (Prettier).
 ### Core Data Flow
 
 ```
-GLTF / manual parts
-  → parseGltf (web/utils/parseGltf.ts) → PartDraft[]
-  → useProjects (composable) → IndexedDB (useIdb)
+GLTF file import
+  → parseGltf (web/utils/parseGltf.ts)
+  → stores raw gltfJson in IndexedDB
+
+Manual parts
+  → user enters via BOM tab
+  → stores Part[] in IndexedDB (source of truth)
+
+On project load (useProjects → hydrateModel)
+  → GLTF models: deriveFromGltf(gltfJson) → Part[], colors, nodePartMap
+  → Manual models: reads stored Part[] directly
+  → Both: applies partOverrides (user edits like grainLock)
   → user assigns colorMap (material per color)
+  → useBoardLayoutsQuery resolves Part → PartToCut (adds material)
   → generateBoardLayouts (web/lib/index.ts) → BoardLayout[]
   → BomTab / board preview display
-  → exportPdf (web/utils/exportPdf.ts) or useExportProject (.cutlist.json)
+  → exportPdf (web/utils/exportPdf.ts) or useExportProject (.cutlist.gz)
 ```
 
 ### Packing Engine (`web/lib/`)
@@ -50,7 +60,7 @@ Three packers:
 
 Search passes include shelf variants, guillotine variants (with/without rotation, CNC vs manual cuts), and randomized permutations. The packer returning the fewest boards / least waste wins.
 
-Types live in `web/lib/types.ts` (`Stock`, `PartToCut`, `BoardLayout`, `SearchPass`).
+Types: `Part` (web/utils/parseGltf.ts) is the storage/UI type (no material). `PartToCut` (web/lib/types.ts) is the packing engine input (has material). `PartOverride` (web/composables/useIdb.ts) holds per-part user edits (grainLock, extensible). Other packing types: `Stock`, `BoardLayout`, `SearchPass` in `web/lib/types.ts`.
 
 ### Composables (`web/composables/`)
 
@@ -71,9 +81,39 @@ Single page (`index.vue`) with a project sidebar and tabbed main area. Tabs: Mod
 
 Styling: Tailwind CSS v4 + Nuxt UI, dark mode by default, custom "mist" color palette (`tailwind.config.ts`), teal accent (`app.config.ts`).
 
-### NPM Package (`npm/`)
+### Theming
 
-Standalone packing library (not actively published). Contains Onshape API integration (`onshape.ts`) not present in the web app. Ignore unless working on library publishing.
+The app is always dark. The **mist palette** (cool blue-gray ramp) is the single color source, set as `neutral: 'mist'` in `app.config.ts` so Nuxt UI generates all its semantic colors from it automatically. Dark mode is forced via `colorMode: { preference: 'dark' }` in `nuxt.config.ts`.
+
+**How it works**: Nuxt UI maps the neutral palette to CSS variables (`--ui-bg`, `--ui-bg-elevated`, `--ui-text-muted`, etc.) which power its built-in semantic classes (`bg-default`, `bg-elevated`, `text-muted`, `text-dimmed`, etc.). Setting `neutral: 'mist'` means all those resolve to mist values. Custom utilities in `typography.css` fill gaps Nuxt UI doesn't cover.
+
+**Surface hierarchy** (elevation levels):
+
+| Class         | Source         | Mist value         | Use for                                          |
+| ------------- | -------------- | ------------------ | ------------------------------------------------ |
+| `bg-base`     | custom utility | mist-950 `#090b0c` | Page background, base layer                      |
+| `bg-default`  | Nuxt UI        | mist-900 `#161b1d` | Default component backgrounds                    |
+| `bg-surface`  | custom utility | mist-900 `#161b1d` | Inputs, cards, subtle elevation                  |
+| `bg-elevated` | Nuxt UI        | mist-800 `#22292b` | Dropdowns, popovers, tooltips, modal content     |
+| `bg-overlay`  | custom utility | `black/80%`        | Modal backdrops only (intentionally transparent) |
+
+**Text hierarchy**:
+
+| Class        | Source         | Mist value         | Use for                    |
+| ------------ | -------------- | ------------------ | -------------------------- |
+| `text-hi`    | custom utility | white              | Headings, primary labels   |
+| `text-body`  | custom utility | mist-200 `#e3e7e8` | Body copy, names           |
+| `text-muted` | Nuxt UI        | mist-400 `#9ca8ab` | Secondary labels, metadata |
+| `text-dim`   | custom utility | mist-500 `#67787c` | Hints, placeholders        |
+
+**Borders**: `border-subtle` (custom, mist-800) for dividers, `border-default` (custom, mist-700 with `!important`) for outlines/rings.
+
+**Rules**:
+
+- Floating/overlapping elements **must** use `bg-elevated` so content underneath doesn't bleed through.
+- Don't redefine `bg-elevated`, `text-muted`, or other Nuxt UI semantic classes as custom `@utility` — the names collide and cause specificity issues.
+- Teal accent colors (`teal-400/30`, etc.) and `bg-overlay` are the only places transparency is correct. Don't introduce new `white/XX` patterns.
+- Nuxt UI component defaults are in `app.config.ts` — update there, not per-component.
 
 ## Testing
 
@@ -84,14 +124,26 @@ Tests use Bun's built-in test runner. Test files live alongside source in `__tes
 - `web/lib/utils/__tests__/` — utility tests
 - `web/utils/__tests__/` — web utility tests
 
-## Data Migrations (`web/utils/migrations.ts`)
+## Data Model (`web/composables/useIdb.ts`)
 
-Record shapes in IndexedDB evolve over time. A lightweight migration system handles this:
+All data lives in IndexedDB. The app is still in development — breaking schema changes are acceptable (users can reset their database).
 
-- **`SCHEMA_VERSION`** — bump when any record type's fields change (independent of IDB database version, which only changes for store/index structure).
-- **Startup sweep** — on app init, migrates all stored records to current schema. Cursor-based for models (avoids loading gltfJson blobs).
-- **`applyDefaults`** in `useIdb.ts` — safety net on read paths in case sweep was interrupted.
-- **`migrateExport`** — applies same migrations to imported `.cutlist.json` files.
+### IdbModel — what's stored vs derived
+
+GLTF models store only `gltfJson` (raw) and `partOverrides` (user edits). Parts, colors, and nodePartMap are **re-derived on every project load** via `deriveFromGltf()` in `useProjects.ts`. This means changes to parse logic take effect immediately — no migration needed for derived data.
+
+Manual models store `parts` directly (source of truth). They have no `gltfJson`.
+
+Both model types use `partOverrides: Record<number, PartOverride>` for user edits (keyed by partNumber). To add a new per-part override, just add an optional field to `PartOverride` — no migration needed.
+
+### Migrations (`web/utils/migrations.ts`)
+
+Currently at a clean slate (`SCHEMA_VERSION = 1`, zero migrations). The infrastructure exists for future use:
+
+- **`SCHEMA_VERSION`** — bump when any record type's fields change.
+- **Startup sweep** — on app init, migrates all stored records to current schema.
+- **`applyDefaults`** in `useIdb.ts` — safety net on read paths.
+- **`migrateExport`** — applies same migrations to imported `.cutlist.gz` files.
 
 ### When adding a new field to a record type
 
@@ -101,15 +153,6 @@ Record shapes in IndexedDB evolve over time. A lightweight migration system hand
 4. Update the matching `applyDefaults` function in `useIdb.ts`
 5. Update `createX` to set the field for new records
 6. Add a test in `utils/__tests__/migrations.test.ts`
-
-### Migration rules
-
-1. **New required fields must have a default** — every non-optional field needs a migration providing one.
-2. **Never delete a field** — mark it optional (`?`) and stop writing it.
-3. **Never change a field's type in place** — add a new field, deprecate the old one.
-4. **Migrations are pure functions** — no side effects, no DB access, no async.
-5. **Migrations are append-only** — never edit or delete a shipped migration.
-6. **`applyDefaults` is the safety net** — even if sweep is interrupted, reads won't crash.
 
 ## Key Config Files
 

@@ -5,7 +5,7 @@ import type { PartToCut } from 'cutlist';
  * board layout pipeline turns it into a real `material` via the user's color
  * mapping.
  */
-export type PartDraft = Omit<PartToCut, 'material'> & { colorKey: string };
+export type Part = Omit<PartToCut, 'material'> & { colorKey: string };
 
 export interface ColorInfo {
   /** Raw material `name` from the GLTF file (e.g. "0.921569_0.800000_..."). */
@@ -64,23 +64,21 @@ export interface NodePartMapping {
   colorHex: string;
 }
 
-export interface ParseResult {
-  drafts: PartDraft[];
+export interface DeriveResult {
+  parts: Part[];
   colors: ColorInfo[];
-  gltfJson: object;
   nodePartMap: NodePartMapping[];
+}
+
+export interface ParseResult extends DeriveResult {
+  gltfJson: object;
 }
 
 const PRECISION = 1e-6;
 
-export async function parseGltf(file: File): Promise<ParseResult> {
-  const text = await file.text();
-  let gltf: Gltf;
-  try {
-    gltf = JSON.parse(text);
-  } catch (err) {
-    throw new Error(`Could not parse "${file.name}" as JSON GLTF: ${err}`);
-  }
+/** Derive parts, colors, and node mapping from a raw GLTF JSON object. */
+export function deriveFromGltf(gltfJson: object): DeriveResult {
+  const gltf = gltfJson as Gltf;
 
   if (!gltf.nodes || !gltf.meshes || !gltf.accessors) {
     throw new Error(
@@ -123,13 +121,13 @@ export async function parseGltf(file: File): Promise<ParseResult> {
     }
   }
 
-  const drafts: PartDraft[] = [];
+  const parts: Part[] = [];
   const nodePartMap: NodePartMapping[] = [];
   let partNumber = 0;
   for (const group of groups.values()) {
     partNumber += 1;
     for (let i = 0; i < group.quantity; i += 1) {
-      drafts.push({
+      parts.push({
         partNumber,
         instanceNumber: i + 1,
         name: group.name,
@@ -142,7 +140,7 @@ export async function parseGltf(file: File): Promise<ParseResult> {
     }
   }
 
-  // Tally colors across all drafts.
+  // Tally colors across all parts.
   const colorMap = new Map<
     string,
     { rgb: [number, number, number]; count: number }
@@ -159,7 +157,19 @@ export async function parseGltf(file: File): Promise<ParseResult> {
     ([key, { rgb, count }]) => ({ key, rgb, count }),
   );
 
-  return { drafts, colors, gltfJson: gltf, nodePartMap };
+  return { parts, colors, nodePartMap };
+}
+
+export async function parseGltf(file: File): Promise<ParseResult> {
+  const text = await file.text();
+  let gltf: object;
+  try {
+    gltf = JSON.parse(text);
+  } catch (err) {
+    throw new Error(`Could not parse "${file.name}" as JSON GLTF: ${err}`);
+  }
+  const derived = deriveFromGltf(gltf);
+  return { ...derived, gltfJson: gltf };
 }
 
 interface PartInfo {
@@ -239,7 +249,7 @@ function meshToPartInfo(
 
   const matName =
     firstMaterialIdx != null
-      ? gltf.materials?.[firstMaterialIdx]?.name ?? ''
+      ? (gltf.materials?.[firstMaterialIdx]?.name ?? '')
       : '';
   const { key, rgb, hex } = resolveColor(
     matName,
@@ -288,9 +298,10 @@ function resolveColor(
 }
 
 function rgbToHex(rgb: [number, number, number]): string {
-  const [r, g, b] = rgb.map((v) =>
-    Math.round(Math.min(1, Math.max(0, v)) * 255),
-  );
+  const clamp = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 255);
+  const r = clamp(rgb[0]);
+  const g = clamp(rgb[1]);
+  const b = clamp(rgb[2]);
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
@@ -300,12 +311,30 @@ function round(n: number): number {
 
 // --- Minimal 4x4 column-major matrix helpers (matching GLTF spec) ---
 
-type Mat4 = number[]; // length 16, column-major
+type Mat4 = [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+]; // column-major
 
 const IDENTITY: Mat4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
 function nodeMatrix(node: GltfNode): Mat4 {
-  if (node.matrix && node.matrix.length === 16) return node.matrix.slice();
+  if (node.matrix && node.matrix.length === 16)
+    return node.matrix.slice() as Mat4;
   if (!node.translation && !node.rotation && !node.scale) return IDENTITY;
   const t = node.translation ?? [0, 0, 0];
   const r = node.rotation ?? [0, 0, 0, 1];
@@ -358,12 +387,12 @@ function multiply(a: Mat4, b: Mat4): Mat4 {
     for (let row = 0; row < 4; row += 1) {
       let sum = 0;
       for (let k = 0; k < 4; k += 1) {
-        sum += a[k * 4 + row] * b[col * 4 + k];
+        sum += a[k * 4 + row]! * b[col * 4 + k]!;
       }
       out[col * 4 + row] = sum;
     }
   }
-  return out;
+  return out as Mat4;
 }
 
 function transformPoint(

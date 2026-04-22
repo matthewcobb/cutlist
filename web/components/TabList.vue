@@ -1,5 +1,5 @@
 <template>
-  <ul class="flex overflow-x-auto bg-black">
+  <ul class="flex overflow-x-auto bg-base">
     <slot />
   </ul>
 </template>

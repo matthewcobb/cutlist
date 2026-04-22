@@ -31,13 +31,13 @@ watch(
   <li
     class="shrink-0 min-w-[8rem]"
     :class="
-      isActive ? 'bg-gradient-to-b from-teal-400/30 to-transparent' : 'bg-black'
+      isActive ? 'bg-gradient-to-b from-teal-400/30 to-transparent' : 'bg-base'
     "
   >
     <component
       :is="to ? resolveComponent('ULink') : 'button'"
-      class="px-3 flex shrink-0 h-10 justify-start items-center gap-3 border-r border-white/10 w-full"
-      v-bind="to ? { to, active: isActive, activeClass: 'bg-white/5' } : {}"
+      class="px-3 flex shrink-0 h-10 justify-start items-center gap-3 border-r border-subtle w-full"
+      v-bind="to ? { to, active: isActive, activeClass: 'bg-surface' } : {}"
     >
       <slot />
       <input
@@ -59,18 +59,15 @@ watch(
         :class="isActive ? 'text-teal-400' : 'text-muted'"
         >{{ name }}</span
       >
-      <UButton
+      <button
         v-if="!hideClose"
-        size="2xs"
-        icon="i-lucide-x"
-        color="white"
-        variant="soft"
-        square
-        class="ml-auto"
-        :ui="{ rounded: 'rounded-full' }"
+        class="ml-auto hover:text-white transition-colors"
+        :class="isActive ? 'text-white' : 'text-muted'"
         title="Close"
         @click.stop.prevent="emit('close')"
-      />
+      >
+        <UIcon name="i-lucide-x" class="size-3.5" />
+      </button>
     </component>
   </li>
 </template>

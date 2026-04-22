@@ -1,20 +1,20 @@
 <template>
-  <div class="absolute inset-0 overflow-y-auto bg-black">
+  <div class="absolute inset-0 overflow-y-auto bg-base">
     <div class="max-w-2xl mx-auto px-6 py-12">
       <NuxtLink
         to="/"
-        class="inline-flex items-center gap-2 text-white/40 hover:text-white/70 text-xs transition-colors mb-10"
+        class="inline-flex items-center gap-2 text-dim hover:text-body text-xs transition-colors mb-10"
       >
         <UIcon name="i-lucide-arrow-left" class="w-3 h-3" />
         Back to app
       </NuxtLink>
 
       <h1 class="text-2xl font-semibold text-white mb-1">Terms of Use</h1>
-      <p class="text-white/30 text-xs mb-10">
+      <p class="text-dim text-xs mb-10">
         Cutlist Generator &mdash; v{{ appConfig.version }}
       </p>
 
-      <section class="space-y-8 text-sm text-white/70 leading-relaxed">
+      <section class="space-y-8 text-sm text-body leading-relaxed">
         <div>
           <h2
             class="text-teal-400 text-xs font-semibold uppercase tracking-wider mb-3"
@@ -85,30 +85,28 @@
           </p>
           <table class="w-full text-xs border-collapse">
             <thead>
-              <tr class="border-b border-white/10">
-                <th class="text-left text-white/40 font-normal pb-2 pr-6">
+              <tr class="border-b border-subtle">
+                <th class="text-left text-dim font-normal pb-2 pr-6">
                   Package
                 </th>
-                <th class="text-left text-white/40 font-normal pb-2 pr-6">
+                <th class="text-left text-dim font-normal pb-2 pr-6">
                   Version
                 </th>
-                <th class="text-left text-white/40 font-normal pb-2">
-                  License
-                </th>
+                <th class="text-left text-dim font-normal pb-2">License</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-white/5">
-              <tr v-for="dep in deps" :key="dep.name" class="hover:bg-white/5">
-                <td class="py-2 pr-6 text-white/80">{{ dep.name }}</td>
-                <td class="py-2 pr-6 text-white/40">{{ dep.version }}</td>
-                <td class="py-2 text-white/40">{{ dep.license }}</td>
+            <tbody class="divide-y divide-mist-900">
+              <tr v-for="dep in deps" :key="dep.name" class="hover:bg-surface">
+                <td class="py-2 pr-6 text-body">{{ dep.name }}</td>
+                <td class="py-2 pr-6 text-dim">{{ dep.version }}</td>
+                <td class="py-2 text-dim">{{ dep.license }}</td>
               </tr>
             </tbody>
           </table>
         </div>
       </section>
 
-      <p class="mt-12 text-white/20 text-xs">
+      <p class="mt-12 text-dim text-xs">
         Built by Matt &mdash; {{ new Date().getFullYear() }}
       </p>
     </div>
@@ -119,15 +117,15 @@
 const appConfig = useAppConfig();
 
 const deps = [
-  { name: 'Nuxt', version: '3', license: 'MIT' },
+  { name: 'Nuxt', version: '4', license: 'MIT' },
   { name: 'Vue', version: '3', license: 'MIT' },
-  { name: 'Nuxt UI', version: '2', license: 'MIT' },
-  { name: 'VueUse', version: '10', license: 'MIT' },
+  { name: 'Nuxt UI', version: '3', license: 'MIT' },
+  { name: 'VueUse', version: '14', license: 'MIT' },
   { name: 'Three.js', version: '0.184', license: 'MIT' },
   { name: 'pdf-lib', version: '1.17', license: 'MIT' },
   { name: 'idb', version: '8', license: 'ISC' },
   { name: 'js-yaml', version: '4', license: 'MIT' },
-  { name: 'Zod', version: '3', license: 'MIT' },
+  { name: 'Zod', version: '4', license: 'MIT' },
   { name: 'Tailwind CSS', version: '4', license: 'MIT' },
   { name: 'Lucide Icons', version: '1', license: 'ISC' },
 ];

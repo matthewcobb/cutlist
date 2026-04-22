@@ -4,8 +4,11 @@ import { DEFAULT_STOCK_YAML, DEFAULT_SETTINGS } from '~/utils/settings';
 /**
  * Schema version for record shapes (independent of IDB database version).
  * Bump when any record type's fields change. Never decrement.
+ *
+ * Reset to 1 — no legacy migrations. If the DB has older data, clear it
+ * (we are still in development and accept breaking changes).
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 1;
 
 type StoreName = 'projects' | 'models' | 'buildSteps' | 'settings';
 
@@ -24,46 +27,7 @@ export interface RecordMigration {
  *  - Each migration must be a pure function (no side effects, no async).
  *  - New required fields must have a sensible default.
  */
-export const migrations: RecordMigration[] = [
-  // v3: backfill fields that existed in TS types but had no migration
-  {
-    version: 3,
-    store: 'projects',
-    migrate: (p) => ({
-      ...p,
-      stock: p.stock ?? DEFAULT_STOCK_YAML,
-      colorMap: p.colorMap ?? {},
-    }),
-  },
-  {
-    version: 3,
-    store: 'models',
-    migrate: (m) => ({
-      ...m,
-      source: m.source ?? 'gltf',
-      enabled: m.enabled ?? true,
-    }),
-  },
-  {
-    version: 3,
-    store: 'settings',
-    migrate: (s) => ({
-      ...s,
-      settings: s.settings
-        ? { ...DEFAULT_SETTINGS, ...s.settings }
-        : { ...DEFAULT_SETTINGS },
-    }),
-  },
-  // v4: distanceUnit moves from global settings to per-project
-  {
-    version: 4,
-    store: 'projects',
-    migrate: (p) => ({
-      ...p,
-      distanceUnit: p.distanceUnit ?? 'mm',
-    }),
-  },
-];
+export const migrations: RecordMigration[] = [];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -94,7 +58,7 @@ const SCHEMA_VERSION_KEY = 'schema-version';
  */
 export async function runStartupSweep(db: IDBPDatabase<any>): Promise<void> {
   const versionRecord = await db.get('settings', SCHEMA_VERSION_KEY);
-  const storedVersion: number = versionRecord?.version ?? 2;
+  const storedVersion: number = versionRecord?.version ?? 0;
 
   if (storedVersion >= SCHEMA_VERSION) return;
 
@@ -173,7 +137,7 @@ interface RawExport {
  * Reuses the same migration functions as the IDB sweep.
  */
 export function migrateExport(raw: RawExport): RawExport {
-  const fromVersion = raw.version ?? 2;
+  const fromVersion = raw.version ?? 0;
 
   if (fromVersion > SCHEMA_VERSION) {
     throw new Error(

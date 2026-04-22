@@ -10,6 +10,7 @@ export interface ProjectExport {
     id: string;
     name: string;
     colorMap: Record<string, string>;
+    excludedColors: string[];
     stock: string;
     distanceUnit: 'in' | 'mm';
     createdAt: string;
@@ -34,7 +35,7 @@ export default function useExportProject() {
     const fullModels: IdbModel[] = await Promise.all(
       idbProject.models.map(async (m) => ({
         ...m,
-        ...(await idb.getModelGltf(m.id)),
+        gltfJson: await idb.getModelGltf(m.id),
       })),
     );
 
@@ -48,6 +49,7 @@ export default function useExportProject() {
         id: idbProject.id,
         name: idbProject.name,
         colorMap: idbProject.colorMap,
+        excludedColors: idbProject.excludedColors,
         stock: idbProject.stock,
         distanceUnit: idbProject.distanceUnit,
         createdAt: idbProject.createdAt,

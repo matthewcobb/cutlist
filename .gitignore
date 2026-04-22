@@ -1,3 +1,5 @@
 node_modules
 .DS_Store
-src/packers/__tests__/dist/
+web/lib/packers/__tests__/dist/
+package-lock.json
+/.nuxt/dist

@@ -238,15 +238,13 @@ function dimToMeters(dim: number | string, unit: 'mm' | 'in'): number {
 export function reduceStockMatrix(matrix: StockMatrix[]): Stock[] {
   return matrix.flatMap((item) => {
     const unit = item.unit ?? 'mm';
-    return item.length.flatMap((length) =>
-      item.width.flatMap((width) =>
-        item.thickness.map((thickness) => ({
-          ...item,
-          thickness: dimToMeters(thickness, unit),
-          width: dimToMeters(width, unit),
-          length: dimToMeters(length, unit),
-        })),
-      ),
+    return item.sizes.flatMap((size) =>
+      item.thickness.map((thickness) => ({
+        ...item,
+        thickness: dimToMeters(thickness, unit),
+        width: dimToMeters(size.width, unit),
+        length: dimToMeters(size.length, unit),
+      })),
     );
   });
 }

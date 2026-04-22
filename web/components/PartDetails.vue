@@ -24,43 +24,45 @@ const bottom = computed(() => formatDistance(props.placement?.bottomM));
       {{ part.partNumber }}.{{ part.instanceNumber }} {{ part.name }}
     </h3>
     <table class="font-mono">
-      <tr>
-        <td class="text-muted">Width</td>
-        <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
-        <td>{{ width }}</td>
-      </tr>
-      <tr>
-        <td class="text-muted">Length</td>
-        <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
-        <td>{{ length }}</td>
-      </tr>
-      <tr>
-        <td class="text-muted">Thick</td>
-        <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
-        <td>{{ thickness }}</td>
-      </tr>
-      <template v-if="placement">
+      <tbody>
         <tr>
-          <td class="text-muted">Left</td>
-          <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
-          <td>{{ left }}</td>
+          <td class="text-muted">Width</td>
+          <td class="text-dim whitespace-pre">{{ ' = ' }}</td>
+          <td>{{ width }}</td>
         </tr>
         <tr>
-          <td class="text-muted">Top</td>
-          <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
-          <td>{{ top }}</td>
+          <td class="text-muted">Length</td>
+          <td class="text-dim whitespace-pre">{{ ' = ' }}</td>
+          <td>{{ length }}</td>
         </tr>
         <tr>
-          <td class="text-muted">Right</td>
-          <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
-          <td>{{ right }}</td>
+          <td class="text-muted">Thick</td>
+          <td class="text-dim whitespace-pre">{{ ' = ' }}</td>
+          <td>{{ thickness }}</td>
         </tr>
-        <tr>
-          <td class="text-muted">Bottom</td>
-          <td class="text-white/40 whitespace-pre">{{ ' = ' }}</td>
-          <td>{{ bottom }}</td>
-        </tr>
-      </template>
+        <template v-if="placement">
+          <tr>
+            <td class="text-muted">Left</td>
+            <td class="text-dim whitespace-pre">{{ ' = ' }}</td>
+            <td>{{ left }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted">Top</td>
+            <td class="text-dim whitespace-pre">{{ ' = ' }}</td>
+            <td>{{ top }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted">Right</td>
+            <td class="text-dim whitespace-pre">{{ ' = ' }}</td>
+            <td>{{ right }}</td>
+          </tr>
+          <tr>
+            <td class="text-muted">Bottom</td>
+            <td class="text-dim whitespace-pre">{{ ' = ' }}</td>
+            <td>{{ bottom }}</td>
+          </tr>
+        </template>
+      </tbody>
     </table>
   </div>
 </template>

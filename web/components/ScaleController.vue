@@ -13,12 +13,13 @@ const percent = computed(() => `${Math.round(props.scale * 100)}%`);
 </script>
 
 <template>
-  <div class="flex">
+  <div class="flex gap-1">
     <UButton
       title="Zoom out"
       square
       size="lg"
-      color="gray"
+      color="neutral"
+      variant="ghost"
       icon="i-lucide-minus"
       @click="emit('zoomOut')"
     />
@@ -26,7 +27,8 @@ const percent = computed(() => `${Math.round(props.scale * 100)}%`);
       :title="`${percent} - Click to reset to 100%`"
       class="w-20 justify-center text-teal-400"
       size="lg"
-      color="gray"
+      color="neutral"
+      variant="ghost"
       @click="emit('resetZoom')"
     >
       {{ percent }}
@@ -35,7 +37,8 @@ const percent = computed(() => `${Math.round(props.scale * 100)}%`);
       title="Zoom in"
       square
       size="lg"
-      color="gray"
+      color="neutral"
+      variant="ghost"
       icon="i-lucide-plus"
       @click="emit('zoomIn')"
     />
