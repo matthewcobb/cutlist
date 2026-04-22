@@ -17,7 +17,6 @@ export default function usePersistedSplitPanel(
 ) {
   const panelWidth = ref(0);
   const isResizing = ref(false);
-  const previousStorageKey = ref<string | null>(null);
 
   const minPanelWidthPx = options.minPanelWidthPx ?? 280;
   const minMainWidthPx = options.minMainWidthPx ?? 420;
@@ -63,40 +62,39 @@ export default function usePersistedSplitPanel(
     panelWidth.value = clampPanelWidth(stored ?? defaultPanelWidth());
   }
 
-  function onResizeMove(event: MouseEvent) {
-    if (!isResizing.value) return;
-    const bounds = container.value?.getBoundingClientRect();
-    if (!bounds) return;
-    panelWidth.value = clampPanelWidth(bounds.right - event.clientX);
-  }
+  // AbortController for clean listener teardown — no stale closures.
+  let resizeAbort: AbortController | null = null;
 
-  function onMouseMove(event: MouseEvent) {
-    onResizeMove(event);
-  }
-
-  function onMouseUp() {
-    stopResize(true);
-  }
-
-  function stopResize(persist = true) {
-    if (!isResizing.value) return;
+  function stopResize(persist: boolean) {
+    if (!resizeAbort) return;
+    resizeAbort.abort();
+    resizeAbort = null;
     isResizing.value = false;
     document.body.style.cursor = '';
     document.body.style.userSelect = '';
     if (persist) writeStoredPanelWidth(panelWidth.value);
-    window.removeEventListener('mousemove', onMouseMove);
-    window.removeEventListener('mouseup', onMouseUp);
   }
 
   function startResize(event: MouseEvent) {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || resizeAbort) return;
     event.preventDefault();
     panelWidth.value = clampPanelWidth(panelWidth.value);
     isResizing.value = true;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+
+    resizeAbort = new AbortController();
+    const { signal } = resizeAbort;
+    window.addEventListener(
+      'mousemove',
+      (e) => {
+        const bounds = container.value?.getBoundingClientRect();
+        if (!bounds) return;
+        panelWidth.value = clampPanelWidth(bounds.right - e.clientX);
+      },
+      { signal },
+    );
+    window.addEventListener('mouseup', () => stopResize(true), { signal });
   }
 
   function onWindowResize() {
@@ -104,18 +102,20 @@ export default function usePersistedSplitPanel(
     panelWidth.value = clampPanelWidth(panelWidth.value);
   }
 
+  watch(activeStorageKey, () => {
+    stopResize(false);
+    initializePanelWidth();
+  });
+
   watch(
-    [container, enabled, activeStorageKey],
-    async ([el, isEnabled, key]) => {
+    [container, enabled],
+    async ([el, isEnabled]) => {
       if (!el || !isEnabled) {
         stopResize(false);
         return;
       }
       await nextTick();
-      const keyChanged = previousStorageKey.value !== key;
-      previousStorageKey.value = key;
-      if (keyChanged) stopResize(false);
-      if (panelWidth.value <= 0 || keyChanged) initializePanelWidth();
+      if (panelWidth.value <= 0) initializePanelWidth();
       else panelWidth.value = clampPanelWidth(panelWidth.value);
     },
     { immediate: true },
@@ -126,7 +126,7 @@ export default function usePersistedSplitPanel(
   });
 
   onUnmounted(() => {
-    stopResize();
+    stopResize(false);
     window.removeEventListener('resize', onWindowResize);
   });
 

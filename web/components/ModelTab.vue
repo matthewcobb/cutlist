@@ -33,19 +33,13 @@ const focusedModelIdx = ref(0);
 
 watch(activeId, () => {
   focusedModelIdx.value = 0;
+  gltfCache.clear();
 });
 
-watch(
-  () => enabledModels.value.length,
-  (newLen) => {
-    if (focusedModelIdx.value >= newLen)
-      focusedModelIdx.value = Math.max(0, newLen - 1);
-  },
-);
-
 const displayModels = computed(() => {
-  const m = enabledModels.value[focusedModelIdx.value];
-  return m ? [m] : enabledModels.value;
+  const idx = Math.min(focusedModelIdx.value, enabledModels.value.length - 1);
+  const m = enabledModels.value[idx];
+  return m ? [m] : [];
 });
 
 const hasGltfData = computed(() =>
@@ -58,6 +52,8 @@ const hasOnlyManualModels = computed(
     enabledModels.value.every((m) => m.source === 'manual'),
 );
 
+// In-memory cache to avoid redundant IDB reads when switching models.
+const gltfCache = new Map<string, object>();
 const allGltfData = ref<Map<string, object> | null>(null);
 
 async function loadGltfData() {
@@ -67,8 +63,12 @@ async function loadGltfData() {
   }
   const entries = await Promise.all(
     displayModels.value.map(async (m) => {
-      const gltfJson = await idb.getModelGltf(m.id);
-      return [m.id, gltfJson] as const;
+      let json = gltfCache.get(m.id);
+      if (!json) {
+        json = (await idb.getModelGltf(m.id)) ?? undefined;
+        if (json) gltfCache.set(m.id, json);
+      }
+      return [m.id, json] as const;
     }),
   );
   allGltfData.value = new Map(

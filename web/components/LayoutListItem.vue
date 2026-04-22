@@ -20,11 +20,11 @@ const length = computed(() => formatDistance(props.layout.stock.lengthM));
 <template>
   <li class="flex flex-col items-center gap-4 shrink-0">
     <p class="text-center">
-      <span class="font-bold text-nowrap text-teal-400">{{
+      <span class="text-xl font-bold text-nowrap text-teal-400">{{
         layout.stock.material
       }}</span>
       <br />
-      <span class="text-xs text-nowrap text-muted"
+      <span class="text-base text-nowrap text-muted"
         >{{ thickness }} &times; {{ width }} &times; {{ length }}</span
       >
     </p>

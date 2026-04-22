@@ -138,6 +138,7 @@ export default function useThreeViewer(
   let rafId = 0;
   let loadGeneration = 0;
   let cameraMoving = false;
+  let fitDistance = 0; // camera distance at fitCamera — used to scale edge linewidth
 
   // ─── Render scheduling ──────────────────────────────────────────
 
@@ -150,6 +151,12 @@ export default function useThreeViewer(
     rafId = requestAnimationFrame(animationLoop);
     state.controls.update();
     if (needsRender) {
+      // Scale edge linewidth so lines thin out when zoomed out
+      if (fitDistance > 0) {
+        const camDist = state.camera.position.distanceTo(state.controls.target);
+        const scale = Math.max(0.3, Math.min(1, fitDistance / camDist));
+        state.edgeMaterial.linewidth = 4 * scale;
+      }
       state.renderer.render(state.scene, state.camera);
       needsRender = false;
     }
@@ -271,7 +278,7 @@ export default function useThreeViewer(
 
     const edgeMaterial = new modules.LineMaterial({
       color: 0x1a1a2e,
-      linewidth: 3,
+      linewidth: 4,
       transparent: true,
       opacity: 0.6,
       depthWrite: false,
@@ -445,6 +452,7 @@ export default function useThreeViewer(
     camera.position.y += dist * 0.5;
     camera.position.z += dist * 0.7;
 
+    fitDistance = camera.position.distanceTo(center);
     controls.target.copy(center);
     camera.near = maxDim * 0.001;
     camera.far = maxDim * 100;

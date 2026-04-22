@@ -8,6 +8,10 @@ export const STORAGE_KEYS = {
     projectBomPreviewWidth(projectId: string) {
       return `@cutlist/ui/project/${encodeStorageSegment(projectId)}/bom-preview-width/v1`;
     },
+    // BOM filter/sort state, scoped per project.
+    projectBomFilter(projectId: string) {
+      return `@cutlist/ui/project/${encodeStorageSegment(projectId)}/bom-filter/v1`;
+    },
   },
 } as const;
 
@@ -27,6 +31,25 @@ export function setLocalStorageNumber(key: string, value: number) {
   if (!import.meta.client) return;
   try {
     window.localStorage.setItem(key, String(Math.round(value)));
+  } catch {
+    // Ignore storage failures (private mode/quota/security policies).
+  }
+}
+
+export function getLocalStorageJson<T>(key: string): T | null {
+  if (!import.meta.client) return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setLocalStorageJson(key: string, value: unknown) {
+  if (!import.meta.client) return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
     // Ignore storage failures (private mode/quota/security policies).
   }

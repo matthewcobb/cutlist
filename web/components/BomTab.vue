@@ -4,7 +4,11 @@ import { groupPartsByNumber } from '~/lib/utils/bom-utils';
 import { parseStock } from '~/utils/parseStock';
 import { cycleGrainLock } from '~/utils/grain';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
-import { STORAGE_KEYS } from '~/utils/localStorage';
+import {
+  STORAGE_KEYS,
+  getLocalStorageJson,
+  setLocalStorageJson,
+} from '~/utils/localStorage';
 import type { ManualPartInput } from '~/composables/useProjects';
 
 const { data } = useBoardLayoutsQuery();
@@ -32,16 +36,61 @@ const modelViewer = useModelViewerStore();
 // ── UI state ─────────────────────────────────────────────────────────────────
 
 const modelsExpanded = ref(true);
-const search = ref('');
-const sortKey = ref<
-  'number' | 'name' | 'qty' | 'thickness' | 'width' | 'length'
->('number');
-const sortDir = ref<'asc' | 'desc'>('asc');
+
+// ── Persisted BOM filter/sort state ─────────────────────────────────────────
+
+type SortKey = 'number' | 'name' | 'qty' | 'thickness' | 'width' | 'length';
+interface BomFilter {
+  search: string;
+  sortKey: SortKey;
+  sortDir: 'asc' | 'desc';
+}
+const SORT_KEYS = new Set<SortKey>([
+  'number',
+  'name',
+  'qty',
+  'thickness',
+  'width',
+  'length',
+]);
+
+function loadBomFilter(): BomFilter {
+  if (!activeId.value) return { search: '', sortKey: 'number', sortDir: 'asc' };
+  const stored = getLocalStorageJson<Partial<BomFilter>>(
+    STORAGE_KEYS.ui.projectBomFilter(activeId.value),
+  );
+  return {
+    search: typeof stored?.search === 'string' ? stored.search : '',
+    sortKey: SORT_KEYS.has(stored?.sortKey as SortKey)
+      ? (stored!.sortKey as SortKey)
+      : 'number',
+    sortDir: stored?.sortDir === 'desc' ? 'desc' : 'asc',
+  };
+}
+
+const restored = loadBomFilter();
+const search = ref(restored.search);
+const sortKey = ref<SortKey>(restored.sortKey);
+const sortDir = ref<'asc' | 'desc'>(restored.sortDir);
+
+watch([search, sortKey, sortDir], () => {
+  if (!activeId.value) return;
+  setLocalStorageJson(STORAGE_KEYS.ui.projectBomFilter(activeId.value), {
+    search: search.value,
+    sortKey: sortKey.value,
+    sortDir: sortDir.value,
+  });
+});
 const showAddForm = ref(false);
 const editingPartNumber = ref<number | null>(null);
 const renamingPartNumber = ref<number | null>(null);
 const partNameDraft = ref('');
 const partNameInput = ref<HTMLInputElement | null>(null);
+function onPartNameInputMounted(el: unknown) {
+  const input = el as HTMLInputElement | null;
+  partNameInput.value = input;
+  input?.select();
+}
 const pendingRemoveModelId = ref<string | null>(null);
 const splitContainer = ref<HTMLDivElement | null>(null);
 
@@ -349,7 +398,7 @@ function formatDim(m: number | undefined | null): string {
 
 // ── Sorting ──────────────────────────────────────────────────────────────────
 
-function toggleSort(key: typeof sortKey.value) {
+function toggleSort(key: SortKey) {
   if (sortKey.value === key) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
   } else {
@@ -512,11 +561,6 @@ async function handleRemovePart(adjustedPn: number) {
   if (editingPartNumber.value === adjustedPn) editingPartNumber.value = null;
   if (renamingPartNumber.value === adjustedPn) cancelRenamePart();
 }
-
-watch(renamingPartNumber, (partNumber) => {
-  if (partNumber == null) return;
-  nextTick(() => partNameInput.value?.select());
-});
 
 onUnmounted(() => {
   clearBomHover();
@@ -958,9 +1002,9 @@ onUnmounted(() => {
                           class="max-w-[16rem]"
                         >
                           <input
-                            ref="partNameInput"
+                            :ref="onPartNameInputMounted"
                             v-model="partNameDraft"
-                            class="w-full text-xs bg-transparent text-teal-400 outline-none border-b border-teal-400/50"
+                            class="w-full text-[13px] font-medium bg-transparent text-teal-400 outline-none border-b border-teal-400/50"
                             @keydown.enter.prevent="saveRenamePart(row)"
                             @keydown.esc.prevent="cancelRenamePart"
                             @blur="saveRenamePart(row)"
