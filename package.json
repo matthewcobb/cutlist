@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "nuxt dev web",
     "build": "nuxt build web",
+    "build:static": "nuxt generate web",
     "preview": "nuxt preview web",
+    "lint": "prettier --check .",
     "check": "cd web && vue-tsc --noEmit",
     "test": "bun test web/",
     "test:watch": "bun test --watch web/",

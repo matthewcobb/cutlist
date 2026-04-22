@@ -3,3 +3,6 @@ node_modules
 web/lib/packers/__tests__/dist/
 package-lock.json
 /.nuxt/dist
+web/.nuxt
+web/.output
+web/dist
