@@ -67,6 +67,13 @@ interface IdbSchemaVersionRecord {
   version: number;
 }
 
+const DEMO_SEEDED_KEY = 'demo-seeded-v1' as const;
+
+interface IdbDemoSeedRecord {
+  key: typeof DEMO_SEEDED_KEY;
+  seeded: boolean;
+}
+
 interface CutlistDb extends DBSchema {
   projects: {
     key: string;
@@ -80,7 +87,7 @@ interface CutlistDb extends DBSchema {
   };
   settings: {
     key: string;
-    value: IdbSettingsRecord | IdbSchemaVersionRecord;
+    value: IdbSettingsRecord | IdbSchemaVersionRecord | IdbDemoSeedRecord;
   };
   buildSteps: {
     key: string;
@@ -378,6 +385,20 @@ export function useIdb() {
     return { ...DEFAULT_SETTINGS };
   }
 
+  async function getDemoSeeded(): Promise<boolean> {
+    const db = await getDb();
+    const record = await db.get('settings', DEMO_SEEDED_KEY);
+    return (record as IdbDemoSeedRecord | undefined)?.seeded === true;
+  }
+
+  async function setDemoSeeded(seeded: boolean): Promise<void> {
+    const db = await getDb();
+    await db.put('settings', {
+      key: DEMO_SEEDED_KEY,
+      seeded,
+    });
+  }
+
   return {
     getProjectList,
     getArchivedList,
@@ -394,6 +415,8 @@ export function useIdb() {
     getSettings,
     saveSettings,
     resetSettings,
+    getDemoSeeded,
+    setDemoSeeded,
     getBuildSteps,
     createBuildStep,
     updateBuildStep,

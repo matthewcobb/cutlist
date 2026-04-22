@@ -2,6 +2,8 @@ import type { ColorInfo, NodePartMapping, Part } from '~/utils/parseGltf';
 import { deriveFromGltf } from '~/utils/parseGltf';
 import type { IdbModelMeta, PartOverride } from '~/composables/useIdb';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
+import { importProjectFromFile as importProjectFromCompressedFile } from '~/utils/projectImport';
+import { DEMO_PROJECT_FILENAME, shouldSeedDemoProject } from '~/utils/demoSeed';
 
 export interface Model {
   id: string;
@@ -56,6 +58,31 @@ const projectList = ref<ProjectListItem[]>([]);
 const archivedList = ref<ArchivedProjectItem[]>([]);
 const activeProjectData = ref<Project | null>(null);
 let initialized = false;
+
+function getDemoSeedUrl(): string {
+  const nuxtBaseUrl =
+    import.meta.client &&
+    typeof (globalThis as any).__NUXT__?.config?.app?.baseURL === 'string'
+      ? ((globalThis as any).__NUXT__.config.app.baseURL as string)
+      : '/';
+  const baseUrl = nuxtBaseUrl || '/';
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  return `${normalizedBase}${DEMO_PROJECT_FILENAME}`;
+}
+
+async function seedDemoProject(
+  idb: ReturnType<typeof useIdb>,
+): Promise<string> {
+  const response = await fetch(getDemoSeedUrl());
+  if (!response.ok) {
+    throw new Error(`Failed to load demo project (${response.status})`);
+  }
+  const blob = await response.blob();
+  const file = new File([blob], DEMO_PROJECT_FILENAME, {
+    type: blob.type || 'application/gzip',
+  });
+  return importProjectFromCompressedFile(file, idb);
+}
 
 /** Apply partOverrides onto derived parts. */
 function applyOverrides(
@@ -136,10 +163,32 @@ async function loadProject(
 
 async function init() {
   const idb = useIdb();
-  const [list, archived] = await Promise.all([
+  let [list, archived] = await Promise.all([
     idb.getProjectList(),
     idb.getArchivedList(),
   ]);
+
+  const demoSeeded = await idb.getDemoSeeded();
+  if (
+    shouldSeedDemoProject({
+      projects: list.length,
+      archived: archived.length,
+      demoSeeded,
+    })
+  ) {
+    try {
+      const seededProjectId = await seedDemoProject(idb);
+      await idb.setDemoSeeded(true);
+      activeId.value = seededProjectId;
+      [list, archived] = await Promise.all([
+        idb.getProjectList(),
+        idb.getArchivedList(),
+      ]);
+    } catch (err) {
+      console.warn('Demo project seed failed', err);
+    }
+  }
+
   projectList.value = list;
   archivedList.value = archived;
   if (list.length > 0 && activeId.value == null) {
