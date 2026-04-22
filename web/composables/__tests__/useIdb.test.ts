@@ -155,10 +155,13 @@ describe('model CRUD', () => {
         {
           name: 'Side Panel',
           partNumber: 1,
-          width: 500,
-          length: 800,
-          thickness: 18,
-          color: '#aaa',
+          instanceNumber: 1,
+          colorKey: '#aaa',
+          size: {
+            width: 0.5,
+            length: 0.8,
+            thickness: 0.018,
+          },
         },
       ],
       enabled: true,
@@ -299,6 +302,22 @@ describe('settings', () => {
 
     const fetched = await idb.getSettings();
     expect(fetched).toEqual(DEFAULT_SETTINGS);
+  });
+});
+
+describe('demo seed marker', () => {
+  it('can be explicitly reset to false', async () => {
+    await idb.setDemoSeeded(false);
+    const seeded = await idb.getDemoSeeded();
+    expect(seeded).toBe(false);
+  });
+
+  it('can be set and read back', async () => {
+    await idb.setDemoSeeded(true);
+    expect(await idb.getDemoSeeded()).toBe(true);
+
+    await idb.setDemoSeeded(false);
+    expect(await idb.getDemoSeeded()).toBe(false);
   });
 });
 
