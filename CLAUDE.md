@@ -73,11 +73,23 @@ State is composable-based (no Pinia). Key composables:
 - `useBoardLayoutsQuery` — runs packing engine reactively
 - `useBuildSteps` — assembly instruction generation
 - `useThreeViewer` — Three.js 3D viewer (GLTF rendering, camera controls)
+- `useUrlSync` — bidirectional sync between app state (activeId, tab) and URL route
 - `useExportProject` / `useImportProject` — `.cutlist.json` file I/O
 
-### UI (`web/components/`, `web/pages/index.vue`)
+### Routing (`web/pages/`)
 
-Single page (`index.vue`) with a project sidebar and tabbed main area. Tabs: Model (3D viewer), Stock, BOM, Instructions, Warnings, Settings.
+File-based routing with dynamic segments:
+
+- `/` — landing page (`index.vue`), shown when no project is active
+- `/:projectId` — project view (`[projectId]/[[tab]].vue`), default tab is BOM
+- `/:projectId/:tab` — project view on a specific tab
+- `/about`, `/terms` — static pages
+
+`useUrlSync` (called once in `app.vue`) keeps the URL and app state in sync bidirectionally. Existing code (`setActive`, `tab.value =`) doesn't need to know about routing — the watcher handles navigation automatically.
+
+### UI (`web/components/`)
+
+Project sidebar and tabbed main area. Tabs: Model (3D viewer), Stock, BOM, Instructions, Warnings, Settings.
 
 Styling: Tailwind CSS v4 + Nuxt UI, dark mode by default, custom "mist" color palette (`tailwind.config.ts`), teal accent (`app.config.ts`).
 

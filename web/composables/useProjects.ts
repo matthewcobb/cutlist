@@ -147,6 +147,13 @@ async function init() {
   }
   if (activeId.value) {
     activeProjectData.value = await loadProject(idb, activeId.value);
+    // Stale URL or deleted project — fall back to first available
+    if (!activeProjectData.value && list.length > 0) {
+      activeId.value = list[0].id;
+      activeProjectData.value = await loadProject(idb, activeId.value!);
+    } else if (!activeProjectData.value) {
+      activeId.value = null;
+    }
   }
   initialized = true;
 }

@@ -13,12 +13,6 @@ const items = computed(() => [
     onSelect: () => void (tab.value = 'model'),
   },
   {
-    label: 'Boards',
-    icon: 'i-lucide-layers',
-    active: tab.value === 'boards',
-    onSelect: () => void (tab.value = 'boards'),
-  },
-  {
     label: 'Layout',
     icon: 'i-lucide-eye',
     active: tab.value === 'preview',
@@ -29,6 +23,12 @@ const items = computed(() => [
     icon: 'i-lucide-book-open',
     active: tab.value === 'instructions',
     onSelect: () => void (tab.value = 'instructions'),
+  },
+  {
+    label: 'Boards',
+    icon: 'i-lucide-layers',
+    active: tab.value === 'boards',
+    onSelect: () => void (tab.value = 'boards'),
   },
   {
     label: 'Settings',

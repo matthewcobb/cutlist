@@ -57,13 +57,10 @@ async function onDrop(e: DragEvent) {
     <ProjectTabBar class="shrink-0 border-b border-subtle" />
 
     <ClientOnly>
-      <ProjectSidebar
-        v-if="activeProject"
-        class="flex-1 min-w-0 bg-base relative z-10"
-      />
-
+      <!-- While projects are loading or active project exists, show nothing
+           (useUrlSync will redirect to /:projectId) -->
       <div
-        v-else
+        v-if="!activeProject"
         class="flex-1 relative overflow-hidden flex items-center justify-center"
         @dragover="onDragOver"
         @dragleave="onDragLeave"
@@ -116,7 +113,7 @@ async function onDrop(e: DragEvent) {
             <rect x="945" y="158" width="38" height="69" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
             <line x1="994" y1="10" x2="994" y2="232" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="991" y1="10" x2="997" y2="10" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="991" y1="232" x2="997" y2="232" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/>
 
-            <!-- Sheet E: small 2×2 -->
+            <!-- Sheet E: small 2x2 -->
             <rect x="10" y="248" width="140" height="160" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
             <rect x="15" y="253" width="62" height="73" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="46" y="293" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
             <rect x="79" y="253" width="66" height="73" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="112" y="293" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>

@@ -8,9 +8,15 @@
       style="height: 26px"
     >
       <span>v{{ appConfig.version }} &mdash; BETA</span>
-      <NuxtLink to="/terms" class="hover:text-body transition-colors"
-        >Terms of Use</NuxtLink
-      >
+      <div class="flex items-center gap-3">
+        <NuxtLink to="/about" class="hover:text-body transition-colors"
+          >About</NuxtLink
+        >
+        <span class="text-dim">&middot;</span>
+        <NuxtLink to="/terms" class="hover:text-body transition-colors"
+          >Terms of Use</NuxtLink
+        >
+      </div>
       <span>Built by Matt</span>
     </footer>
   </div>
