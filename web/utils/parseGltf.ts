@@ -98,26 +98,37 @@ export function deriveFromGltf(gltfJson: object): DeriveResult {
     throw new Error('No parts with geometry found in the GLTF file.');
   }
 
-  // Aggregate identical parts (same name + color + size) into quantities.
+  // Aggregate identical parts by stock identity + canonical dimensions.
   // Track which node indices belong to each group.
   const groups = new Map<
     string,
-    PartInfo & { quantity: number; nodeIndices: number[] }
+    PartInfo & {
+      quantity: number;
+      nodeIndices: number[];
+      hasMixedNames: boolean;
+    }
   >();
   for (const info of partInfos) {
+    const canonicalWidth = round(Math.min(info.size.width, info.size.length));
+    const canonicalLength = round(Math.max(info.size.width, info.size.length));
     const key = [
-      info.name,
       info.colorKey,
       round(info.size.thickness),
-      round(info.size.width),
-      round(info.size.length),
+      canonicalWidth,
+      canonicalLength,
     ].join('|');
     const existing = groups.get(key);
     if (existing) {
       existing.quantity += 1;
       existing.nodeIndices.push(info.nodeIndex);
+      if (info.name !== existing.name) existing.hasMixedNames = true;
     } else {
-      groups.set(key, { ...info, quantity: 1, nodeIndices: [info.nodeIndex] });
+      groups.set(key, {
+        ...info,
+        quantity: 1,
+        nodeIndices: [info.nodeIndex],
+        hasMixedNames: false,
+      });
     }
   }
 
@@ -130,7 +141,7 @@ export function deriveFromGltf(gltfJson: object): DeriveResult {
       parts.push({
         partNumber,
         instanceNumber: i + 1,
-        name: group.name,
+        name: group.hasMixedNames ? `${group.name} (mixed)` : group.name,
         colorKey: group.colorKey,
         size: group.size,
       });

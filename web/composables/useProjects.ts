@@ -673,6 +673,52 @@ export default function useProjects() {
     }
   }
 
+  async function updatePartNameOverride(
+    projectId: string,
+    adjustedPartNumber: number,
+    name: string,
+  ) {
+    const project = activeProjectData.value;
+    if (!project || project.id !== projectId) return;
+
+    const nextName = name.trim();
+    if (!nextName) return;
+
+    const enabled = project.models.filter((m) => m.enabled);
+    const offsets = computePartNumberOffsets(enabled);
+
+    for (let i = 0; i < enabled.length; i++) {
+      const model = enabled[i];
+      const targetPartNumber = adjustedPartNumber - offsets[i];
+      if (!model.parts.some((d) => d.partNumber === targetPartNumber)) continue;
+
+      // Update the reactive store with the overridden display name.
+      const updatedParts: Part[] = model.parts.map((d) =>
+        d.partNumber === targetPartNumber ? { ...d, name: nextName } : d,
+      );
+      activeProjectData.value = {
+        ...project,
+        models: project.models.map((m) =>
+          m.id === model.id ? { ...m, parts: updatedParts } : m,
+        ),
+      };
+
+      // Persist name override to partOverrides.
+      const existing = await idb.getProjectWithModels(projectId);
+      const idbModel = existing?.models.find((m) => m.id === model.id);
+      const currentOverrides = idbModel?.partOverrides ?? {};
+      const updatedOverrides = {
+        ...currentOverrides,
+        [targetPartNumber]: {
+          ...currentOverrides[targetPartNumber],
+          name: nextName,
+        },
+      };
+      await idb.updateModel(model.id, { partOverrides: updatedOverrides });
+      break;
+    }
+  }
+
   return {
     projects,
     activeId,
@@ -700,6 +746,7 @@ export default function useProjects() {
     updateManualPart,
     removeManualPart,
     updatePartGrainLock,
+    updatePartNameOverride,
     reloadProjectList,
   };
 }

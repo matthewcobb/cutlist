@@ -26,6 +26,7 @@ export interface IdbProject {
 
 export interface PartOverride {
   grainLock?: 'length' | 'width';
+  name?: string;
 }
 
 export interface IdbModel {
