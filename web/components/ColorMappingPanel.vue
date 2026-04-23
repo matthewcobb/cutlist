@@ -53,6 +53,8 @@ function rgbStyle(rgb: [number, number, number]): string {
     <button
       type="button"
       class="flex items-center gap-1.5 w-full text-left group"
+      :aria-expanded="expanded"
+      aria-label="Map colors to stock materials"
       @click="expanded = !expanded"
     >
       <UIcon

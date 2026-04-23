@@ -68,6 +68,8 @@ function onKeydown(e: KeyboardEvent) {
 <template>
   <div
     class="flex flex-col gap-2 p-2 rounded-lg border border-subtle bg-surface"
+    role="form"
+    :aria-label="initial ? 'Edit part' : 'Add part'"
   >
     <UInput
       v-model="name"
@@ -79,8 +81,11 @@ function onKeydown(e: KeyboardEvent) {
     />
     <div class="grid grid-cols-4 gap-1.5">
       <div class="flex flex-col gap-0.5">
-        <span class="text-xs text-muted px-0.5">W (mm)</span>
+        <label class="text-xs text-muted px-0.5" for="manual-part-width"
+          >W (mm)</label
+        >
         <UInput
+          id="manual-part-width"
           v-model.number="widthMm"
           type="number"
           size="sm"
@@ -90,8 +95,11 @@ function onKeydown(e: KeyboardEvent) {
         />
       </div>
       <div class="flex flex-col gap-0.5">
-        <span class="text-xs text-muted px-0.5">L (mm)</span>
+        <label class="text-xs text-muted px-0.5" for="manual-part-length"
+          >L (mm)</label
+        >
         <UInput
+          id="manual-part-length"
           v-model.number="lengthMm"
           type="number"
           size="sm"
@@ -101,8 +109,11 @@ function onKeydown(e: KeyboardEvent) {
         />
       </div>
       <div class="flex flex-col gap-0.5">
-        <span class="text-xs text-muted px-0.5">T (mm)</span>
+        <label class="text-xs text-muted px-0.5" for="manual-part-thickness"
+          >T (mm)</label
+        >
         <UInput
+          id="manual-part-thickness"
           v-model.number="thicknessMm"
           type="number"
           size="sm"
@@ -112,8 +123,11 @@ function onKeydown(e: KeyboardEvent) {
         />
       </div>
       <div class="flex flex-col gap-0.5">
-        <span class="text-xs text-muted px-0.5">Qty</span>
+        <label class="text-xs text-muted px-0.5" for="manual-part-qty"
+          >Qty</label
+        >
         <UInput
+          id="manual-part-qty"
           v-model.number="qty"
           type="number"
           size="sm"
@@ -147,6 +161,7 @@ function onKeydown(e: KeyboardEvent) {
       </button>
       <select
         v-model="material"
+        aria-label="Material"
         class="manual-select flex-1 bg-base border border-default rounded-md px-2 py-1.5 text-sm text-body cursor-pointer focus:outline-none focus:border-mist-600"
       >
         <option

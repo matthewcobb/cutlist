@@ -112,6 +112,7 @@ const hoveredPlacement = computed<BoardLayoutPlacement | null>(() =>
   <li
     class="flex flex-col items-center gap-3 shrink-0 board-li"
     :style="`contain-intrinsic-size:${widthPx} ${heightPx}`"
+    :aria-label="`Board ${boardIndex + 1}: ${layout.stock.material} ${width} by ${length}`"
   >
     <span class="text-sm text-muted text-nowrap"
       >{{ width }} &times; {{ length }}</span
