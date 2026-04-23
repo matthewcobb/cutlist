@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-const { data, isComputing, error } = useBoardLayoutsQuery();
+const { data, isComputing, error, partCountWarning } = useBoardLayoutsQuery();
 
 const container = ref<HTMLDivElement>();
 const { scale, resetZoom, zoomIn, zoomOut } = usePanZoom(container);
@@ -93,6 +93,18 @@ const filteredLeftovers = computed(() => {
         <UIcon name="i-lucide-loader-2" class="w-5 h-5 animate-spin" />
         <span class="text-sm">Computing layouts&hellip;</span>
       </div>
+    </div>
+
+    <!-- Part count warning banner -->
+    <div
+      v-if="partCountWarning && !error"
+      class="absolute bottom-14 left-1/2 -translate-x-1/2 z-10 bg-amber-500/15 border border-amber-500/30 rounded-lg px-4 py-2 flex items-center gap-2 max-w-md"
+    >
+      <UIcon
+        name="i-lucide-triangle-alert"
+        class="w-4 h-4 text-amber-500 shrink-0"
+      />
+      <span class="text-xs text-amber-500">{{ partCountWarning }}</span>
     </div>
 
     <!-- Settings toolbar -->
