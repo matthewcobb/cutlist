@@ -4,7 +4,7 @@ const VALID_TABS: Set<string> = new Set<Tab>([
   'bom',
   'model',
   'boards',
-  'preview',
+  'layout',
   'instructions',
   'settings',
 ]);

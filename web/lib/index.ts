@@ -322,13 +322,11 @@ function runSearchPass(
   pass: SearchPassDefinition,
 ): SearchPassResult {
   const packer = PACKERS[pass.packerKind](pass);
-  const materialHasGrain = buildMaterialGrainMap(stock);
-  const packerOptions = getPackerOptions(config, materialHasGrain);
+  const packerOptions = getPackerOptions(config);
 
   const { layouts, leftovers } = placeAllParts(config, parts, stock, packer, {
     partSortMode: pass.partSortMode,
     randomSeed: pass.randomSeed,
-    materialHasGrain,
     packerOptions,
   });
   const minimizedLayouts = layouts.map((layout) =>
@@ -380,12 +378,11 @@ function placeAllParts(
   options: {
     partSortMode: PartSortMode;
     randomSeed?: number;
-    materialHasGrain: Map<string, boolean>;
     packerOptions: PackOptions;
   },
 ): { layouts: PotentialBoardLayout[]; leftovers: PartToCut[] } {
   const margin = new Distance(config.margin).m;
-  const { materialHasGrain, packerOptions } = options;
+  const { packerOptions } = options;
   const unplacedParts = new Set(
     sortPartsForPlacement(
       parts,
@@ -423,10 +420,7 @@ function placeAllParts(
       .filter((part) => isValidStock(board, part, config.precision))
       .map((part) => {
         // grainLock='width': pre-rotate so part.width is on Y-axis (with grain)
-        if (
-          part.grainLock === 'width' &&
-          (materialHasGrain.get(part.material) ?? true)
-        ) {
+        if (part.grainLock === 'width') {
           return new Rectangle(part, 0, 0, part.size.length, part.size.width);
         }
         return new Rectangle(part, 0, 0, part.size.width, part.size.length);
@@ -632,28 +626,14 @@ function groupPartsByStock(
   return result;
 }
 
-function buildMaterialGrainMap(stocks: Stock[]): Map<string, boolean> {
-  const map = new Map<string, boolean>();
-  for (const s of stocks) {
-    if (!map.has(s.material)) {
-      map.set(s.material, s.hasGrain);
-    }
-  }
-  return map;
-}
-
-function getPackerOptions(
-  config: Config,
-  materialHasGrain: Map<string, boolean>,
-): PackOptions {
+function getPackerOptions(config: Config): PackOptions {
   return {
     allowRotations: true,
     gap: new Distance(config.bladeWidth).m,
     precision: config.precision,
     canRotateRect: (data: unknown) => {
       const part = data as PartToCut;
-      if (!part.grainLock) return true;
-      return !(materialHasGrain.get(part.material) ?? true);
+      return !part.grainLock;
     },
   };
 }

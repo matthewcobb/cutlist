@@ -115,7 +115,6 @@ function addMaterial() {
     material: 'New Material',
     unit: 'mm',
     sizes: [],
-    hasGrain: true,
     color: FALLBACK_PALETTE[matrix.value.length % FALLBACK_PALETTE.length],
   });
 }
@@ -163,7 +162,6 @@ function scrollToBottom() {
           size="sm"
           class="w-18"
         />
-        <UCheckbox v-model="mat.hasGrain" label="Grain" />
         <UButton
           color="neutral"
           variant="ghost"

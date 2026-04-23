@@ -15,8 +15,8 @@ const items = computed(() => [
   {
     label: 'Layout',
     icon: 'i-lucide-layers',
-    active: tab.value === 'preview',
-    onSelect: () => void (tab.value = 'preview'),
+    active: tab.value === 'layout',
+    onSelect: () => void (tab.value = 'layout'),
   },
   {
     label: 'Build',
@@ -64,7 +64,7 @@ const tab = useProjectTab();
         v-else-if="tab === 'boards'"
         class="absolute inset-0 overflow-auto"
       />
-      <CutlistPreview v-else-if="tab === 'preview'" class="absolute inset-0" />
+      <CutlistPreview v-else-if="tab === 'layout'" class="absolute inset-0" />
       <InstructionsTab
         v-else-if="tab === 'instructions'"
         class="absolute inset-0 overflow-auto"

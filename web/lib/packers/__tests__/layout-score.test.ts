@@ -8,7 +8,6 @@ const stock10x10: Stock = {
   thickness: 0.018,
   width: 10,
   length: 10,
-  hasGrain: false,
 };
 
 function part(id: number): PartToCut {

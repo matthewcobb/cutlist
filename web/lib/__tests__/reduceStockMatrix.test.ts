@@ -11,7 +11,7 @@ describe('reduceStockMatrix', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: 1220, length: 2440, thickness: [18] }],
       },
     ]);
@@ -26,7 +26,7 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Ply',
         unit: 'in',
-        hasGrain: false,
+
         sizes: [{ width: 48, length: 96, thickness: [0.75] }],
       },
     ]);
@@ -41,7 +41,7 @@ describe('reduceStockMatrix', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: 1220, length: 2440, thickness: [18] }],
       },
     ]);
@@ -53,7 +53,7 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Ply',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [
           { width: 600, length: 2440, thickness: [12] },
           { width: 1220, length: 2440, thickness: [12] },
@@ -70,7 +70,7 @@ describe('reduceStockMatrix', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [
           { width: 600, length: 1800, thickness: [9, 12, 18] },
           { width: 1220, length: 2440, thickness: [9, 12, 18] },
@@ -85,7 +85,7 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Ply',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [
           { width: 1220, length: 2440, thickness: [18, 12, 9] },
           { width: 1220, length: 1220, thickness: [12] },
@@ -108,7 +108,7 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Ply',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '1220mm', length: '2440mm', thickness: ['1in'] }],
       },
     ]);
@@ -122,7 +122,7 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Oak',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [
           { width: 300, length: 1800, thickness: [18] },
           { width: 600, length: 2400, thickness: [18] },
@@ -137,13 +137,13 @@ describe('reduceStockMatrix', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: 1220, length: 2440, thickness: [18] }],
       },
       {
         material: 'Ply',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: 600, length: 1800, thickness: [12] }],
       },
     ]);
@@ -157,7 +157,7 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Mix',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: 1220, length: 2440, thickness: [18, '1in'] }],
       },
     ]);

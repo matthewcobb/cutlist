@@ -6,6 +6,6 @@ export type Tab =
   | 'bom'
   | 'model'
   | 'boards'
-  | 'preview'
+  | 'layout'
   | 'instructions'
   | 'settings';

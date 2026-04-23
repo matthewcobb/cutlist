@@ -1083,13 +1083,16 @@ onUnmounted(() => {
                             "
                             class="w-3.5 h-3.5 shrink-0"
                           />
-                          <span>{{
-                            row.grainLock === 'length'
-                              ? '\u2195'
-                              : row.grainLock === 'width'
-                                ? '\u2194'
-                                : ''
-                          }}</span>
+                          <UIcon
+                            v-if="row.grainLock === 'length'"
+                            name="i-ri-arrow-up-down-line"
+                            class="w-3.5 h-3.5 shrink-0"
+                          />
+                          <UIcon
+                            v-else-if="row.grainLock === 'width'"
+                            name="i-ri-arrow-left-right-line"
+                            class="w-3.5 h-3.5 shrink-0"
+                          />
                         </button>
                       </td>
                       <td class="pr-5 pl-4 py-2.5">

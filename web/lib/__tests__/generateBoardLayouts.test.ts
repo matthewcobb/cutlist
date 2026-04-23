@@ -23,7 +23,6 @@ const stock = [
   {
     material: 'MDF',
     unit: 'mm' as const,
-    hasGrain: false,
     sizes: [{ width: '1m', length: '3m', thickness: ['0.018m'] }],
   },
 ];

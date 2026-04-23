@@ -37,7 +37,7 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '1m', length: '2m', thickness: ['18mm'] }],
       },
     ];
@@ -58,13 +58,13 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '1m', length: '2m', thickness: ['18mm'] }],
       },
       {
         material: 'Plywood',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '1m', length: '2m', thickness: ['18mm'] }],
       },
     ];
@@ -94,7 +94,7 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '1000mm', length: '2000mm', thickness: ['18mm'] }],
       },
     ];
@@ -115,7 +115,7 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '1m', length: '1m', thickness: ['18mm'] }],
       },
     ];
@@ -138,7 +138,7 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '1m', length: '1m', thickness: ['18mm'] }],
       },
     ];
@@ -166,7 +166,7 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '1m', length: '1m', thickness: ['18mm'] }],
       },
     ];
@@ -183,7 +183,7 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '1m', length: '2m', thickness: ['18mm'] }],
       },
     ];
@@ -210,7 +210,7 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '500mm', length: '500mm', thickness: ['18mm'] }],
       },
     ];
@@ -228,7 +228,7 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '500mm', length: '500mm', thickness: ['18mm'] }],
       },
     ];
@@ -249,7 +249,7 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '1m', length: '3m', thickness: ['18mm'] }],
       },
     ];
@@ -277,13 +277,13 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'Plywood',
         unit: 'mm',
-        hasGrain: true,
+
         sizes: [{ width: '1200mm', length: '2400mm', thickness: ['12mm'] }],
       },
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '1200mm', length: '2400mm', thickness: ['18mm'] }],
       },
     ];
@@ -333,7 +333,7 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'Plywood',
         unit: 'mm',
-        hasGrain: true,
+
         sizes: [
           { width: '1200mm', length: '2400mm', thickness: ['18mm', '12mm'] },
         ],
@@ -388,7 +388,7 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
+
         sizes: [{ width: '1m', length: '1m', thickness: ['18mm'] }],
       },
     ];

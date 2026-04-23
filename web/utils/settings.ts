@@ -29,7 +29,6 @@ export const STOCK_PRESETS: StockPreset[] = [
       unit: 'mm',
       color: '#d2b996',
       sizes: [{ width: 1220, length: 2440, thickness: [18, 12, 9, 6] }],
-      hasGrain: true,
     },
   },
   {
@@ -40,7 +39,6 @@ export const STOCK_PRESETS: StockPreset[] = [
       unit: 'mm',
       color: '#b09078',
       sizes: [{ width: 1220, length: 2440, thickness: [18, 12, 9, 6, 3] }],
-      hasGrain: false,
     },
   },
   {
@@ -51,7 +49,6 @@ export const STOCK_PRESETS: StockPreset[] = [
       unit: 'mm',
       color: '#c8b48c',
       sizes: [{ width: 1220, length: 2440, thickness: [18, 16, 12] }],
-      hasGrain: false,
     },
   },
   {
@@ -62,7 +59,6 @@ export const STOCK_PRESETS: StockPreset[] = [
       unit: 'mm',
       color: '#ebe6de',
       sizes: [{ width: 1220, length: 2440, thickness: [18, 16] }],
-      hasGrain: false,
     },
   },
   {
@@ -73,7 +69,6 @@ export const STOCK_PRESETS: StockPreset[] = [
       unit: 'mm',
       color: '#c3a050',
       sizes: [{ width: 1220, length: 2440, thickness: [18, 12, 9] }],
-      hasGrain: false,
     },
   },
   {
@@ -84,7 +79,6 @@ export const STOCK_PRESETS: StockPreset[] = [
       unit: 'mm',
       color: '#694123',
       sizes: [{ width: 1220, length: 2440, thickness: [6, 3] }],
-      hasGrain: false,
     },
   },
   // ── Imperial (in) ──────────────────────────────────────
@@ -96,7 +90,6 @@ export const STOCK_PRESETS: StockPreset[] = [
       unit: 'in',
       color: '#d2b996',
       sizes: [{ width: 48, length: 96, thickness: [0.75, 0.5, 0.25] }],
-      hasGrain: true,
     },
   },
   {
@@ -107,7 +100,6 @@ export const STOCK_PRESETS: StockPreset[] = [
       unit: 'in',
       color: '#b09078',
       sizes: [{ width: 48, length: 96, thickness: [0.75, 0.5, 0.25] }],
-      hasGrain: false,
     },
   },
   {
@@ -122,7 +114,6 @@ export const STOCK_PRESETS: StockPreset[] = [
         { width: 8, length: 96, thickness: [0.75, 1, 1.5] },
         { width: 12, length: 96, thickness: [0.75, 1, 1.5] },
       ],
-      hasGrain: true,
     },
   },
   {
@@ -138,7 +129,6 @@ export const STOCK_PRESETS: StockPreset[] = [
         { width: 7.25, length: 96, thickness: [0.75, 1.5] },
         { width: 11.25, length: 96, thickness: [0.75, 1.5] },
       ],
-      hasGrain: true,
     },
   },
 ];

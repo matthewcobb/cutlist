@@ -16,7 +16,6 @@ describe('parseStock', () => {
       material: 'MDF',
       unit: 'mm',
       sizes: [{ width: 1.2, length: 2.4, thickness: [0.018] }],
-      hasGrain: true,
     });
   });
 

@@ -45,11 +45,6 @@ export interface Stock {
    * In meters
    */
   length: number;
-  /**
-   * Whether this material has a grain direction. When false, parts of this
-   * material always rotate freely regardless of their grainLock setting.
-   */
-  hasGrain: boolean;
   /** Display color for board previews (hex string). */
   color?: string;
 }
@@ -80,11 +75,6 @@ export const StockMatrix = z.object({
    * its own set of available thicknesses.
    */
   sizes: z.array(StockSize),
-  /**
-   * Whether this material has a grain direction. Set to false for sheet goods
-   * like MDF where orientation doesn't matter. Defaults to true.
-   */
-  hasGrain: z.boolean().default(true),
   /** Display color for board previews (hex string, e.g. "#d2b996"). */
   color: z.string().optional(),
 });
@@ -101,8 +91,8 @@ export interface PartToCut {
   sourcePartId?: string;
   sourceElementId?: string;
   /**
-   * Locks the part to a specific grain orientation. Only takes effect when the
-   * matched stock material has `hasGrain` enabled.
+   * Locks the part to a specific grain orientation, preventing the packer
+   * from rotating it.
    * - `'length'`: part's length dimension runs with the grain (↕ in layout)
    * - `'width'`: part's width dimension runs with the grain (↔ in layout)
    * - `undefined`: free rotation — optimizer chooses best orientation
