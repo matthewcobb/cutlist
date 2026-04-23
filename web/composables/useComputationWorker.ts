@@ -115,6 +115,59 @@ function getLayoutWorker(): Worker {
   return w;
 }
 
+// ─── Lifecycle cleanup ──────────────────────────────────────────────────────
+// Terminate workers on page unload to prevent leaked threads and pending
+// promises that can never resolve. Also cleans up on visibilitychange to
+// 'hidden' (covers bfcache, mobile tab switches).
+
+function terminateAllWorkers() {
+  if (layoutWorker) {
+    layoutWorker.terminate();
+    layoutWorker = null;
+  }
+  if (deriveWorker) {
+    deriveWorker.terminate();
+    deriveWorker = null;
+  }
+  // Reject all pending promises so callers aren't left hanging
+  const err = new Error('Page unloading');
+  err.name = 'AbortError';
+  for (const [, p] of pendingLayout) p.reject(err);
+  pendingLayout.clear();
+  for (const [, p] of pendingDerive) p.reject(err);
+  pendingDerive.clear();
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', terminateAllWorkers);
+  // visibilitychange to 'hidden' fires reliably on mobile/tab close
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      terminateAllWorkers();
+    }
+  });
+}
+
+// ─── Part count guardrails ───────────────────────────────────────────────────
+// Profiling at 500 parts: ~24ms per pass, 14 passes in auto ≈ 340ms total.
+// At 2000+ parts the worker can block for seconds. Warn early, refuse late.
+
+/** Part count at which the UI should show a non-blocking performance warning. */
+export const PART_COUNT_SOFT_LIMIT = 500;
+
+/** Part count above which we refuse to run the packer (would hang the worker). */
+export const PART_COUNT_HARD_LIMIT = 2000;
+
+export class PartCountExceededError extends Error {
+  constructor(count: number) {
+    super(
+      `Too many parts (${count}). The maximum is ${PART_COUNT_HARD_LIMIT}. ` +
+        `Split your project into smaller groups or reduce part count.`,
+    );
+    this.name = 'PartCountExceededError';
+  }
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 export function deriveModel(gltfJson: object): Promise<DeriveResult> {
@@ -135,12 +188,19 @@ export function deriveModel(gltfJson: object): Promise<DeriveResult> {
  * Post a layout computation request. Returns a promise that resolves with the
  * result. Callers should track their own request versioning to discard stale
  * results (e.g. when inputs change before the previous result arrives).
+ *
+ * Throws `PartCountExceededError` synchronously if the part count exceeds
+ * the hard limit — the worker is never started.
  */
 export function computeLayouts(
   parts: PartToCut[],
   stockYaml: string,
   config: ConfigInput,
 ): Promise<{ layouts: BoardLayout[]; leftovers: BoardLayoutLeftover[] }> {
+  if (parts.length > PART_COUNT_HARD_LIMIT) {
+    return Promise.reject(new PartCountExceededError(parts.length));
+  }
+
   const id = ++nextId;
   const w = getLayoutWorker();
   const plainParts = JSON.parse(JSON.stringify(parts));

@@ -9,6 +9,7 @@ import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
 import {
   cancelLayouts,
   computeLayouts,
+  PART_COUNT_SOFT_LIMIT,
 } from '~/composables/useComputationWorker';
 import { versionedFingerprint } from '~/utils/fingerprint';
 import { LAYOUT_CACHE_VERSION } from '~/utils/migrations';
@@ -62,6 +63,8 @@ export default createSharedComposable(() => {
   const data = shallowRef<LayoutResult | undefined>();
   const isComputing = ref(false);
   const error = ref<string | null>(null);
+  /** Non-blocking warning when part count is high but below hard limit. */
+  const partCountWarning = ref<string | null>(null);
 
   let requestVersion = 0;
 
@@ -171,6 +174,15 @@ export default createSharedComposable(() => {
       isComputing.value = true;
       error.value = null;
 
+      // Soft warning for large part counts (still proceeds with computation).
+      if (partsVal.length > PART_COUNT_SOFT_LIMIT) {
+        partCountWarning.value =
+          `Large project (${partsVal.length} parts). ` +
+          `Layout computation may take longer than usual.`;
+      } else {
+        partCountWarning.value = null;
+      }
+
       // Show stale cache during recompute if nothing else is visible yet.
       if (cached && !data.value) {
         data.value = { layouts: cached.layouts, leftovers: cached.leftovers };
@@ -218,5 +230,6 @@ export default createSharedComposable(() => {
     data,
     isComputing,
     error,
+    partCountWarning,
   };
 });
