@@ -541,6 +541,12 @@ export function useIdb() {
     pendingModelPatches.set(id, { patch: merged, timer });
   }
 
+  /** Flush all pending debounced model writes immediately. Useful for tests. */
+  async function flushPendingModelWrites(): Promise<void> {
+    const ids = [...pendingModelPatches.keys()];
+    await Promise.all(ids.map((id) => flushModelWrite(id)));
+  }
+
   async function deleteModel(id: string): Promise<void> {
     const db = await getDb();
     await db.delete('models', id);
@@ -652,5 +658,6 @@ export function useIdb() {
     getLayoutCache,
     putLayoutCache,
     deleteLayoutCache,
+    flushPendingModelWrites,
   };
 }

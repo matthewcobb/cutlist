@@ -225,6 +225,7 @@ describe('model CRUD', () => {
       enabled: false,
       partOverrides: { 1: { grainLock: 'width' } },
     });
+    await idb.flushPendingModelWrites();
 
     const result = await idb.getProjectWithModels(project.id);
     expect(result!.models[0].enabled).toBe(false);
@@ -234,9 +235,8 @@ describe('model CRUD', () => {
   });
 
   it('updateModel throws for nonexistent id', async () => {
-    expect(idb.updateModel('nonexistent', { enabled: false })).rejects.toThrow(
-      'not found',
-    );
+    await idb.updateModel('nonexistent', { enabled: false });
+    expect(idb.flushPendingModelWrites()).rejects.toThrow('not found');
   });
 
   it('deleteModel removes model, project still exists', async () => {
