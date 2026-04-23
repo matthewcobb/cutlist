@@ -44,7 +44,13 @@ export function createGenericPacker<T>({
         });
 
         const validPlacements = possiblePlacements.filter((placement) =>
-          isValidPlacement(bin, res.placements, placement, options.precision),
+          isValidPlacement(
+            bin,
+            res.placements,
+            placement,
+            options.precision,
+            options.gap,
+          ),
         );
         if (validPlacements.length > 0) {
           res.placements.push(validPlacements[0]);

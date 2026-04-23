@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-const { data, error } = useBoardLayoutsQuery();
+const { data, isComputing, error } = useBoardLayoutsQuery();
 
 const container = ref<HTMLDivElement>();
 const { scale, resetZoom, zoomIn, zoomOut } = usePanZoom(container);
@@ -85,6 +85,26 @@ const filteredLeftovers = computed(() => {
           />
         </div>
       </template>
+
+      <div
+        v-else-if="isComputing"
+        class="m-auto flex items-center gap-2 text-muted"
+      >
+        <UIcon name="i-lucide-loader-2" class="w-5 h-5 animate-spin" />
+        <span class="text-sm">Computing layouts&hellip;</span>
+      </div>
+    </div>
+
+    <!-- Computing overlay (when recomputing with stale data visible) -->
+    <div
+      v-if="isComputing && data"
+      class="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-overlay backdrop-blur border border-subtle rounded-lg px-3 py-1.5"
+    >
+      <UIcon
+        name="i-lucide-loader-2"
+        class="w-3.5 h-3.5 animate-spin text-teal-400"
+      />
+      <span class="text-xs text-muted">Updating&hellip;</span>
     </div>
 
     <!-- Settings toolbar -->

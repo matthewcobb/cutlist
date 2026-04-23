@@ -1,9 +1,9 @@
 import type { ColorInfo, NodePartMapping, Part } from '~/utils/parseGltf';
-import { deriveFromGltf } from '~/utils/parseGltf';
 import type { IdbModelMeta, PartOverride } from '~/composables/useIdb';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
 import { importProjectFromFile } from '~/utils/projectImport';
 import { DEMO_PROJECT_FILENAME, shouldSeedDemoProject } from '~/utils/demoSeed';
+import { deriveModel } from '~/composables/useComputationWorker';
 
 export interface Model {
   id: string;
@@ -57,7 +57,7 @@ const activeId = ref<string | null>(null);
 const projectList = ref<ProjectListItem[]>([]);
 const archivedList = ref<ArchivedProjectItem[]>([]);
 const activeProjectData = ref<Project | null>(null);
-let initialized = false;
+const projectLoading = ref(false);
 
 async function seedDemoProject(
   idb: ReturnType<typeof useIdb>,
@@ -104,7 +104,7 @@ async function hydrateModel(
     };
   }
 
-  // GLTF models: re-derive from stored gltfJson
+  // GLTF models: re-derive from stored gltfJson (off main thread via worker)
   const gltfJson = await idb.getModelGltf(meta.id);
   if (!gltfJson) {
     return {
@@ -118,7 +118,7 @@ async function hydrateModel(
   }
 
   try {
-    const derived = deriveFromGltf(gltfJson);
+    const derived = await deriveModel(gltfJson);
     return {
       id: meta.id,
       filename: meta.filename,
@@ -152,8 +152,7 @@ async function loadProject(
   return { ...full, models };
 }
 
-async function init() {
-  const idb = useIdb();
+async function init(idb: ReturnType<typeof useIdb>) {
   let [list, archived] = await Promise.all([
     idb.getProjectList(),
     idb.getArchivedList(),
@@ -168,9 +167,8 @@ async function init() {
     })
   ) {
     try {
-      const seededProjectId = await seedDemoProject(idb);
+      await seedDemoProject(idb);
       await idb.setDemoSeeded(true);
-      activeId.value = seededProjectId;
       [list, archived] = await Promise.all([
         idb.getProjectList(),
         idb.getArchivedList(),
@@ -182,40 +180,39 @@ async function init() {
 
   projectList.value = list;
   archivedList.value = archived;
-  if (list.length > 0 && activeId.value == null) {
-    activeId.value = list[0].id;
-  }
-  if (activeId.value) {
-    activeProjectData.value = await loadProject(idb, activeId.value);
-    // Stale URL or deleted project — fall back to first available
-    if (!activeProjectData.value && list.length > 0) {
-      activeId.value = list[0].id;
-      activeProjectData.value = await loadProject(idb, activeId.value!);
-    } else if (!activeProjectData.value) {
-      activeId.value = null;
-    }
-  }
-  initialized = true;
 }
 
-if (import.meta.client && !initialized) {
-  init();
+if (import.meta.client) {
+  const idb = useIdb();
+
+  // Single watcher — loads project data when activeId changes (set by router)
+  watch(activeId, async (id) => {
+    if (!id) {
+      activeProjectData.value = null;
+      projectLoading.value = false;
+      return;
+    }
+    if (activeProjectData.value?.id !== id) {
+      activeProjectData.value = null;
+    }
+    projectLoading.value = true;
+    const data = await loadProject(idb, id);
+    if (activeId.value !== id) return; // stale if user switched again
+    if (data) {
+      activeProjectData.value = data;
+    } else {
+      activeId.value = null; // stale URL — back to index
+    }
+    projectLoading.value = false;
+  });
+
+  init(idb);
 }
 
 // ─── Composable ──────────────────────────────────────────────────────────────
 
 export default function useProjects() {
   const idb = useIdb();
-
-  // Watch activeId changes to reload full project data
-  watch(activeId, async (id) => {
-    if (!initialized) return;
-    if (!id) {
-      activeProjectData.value = null;
-      return;
-    }
-    activeProjectData.value = await loadProject(idb, id);
-  });
 
   // Build a Map matching the old interface
   const projects = computed(() => {
@@ -689,6 +686,7 @@ export default function useProjects() {
     projects,
     activeId,
     activeProject,
+    projectLoading,
     archivedList,
     enabledModels,
     manualModel,

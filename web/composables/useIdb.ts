@@ -210,10 +210,12 @@ export function useIdb() {
     id: string,
   ): Promise<(IdbProject & { models: IdbModelMeta[] }) | undefined> {
     const db = await getDb();
-    const project = await db.get('projects', id);
+    const [project, allModels] = await Promise.all([
+      db.get('projects', id),
+      db.getAllFromIndex('models', 'projectId', id),
+    ]);
     if (!project) return undefined;
 
-    const allModels = await db.getAllFromIndex('models', 'projectId', id);
     const models: IdbModelMeta[] = allModels.map(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       ({ gltfJson: _g, ...meta }) => applyModelDefaults(meta),
