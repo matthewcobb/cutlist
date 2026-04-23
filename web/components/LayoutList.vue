@@ -22,6 +22,22 @@ function onLeftoverGrainClick(part: BoardLayoutLeftover) {
   );
 }
 
+const CLICK_THRESHOLD = 5;
+
+function onLeftoverPointerDown(e: PointerEvent, part: BoardLayoutLeftover) {
+  const startX = e.clientX;
+  const startY = e.clientY;
+  document.addEventListener(
+    'pointerup',
+    (e2) => {
+      const dx = e2.clientX - startX;
+      const dy = e2.clientY - startY;
+      if (Math.hypot(dx, dy) < CLICK_THRESHOLD) onLeftoverGrainClick(part);
+    },
+    { once: true },
+  );
+}
+
 interface LayoutGroup {
   key: string;
   material: string;
@@ -165,7 +181,7 @@ const leftoversByStock = computed<LeftoverStockGroup[]>(() => {
                 v-for="(part, i) of group.parts"
                 :key="`${part.partNumber}-${part.instanceNumber}-${i}`"
                 class="flex items-center gap-3 shrink-0 cursor-pointer group"
-                @click="onLeftoverGrainClick(part)"
+                @pointerdown="onLeftoverPointerDown($event, part)"
               >
                 <div
                   class="rounded-xs border-2 border-dashed border-amber-500/40 group-hover:border-amber-500/70 relative transition-colors"

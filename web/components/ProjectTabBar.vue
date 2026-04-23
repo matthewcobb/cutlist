@@ -372,7 +372,17 @@ function createProject() {
     >
       <template #content>
         <div class="p-6 space-y-4 bg-elevated border border-default rounded-lg">
-          <h3 class="text-lg font-medium text-white">Close project?</h3>
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-medium text-white">Close project?</h3>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-x"
+              class="rounded-full"
+              @click="cancelClose"
+            />
+          </div>
           <p class="text-sm text-muted">
             <span class="text-body font-medium">{{ pendingCloseName }}</span>
             will be moved to History where you can restore it later.
@@ -396,7 +406,17 @@ function createProject() {
     >
       <template #content>
         <div class="p-6 space-y-4 bg-elevated border border-default rounded-lg">
-          <h3 class="text-lg font-medium text-white">New Project</h3>
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-medium text-white">New Project</h3>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-x"
+              class="rounded-full"
+              @click="showModal = false"
+            />
+          </div>
           <UInput
             v-model="projectName"
             placeholder="Project name"

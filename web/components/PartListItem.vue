@@ -44,6 +44,22 @@ function onClickGrainLock() {
     cycleGrainLock(props.placement.grainLock),
   );
 }
+
+const CLICK_THRESHOLD = 5;
+
+function onPointerDown(e: PointerEvent) {
+  const startX = e.clientX;
+  const startY = e.clientY;
+  document.addEventListener(
+    'pointerup',
+    (e2) => {
+      const dx = e2.clientX - startX;
+      const dy = e2.clientY - startY;
+      if (Math.hypot(dx, dy) < CLICK_THRESHOLD) onClickGrainLock();
+    },
+    { once: true },
+  );
+}
 </script>
 
 <template>
@@ -51,7 +67,7 @@ function onClickGrainLock() {
     ref="container"
     class="absolute cursor-pointer group"
     :style="`bottom:${bottom};left:${left}`"
-    @click="onClickGrainLock"
+    @pointerdown="onPointerDown"
   >
     <div
       class="overflow-hidden relative rounded-xs part-piece transition-colors"
