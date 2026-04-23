@@ -69,7 +69,9 @@ async function loadThree(): Promise<ThreeModules> {
 
 // ─── Constants ──────────────────────────────────────────────────────
 
-const HIGHLIGHT_COLOR = 0x6ee7b7; // teal-300
+/** Highlight color for hovered/selected parts (Tailwind teal-300). */
+const HIGHLIGHT_COLOR = 0x6ee7b7;
+/** Alpha for non-highlighted parts when a part is selected/hovered. */
 const GHOST_OPACITY = 0.15;
 
 const GRID_VERTEX_SHADER = `
@@ -172,8 +174,13 @@ export default function useThreeViewer(
     state.raycaster.setFromCamera(state.mouse, state.camera);
     const hits = state.raycaster.intersectObject(batchedMesh, false);
     if (hits.length === 0) return null;
-    const batchId = (hits[0] as any).batchId as number | undefined;
-    return batchId != null ? (instanceToPartNumber[batchId] ?? null) : null;
+    // Three.js adds batchId to intersections on BatchedMesh (not in base Intersection type)
+    const hit = hits[0] as import('three').Intersection & {
+      batchId?: number;
+    };
+    return hit.batchId != null
+      ? (instanceToPartNumber[hit.batchId] ?? null)
+      : null;
   }
 
   function onPointerMove(event: PointerEvent) {

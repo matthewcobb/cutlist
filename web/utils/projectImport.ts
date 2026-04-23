@@ -120,7 +120,16 @@ const ProjectExportSchema = z.object({
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
 
-interface ProjectImportDb {
+/**
+ * Minimal database interface for project import. Decouples import logic
+ * from the concrete IDB composable so tests can provide a stub.
+ *
+ * `createModel` and `createBuildStep` accept `any` intentionally: the import
+ * layer spreads Zod-validated output with fresh IDs, producing the correct
+ * IDB record shape at runtime. Tightening these to IdbModel/IdbBuildStep
+ * would couple this module to the concrete IDB types.
+ */
+export interface ProjectImportDb {
   createProject: (
     name: string,
     opts?: { stock?: string; distanceUnit?: 'in' | 'mm' },
@@ -146,7 +155,7 @@ export function parseProjectExport(raw: unknown): ProjectExport {
     throw new Error('Invalid project file: expected a JSON object.');
   }
 
-  const migrated = migrateExport(raw as any);
+  const migrated = migrateExport(raw as Record<string, unknown>);
   const result = ProjectExportSchema.safeParse(migrated);
   if (!result.success) {
     // Build a human-readable summary of validation errors.
@@ -159,7 +168,7 @@ export function parseProjectExport(raw: unknown): ProjectExport {
           : ''),
     );
   }
-  return migrated as ProjectExport;
+  return migrated as unknown as ProjectExport;
 }
 
 /**
@@ -201,10 +210,12 @@ export async function importProjectData(
         ...step,
         id: crypto.randomUUID(),
         projectId: newProject.id,
-        partRefs: step.partRefs.map((ref: any) => ({
-          modelId: modelIdMap.get(ref.modelId) ?? ref.modelId,
-          partNumber: ref.partNumber,
-        })),
+        partRefs: step.partRefs.map(
+          (ref: { modelId: string; partNumber: number }) => ({
+            modelId: modelIdMap.get(ref.modelId) ?? ref.modelId,
+            partNumber: ref.partNumber,
+          }),
+        ),
       }),
     ),
   );

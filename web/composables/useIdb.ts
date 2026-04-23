@@ -272,23 +272,27 @@ function getDb(): Promise<IDBPDatabase<CutlistDb>> {
 
 // ─── Defensive defaults (safety net for records that missed a sweep) ─────────
 
-export function applyProjectDefaults(p: any): IdbProject {
+export function applyProjectDefaults(
+  p: Partial<IdbProject> & { id: string; name: string },
+): IdbProject {
   return {
     ...p,
     stock: p.stock ?? DEFAULT_STOCK_YAML,
     colorMap: p.colorMap ?? {},
     excludedColors: p.excludedColors ?? [],
     distanceUnit: p.distanceUnit ?? 'mm',
-  };
+  } as IdbProject;
 }
 
-export function applyModelDefaults(m: any): IdbModelMeta {
+export function applyModelDefaults(
+  m: Partial<IdbModelMeta> & { id: string; projectId: string },
+): IdbModelMeta {
   return {
     ...m,
     source: m.source ?? 'gltf',
     enabled: m.enabled ?? true,
     partOverrides: m.partOverrides ?? {},
-  };
+  } as IdbModelMeta;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
