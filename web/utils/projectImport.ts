@@ -1,7 +1,105 @@
+/**
+ * Import validation and processing for .cutlist.gz project files.
+ *
+ * All incoming data is validated against strict Zod schemas before touching
+ * any runtime state. Malformed or hostile imports fail with user-readable
+ * error messages at the validation boundary.
+ *
+ * Contract:
+ * - `parseProjectExport` validates and migrates raw JSON into a ProjectExport.
+ * - `importProjectData` writes validated data into IDB with fresh IDs.
+ * - `importProjectFromFile` handles gzip decompression + JSON parsing.
+ */
+
 import type { ProjectExport } from '~/composables/useExportProject';
 import { gzipDecompress } from '~/utils/compress';
 import { migrateExport } from '~/utils/migrations';
 import { z } from 'zod';
+
+// ─── Schemas ────────────────────────────────────────────────────────────────
+
+const PartSizeSchema = z.object({
+  width: z.number().finite(),
+  length: z.number().finite(),
+  thickness: z.number().finite(),
+});
+
+const PartSchema = z.object({
+  partNumber: z.number().int().min(0),
+  instanceNumber: z.number().int().min(1),
+  name: z.string(),
+  colorKey: z.string(),
+  size: PartSizeSchema,
+  grainLock: z.enum(['length', 'width']).optional(),
+});
+
+const PartOverrideSchema = z
+  .object({
+    grainLock: z.enum(['length', 'width']).optional(),
+    name: z.string().optional(),
+  })
+  .passthrough();
+
+const DerivedCacheSchema = z
+  .object({
+    version: z.number().int(),
+    parts: z.array(PartSchema),
+    colors: z.array(
+      z.object({
+        key: z.string(),
+        rgb: z.tuple([z.number(), z.number(), z.number()]),
+        count: z.number().int().min(0),
+      }),
+    ),
+    nodePartMap: z.array(
+      z.object({
+        nodeIndex: z.number().int(),
+        partNumber: z.number().int(),
+        colorHex: z.string(),
+      }),
+    ),
+  })
+  .optional();
+
+const ModelSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  filename: z.string(),
+  source: z.enum(['gltf', 'manual']),
+  parts: z.array(PartSchema).default([]),
+  enabled: z.boolean(),
+  gltfJson: z.union([z.object({}).passthrough(), z.null()]),
+  partOverrides: z.record(z.string(), PartOverrideSchema).default({}),
+  derivedCache: DerivedCacheSchema,
+  createdAt: z.string(),
+});
+
+const BuildStepSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  stepNumber: z.number().int().min(0),
+  title: z.string(),
+  description: z.string(),
+  partRefs: z.array(
+    z.object({
+      modelId: z.string(),
+      partNumber: z.number().int(),
+    }),
+  ),
+  createdAt: z.string(),
+});
+
+const SettingsSchema = z
+  .object({
+    bladeWidth: z.number().optional(),
+    distanceUnit: z.enum(['in', 'mm']).optional(),
+    margin: z.number().optional(),
+    optimize: z.enum(['Auto', 'Cuts', 'CNC']).optional(),
+    showPartNumbers: z.boolean().optional(),
+    stock: z.string().optional(),
+  })
+  .passthrough()
+  .optional();
 
 const ProjectExportSchema = z.object({
   version: z.number(),
@@ -15,22 +113,12 @@ const ProjectExportSchema = z.object({
     createdAt: z.string(),
     updatedAt: z.string(),
   }),
-  models: z.array(
-    z.object({
-      id: z.string(),
-      projectId: z.string(),
-      filename: z.string(),
-      source: z.enum(['gltf', 'manual']),
-      parts: z.array(z.any()).default([]),
-      enabled: z.boolean(),
-      gltfJson: z.any(),
-      partOverrides: z.record(z.string(), z.any()).default({}),
-      createdAt: z.string(),
-    }),
-  ),
-  buildSteps: z.array(z.any()).optional(),
-  settings: z.any(),
+  models: z.array(ModelSchema),
+  buildSteps: z.array(BuildStepSchema).optional(),
+  settings: SettingsSchema,
 });
+
+// ─── Parsing ────────────────────────────────────────────────────────────────
 
 interface ProjectImportDb {
   createProject: (
@@ -48,17 +136,37 @@ interface ProjectImportDb {
   createBuildStep: (step: any) => Promise<void>;
 }
 
+/**
+ * Validate and migrate a raw import payload into a ProjectExport.
+ * Throws with a user-readable message if validation fails.
+ */
 export function parseProjectExport(raw: unknown): ProjectExport {
+  // Basic type guard before migration.
+  if (typeof raw !== 'object' || raw === null) {
+    throw new Error('Invalid project file: expected a JSON object.');
+  }
+
   const migrated = migrateExport(raw as any);
   const result = ProjectExportSchema.safeParse(migrated);
   if (!result.success) {
+    // Build a human-readable summary of validation errors.
+    const issues = result.error.issues.slice(0, 3);
+    const messages = issues.map((i) => `${i.path.join('.')}: ${i.message}`);
     throw new Error(
-      `Invalid project file: ${result.error.issues[0]?.message ?? 'unknown error'}`,
+      `Invalid project file:\n${messages.join('\n')}` +
+        (result.error.issues.length > 3
+          ? `\n...and ${result.error.issues.length - 3} more issues.`
+          : ''),
     );
   }
   return migrated as ProjectExport;
 }
 
+/**
+ * Write a validated ProjectExport into IDB. Generates fresh IDs for the
+ * project, models, and build steps to avoid collisions with existing data.
+ * Returns the new project ID.
+ */
 export async function importProjectData(
   data: ProjectExport,
   idb: ProjectImportDb,
@@ -104,6 +212,11 @@ export async function importProjectData(
   return newProject.id;
 }
 
+/**
+ * Import a .cutlist.gz file. Handles both gzipped and plain JSON input.
+ * Returns the new project ID on success.
+ * Throws with a user-readable message on any failure.
+ */
 export async function importProjectFromFile(
   file: File,
   idb: ProjectImportDb,
@@ -116,7 +229,16 @@ export async function importProjectFromFile(
     // Fall back to plain JSON text when gzip decode fails.
     text = await file.text();
   }
-  const raw = JSON.parse(text);
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    throw new Error(
+      'Could not parse the file as JSON. Make sure this is a valid .cutlist.gz file.',
+    );
+  }
+
   const data = parseProjectExport(raw);
   return importProjectData(data, idb);
 }

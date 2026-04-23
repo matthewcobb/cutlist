@@ -1,3 +1,23 @@
+/**
+ * IndexedDB persistence layer for Cutlist.
+ *
+ * All app data lives in IndexedDB. This module owns the schema, provides
+ * CRUD operations, and applies defensive defaults on reads so that records
+ * missing fields added by later migrations still work at runtime.
+ *
+ * Error handling:
+ * - QuotaExceededError is caught on writes and surfaced via `useIdbErrors()`.
+ * - Multi-tab coordination: a BroadcastChannel notifies other tabs when data
+ *   changes, so they can reload. Last-write-wins semantics.
+ * - FutureSchemaError (from migrations.ts) is surfaced to the user on startup.
+ *
+ * Contract:
+ * - `getDb()` is the singleton entry point. It opens the database, runs the
+ *   startup migration sweep, and returns the idb handle.
+ * - All public functions go through `getDb()` and handle IDB errors.
+ */
+
+import { ref, readonly } from 'vue';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { BoardLayout, BoardLayoutLeftover } from 'cutlist';
 import type { ColorInfo, NodePartMapping, Part } from '~/utils/parseGltf';
@@ -6,7 +26,7 @@ import {
   DEFAULT_STOCK_YAML,
   type CutlistSettings,
 } from '~/utils/settings';
-import { runStartupSweep } from '~/utils/migrations';
+import { runStartupSweep, LAYOUT_CACHE_VERSION } from '~/utils/migrations';
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
@@ -65,10 +85,15 @@ export type IdbModelMeta = Omit<IdbModel, 'gltfJson'>;
  * Persisted layout result for a project. Keyed by projectId; `fingerprint`
  * hashes the packing inputs (parts + stock + config) so a mismatch triggers
  * recompute. Written by the layout worker path, read on project switch.
+ *
+ * The `cacheVersion` field records which LAYOUT_CACHE_VERSION produced this
+ * entry. On read, entries with a mismatched version are treated as cache misses.
  */
 export interface IdbLayoutCache {
   projectId: string;
   fingerprint: string;
+  /** The LAYOUT_CACHE_VERSION that produced this cache entry. */
+  cacheVersion: number;
   layouts: BoardLayout[];
   leftovers: BoardLayoutLeftover[];
   savedAt: string;
@@ -128,6 +153,78 @@ interface CutlistDb extends DBSchema {
   };
 }
 
+// ─── IDB error handling ─────────────────────────────────────────────────────
+
+/**
+ * Reactive error state for IDB operations. Surfaced to the UI layer
+ * so users see a toast/banner when storage is full or unavailable.
+ */
+const idbError = ref<string | null>(null);
+
+/** Composable to read the current IDB error state in components. */
+export function useIdbErrors() {
+  return {
+    /** Current error message, or null if everything is fine. */
+    error: readonly(idbError),
+    /** Clear the error (e.g. when user dismisses a toast). */
+    dismiss: () => {
+      idbError.value = null;
+    },
+  };
+}
+
+function isQuotaExceeded(err: unknown): boolean {
+  if (err instanceof DOMException) {
+    // Chromium, Safari, Firefox all use slightly different names/codes.
+    return (
+      err.name === 'QuotaExceededError' ||
+      err.code === 22 || // legacy code
+      err.name === ('NS_ERROR_DOM_QUOTA_REACHED' as string)
+    );
+  }
+  return false;
+}
+
+/**
+ * Wrap an IDB write operation with quota error handling.
+ * On QuotaExceededError, sets the reactive error state so the UI can react.
+ */
+async function safeWrite<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (isQuotaExceeded(err)) {
+      idbError.value =
+        'Storage is full. Delete unused projects or clear browser data to free space.';
+    }
+    throw err;
+  }
+}
+
+// ─── Multi-tab coordination ─────────────────────────────────────────────────
+
+/**
+ * BroadcastChannel for notifying other tabs of data changes.
+ * Receiving tabs should reload project data when they get a message.
+ */
+let channel: BroadcastChannel | null = null;
+
+function getChannel(): BroadcastChannel | null {
+  if (typeof BroadcastChannel === 'undefined') return null;
+  if (!channel) {
+    channel = new BroadcastChannel('cutlist-idb');
+  }
+  return channel;
+}
+
+function notifyOtherTabs(event: string) {
+  try {
+    getChannel()?.postMessage({ event, timestamp: Date.now() });
+  } catch {
+    // BroadcastChannel may not be supported or may have been closed.
+  }
+}
+
 // ─── DB singleton ─────────────────────────────────────────────────────────────
 
 let dbPromise: Promise<IDBPDatabase<CutlistDb>> | null = null;
@@ -162,9 +259,12 @@ function getDb(): Promise<IDBPDatabase<CutlistDb>> {
       })
       .catch((err) => {
         dbPromise = null;
-        throw new Error(
-          `Browser storage unavailable (private browsing may prevent saving projects): ${err.message}`,
-        );
+        const message =
+          err?.name === 'FutureSchemaError'
+            ? err.message
+            : `Browser storage unavailable (private browsing may prevent saving projects): ${err.message}`;
+        idbError.value = message;
+        throw new Error(message);
       });
   }
   return dbPromise;
@@ -226,10 +326,13 @@ export function useIdb() {
     const db = await getDb();
     const existing = await db.get('projects', id);
     if (!existing) throw new Error(`Project ${id} not found`);
-    await db.put('projects', {
-      ...existing,
-      archivedAt: new Date().toISOString(),
-    });
+    await safeWrite(() =>
+      db.put('projects', {
+        ...existing,
+        archivedAt: new Date().toISOString(),
+      }),
+    );
+    notifyOtherTabs('project-updated');
   }
 
   async function unarchiveProject(id: string): Promise<void> {
@@ -237,7 +340,8 @@ export function useIdb() {
     const existing = await db.get('projects', id);
     if (!existing) throw new Error(`Project ${id} not found`);
     const { archivedAt: _, ...rest } = existing;
-    await db.put('projects', rest);
+    await safeWrite(() => db.put('projects', rest));
+    notifyOtherTabs('project-updated');
   }
 
   async function getProjectWithModels(
@@ -273,7 +377,8 @@ export function useIdb() {
       createdAt: now,
       updatedAt: now,
     };
-    await db.put('projects', project);
+    await safeWrite(() => db.put('projects', project));
+    notifyOtherTabs('project-created');
     return project;
   }
 
@@ -299,7 +404,8 @@ export function useIdb() {
       ...patch,
       updatedAt: new Date().toISOString(),
     };
-    await db.put('projects', updated);
+    await safeWrite(() => db.put('projects', updated));
+    notifyOtherTabs('project-updated');
     return updated;
   }
 
@@ -326,6 +432,7 @@ export function useIdb() {
     tx.objectStore('layoutCache').delete(id);
     tx.objectStore('projects').delete(id);
     await tx.done;
+    notifyOtherTabs('project-deleted');
   }
 
   // Build Steps
@@ -342,7 +449,7 @@ export function useIdb() {
 
   async function createBuildStep(step: IdbBuildStep): Promise<void> {
     const db = await getDb();
-    await db.put('buildSteps', step);
+    await safeWrite(() => db.put('buildSteps', step));
   }
 
   async function updateBuildStep(
@@ -354,7 +461,7 @@ export function useIdb() {
     const db = await getDb();
     const existing = await db.get('buildSteps', id);
     if (!existing) throw new Error(`BuildStep ${id} not found`);
-    await db.put('buildSteps', { ...existing, ...patch });
+    await safeWrite(() => db.put('buildSteps', { ...existing, ...patch }));
   }
 
   async function deleteBuildStep(id: string): Promise<void> {
@@ -366,7 +473,8 @@ export function useIdb() {
 
   async function createModel(model: IdbModel): Promise<void> {
     const db = await getDb();
-    await db.put('models', model);
+    await safeWrite(() => db.put('models', model));
+    notifyOtherTabs('model-created');
   }
 
   async function updateModel(
@@ -380,7 +488,7 @@ export function useIdb() {
     if (!existing) throw new Error(`Model ${id} not found`);
     // JSON round-trip strips Vue reactive proxies that IDB can't structured-clone.
     const rawPatch = JSON.parse(JSON.stringify(patch));
-    await db.put('models', { ...existing, ...rawPatch });
+    await safeWrite(() => db.put('models', { ...existing, ...rawPatch }));
   }
 
   async function deleteModel(id: string): Promise<void> {
@@ -412,7 +520,9 @@ export function useIdb() {
     const current = await getSettings();
     const updated = { ...current, ...changes };
     const db = await getDb();
-    await db.put('settings', { key: 'global-settings', settings: updated });
+    await safeWrite(() =>
+      db.put('settings', { key: 'global-settings', settings: updated }),
+    );
     return updated;
   }
 
@@ -431,14 +541,21 @@ export function useIdb() {
     projectId: string,
   ): Promise<IdbLayoutCache | undefined> {
     const db = await getDb();
-    return db.get('layoutCache', projectId);
+    const entry = await db.get('layoutCache', projectId);
+    if (!entry) return undefined;
+    // Reject entries from a different cache version — treat as miss.
+    if (entry.cacheVersion !== LAYOUT_CACHE_VERSION) return undefined;
+    return entry;
   }
 
   async function putLayoutCache(entry: IdbLayoutCache): Promise<void> {
     const db = await getDb();
     // JSON round-trip strips Vue reactive proxies and class instances.
     const raw = JSON.parse(JSON.stringify(entry)) as IdbLayoutCache;
-    await db.put('layoutCache', raw);
+    await safeWrite(() => db.put('layoutCache', raw)).catch(() => {
+      // Layout cache writes are advisory — swallow errors silently.
+      // The layout will simply be recomputed on next load.
+    });
   }
 
   async function deleteLayoutCache(projectId: string): Promise<void> {
