@@ -3,7 +3,20 @@ const { isRulerActive, toggleRuler } = useRulerStore();
 </script>
 
 <template>
-  <div class="flex">
+  <div class="flex items-center gap-2">
+    <Transition
+      enter-active-class="transition-all duration-200 ease-out"
+      leave-active-class="transition-all duration-150 ease-in"
+      enter-from-class="opacity-0 translate-x-2"
+      leave-to-class="opacity-0 translate-x-2"
+    >
+      <span
+        v-if="isRulerActive"
+        class="text-xs text-teal-400 whitespace-nowrap bg-teal-400/10 backdrop-blur border border-teal-400/25 rounded-lg px-2 py-1.5"
+      >
+        Pan locked &middot; <kbd class="text-teal-400/60">Esc</kbd> to exit
+      </span>
+    </Transition>
     <UButton
       :title="isRulerActive ? 'Disable ruler (Esc)' : 'Measure distance'"
       square
