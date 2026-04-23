@@ -372,7 +372,13 @@ export default function useThreeViewer(
       let node: Object3D;
       try {
         node = (await gltf.parser.getDependency('node', nodeIndex)) as Object3D;
-      } catch {
+      } catch (err) {
+        if (import.meta.dev) {
+          console.warn(
+            `[useThreeViewer] Failed to load GLTF node ${nodeIndex}, skipping:`,
+            err,
+          );
+        }
         continue;
       }
       if (!node || gen !== loadGeneration || !state) continue;
@@ -688,6 +694,33 @@ export default function useThreeViewer(
 
     state.renderer.domElement.removeEventListener('pointermove', onPointerMove);
     state.renderer.domElement.removeEventListener('click', onClick);
+
+    // Dispose floor mesh geometry + materials (grid shader + shadow child)
+    if (state.floorMesh) {
+      state.floorMesh.geometry.dispose();
+      (state.floorMesh.material as import('three').Material).dispose();
+      // Shadow plane is a child of floor mesh
+      state.floorMesh.traverse((child) => {
+        const m = child as import('three').Mesh;
+        if (m !== state!.floorMesh && m.isMesh) {
+          m.geometry.dispose();
+          const mats = Array.isArray(m.material) ? m.material : [m.material];
+          for (const mat of mats) mat?.dispose();
+        }
+      });
+      state.scene.remove(state.floorMesh);
+      state.floorMesh = null;
+    }
+
+    // Dispose environment map texture (GPU memory)
+    if (state.scene.environment) {
+      state.scene.environment.dispose();
+      state.scene.environment = null;
+    }
+
+    // Dispose edge material (shared across all edge lines)
+    state.edgeMaterial.dispose();
+
     state.renderer.dispose();
     state.renderer.domElement.remove();
     state.controls.dispose();
