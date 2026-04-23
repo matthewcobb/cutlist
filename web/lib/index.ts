@@ -12,6 +12,7 @@ import {
 } from './types';
 
 import { Rectangle } from './geometry';
+import { isNearlyEqual } from './utils/floating-point-utils';
 import { isValidStock } from './utils/stock-utils';
 import { Distance } from './utils/units';
 import {
@@ -217,8 +218,11 @@ export function generateBoardLayouts(
           getSingleModePass(normalizedConfig.optimize),
         );
 
+  const marginM = new Distance(normalizedConfig.margin).m;
   return {
-    layouts: searchResult.layouts.map(serializeBoardLayoutRectangles),
+    layouts: searchResult.layouts.map((l) =>
+      serializeBoardLayoutRectangles(l, marginM),
+    ),
     leftovers: searchResult.leftovers.map(serializePartToCut),
   };
 }
@@ -239,7 +243,7 @@ export function reduceStockMatrix(matrix: StockMatrix[]): Stock[] {
   return matrix.flatMap((item) => {
     const unit = item.unit ?? 'mm';
     return item.sizes.flatMap((size) =>
-      item.thickness.map((thickness) => ({
+      size.thickness.map((thickness) => ({
         ...item,
         thickness: dimToMeters(thickness, unit),
         width: dimToMeters(size.width, unit),
@@ -273,28 +277,42 @@ function runMultiPassSearch(
       ? DEFAULT_SEARCH_PASSES
       : config.searchPasses;
 
-  let best: SearchPassResult | undefined;
-  const startedAt = Date.now();
+  // Run the tournament per stock group (material + thickness) so that changing
+  // one group's constraints (e.g. grain lock) can't cause a different search
+  // pass to win globally and alter layouts for unrelated groups.
+  const groups = groupPartsByStock(parts, stock, config.precision);
+  const allLayouts: PotentialBoardLayout[] = [];
+  const allLeftovers: PartToCut[] = [];
 
-  for (let i = 0; i < passOrder.length; i++) {
-    if (i > 0 && Date.now() - startedAt >= config.maxSearchMs) break;
+  for (const group of groups) {
+    let best: SearchPassResult | undefined;
+    const startedAt = Date.now();
 
-    const pass = SEARCH_PASS_DEFINITIONS[passOrder[i]];
-    const candidate = runSearchPass(config, parts, stock, pass);
+    for (let i = 0; i < passOrder.length; i++) {
+      if (i > 0 && Date.now() - startedAt >= config.maxSearchMs) break;
 
-    if (
-      best == null ||
-      isBetterSearchResult(candidate, best, config.precision)
-    ) {
-      best = candidate;
+      const pass = SEARCH_PASS_DEFINITIONS[passOrder[i]];
+      const candidate = runSearchPass(config, group.parts, group.stock, pass);
+
+      if (
+        best == null ||
+        isBetterSearchResult(candidate, best, config.precision)
+      ) {
+        best = candidate;
+      }
+    }
+
+    if (best != null) {
+      allLayouts.push(...best.layouts);
+      allLeftovers.push(...best.leftovers);
     }
   }
 
-  if (best == null) {
-    throw Error('No optimization passes were executed.');
-  }
-
-  return best;
+  return {
+    layouts: allLayouts,
+    leftovers: allLeftovers,
+    score: scoreLayouts(allLayouts, config.precision),
+  };
 }
 
 function runSearchPass(
@@ -304,13 +322,11 @@ function runSearchPass(
   pass: SearchPassDefinition,
 ): SearchPassResult {
   const packer = PACKERS[pass.packerKind](pass);
-  const materialHasGrain = buildMaterialGrainMap(stock);
-  const packerOptions = getPackerOptions(config, materialHasGrain);
+  const packerOptions = getPackerOptions(config);
 
   const { layouts, leftovers } = placeAllParts(config, parts, stock, packer, {
     partSortMode: pass.partSortMode,
     randomSeed: pass.randomSeed,
-    materialHasGrain,
     packerOptions,
   });
   const minimizedLayouts = layouts.map((layout) =>
@@ -362,12 +378,11 @@ function placeAllParts(
   options: {
     partSortMode: PartSortMode;
     randomSeed?: number;
-    materialHasGrain: Map<string, boolean>;
     packerOptions: PackOptions;
   },
 ): { layouts: PotentialBoardLayout[]; leftovers: PartToCut[] } {
-  const extraSpace = new Distance(config.extraSpace).m;
-  const { materialHasGrain, packerOptions } = options;
+  const margin = new Distance(config.margin).m;
+  const { packerOptions } = options;
   const unplacedParts = new Set(
     sortPartsForPlacement(
       parts,
@@ -395,20 +410,17 @@ function placeAllParts(
     const layout: PotentialBoardLayout = { placements: [], stock: board };
     const boardRect = new Rectangle(
       board,
-      0,
-      0,
-      board.width - extraSpace,
-      board.length - extraSpace,
+      margin,
+      margin,
+      board.width - 2 * margin,
+      board.length - 2 * margin,
     );
 
     const partsToPlace = unplacedPartsArray
       .filter((part) => isValidStock(board, part, config.precision))
       .map((part) => {
         // grainLock='width': pre-rotate so part.width is on Y-axis (with grain)
-        if (
-          part.grainLock === 'width' &&
-          (materialHasGrain.get(part.material) ?? true)
-        ) {
+        if (part.grainLock === 'width') {
           return new Rectangle(part, 0, 0, part.size.length, part.size.width);
         }
         return new Rectangle(part, 0, 0, part.size.width, part.size.length);
@@ -530,7 +542,7 @@ function minimizeLayoutStock(
   packer: Packer<PartToCut>,
   packerOptions: PackOptions,
 ): PotentialBoardLayout {
-  const extraSpace = new Distance(config.extraSpace).m;
+  const margin = new Distance(config.margin).m;
 
   // Get alternative stock, smaller areas first.
   const altStock = stock
@@ -542,10 +554,10 @@ function minimizeLayoutStock(
   for (const smallerStock of altStock) {
     const bin = new Rectangle(
       smallerStock,
-      0,
-      0,
-      smallerStock.width - extraSpace,
-      smallerStock.length - extraSpace,
+      margin,
+      margin,
+      smallerStock.width - 2 * margin,
+      smallerStock.length - 2 * margin,
     );
     const res = packer.pack(bin, [...originalLayout.placements], packerOptions);
 
@@ -556,34 +568,79 @@ function minimizeLayoutStock(
   return originalLayout;
 }
 
-function buildMaterialGrainMap(stocks: Stock[]): Map<string, boolean> {
-  const map = new Map<string, boolean>();
-  for (const s of stocks) {
-    if (!map.has(s.material)) {
-      map.set(s.material, s.hasGrain);
-    }
-  }
-  return map;
+interface StockGroup {
+  parts: PartToCut[];
+  stock: Stock[];
 }
 
-function getPackerOptions(
-  config: Config,
-  materialHasGrain: Map<string, boolean>,
-): PackOptions {
+/**
+ * Group parts by the stock type they match (material + thickness), using the
+ * same isValidStock logic that placeAllParts uses to assign parts to boards.
+ */
+function groupPartsByStock(
+  parts: PartToCut[],
+  stock: Stock[],
+  precision: number,
+): StockGroup[] {
+  // Collect unique stock types (same material + ~equal thickness)
+  const stockTypes: Stock[][] = [];
+  for (const s of stock) {
+    const match = stockTypes.find(
+      (t) =>
+        t[0].material === s.material &&
+        isNearlyEqual(t[0].thickness, s.thickness, precision),
+    );
+    if (match) match.push(s);
+    else stockTypes.push([s]);
+  }
+
+  // Assign each part to its matching stock type in a single pass
+  const grouped = new Map<Stock[], PartToCut[]>();
+  const unmatched: PartToCut[] = [];
+
+  for (const part of parts) {
+    const type = stockTypes.find((t) =>
+      t.some((s) => isValidStock(s, part, precision)),
+    );
+    if (type) {
+      let group = grouped.get(type);
+      if (!group) {
+        group = [];
+        grouped.set(type, group);
+      }
+      group.push(part);
+    } else {
+      unmatched.push(part);
+    }
+  }
+
+  const result: StockGroup[] = [...grouped.entries()].map(
+    ([groupStock, groupParts]) => ({ parts: groupParts, stock: groupStock }),
+  );
+
+  // Unmatched parts still run so they surface as leftovers
+  if (unmatched.length > 0) {
+    result.push({ parts: unmatched, stock });
+  }
+
+  return result;
+}
+
+function getPackerOptions(config: Config): PackOptions {
   return {
     allowRotations: true,
     gap: new Distance(config.bladeWidth).m,
     precision: config.precision,
     canRotateRect: (data: unknown) => {
       const part = data as PartToCut;
-      if (!part.grainLock) return true;
-      return !(materialHasGrain.get(part.material) ?? true);
+      return !part.grainLock;
     },
   };
 }
 
 function serializeBoardLayoutRectangles(
   layout: PotentialBoardLayout,
+  marginM: number,
 ): BoardLayout {
   return {
     placements: layout.placements.map(serializePartToCutPlacement),
@@ -592,7 +649,9 @@ function serializeBoardLayoutRectangles(
       thicknessM: layout.stock.thickness,
       widthM: layout.stock.width,
       lengthM: layout.stock.length,
+      color: layout.stock.color,
     },
+    marginM,
   };
 }
 

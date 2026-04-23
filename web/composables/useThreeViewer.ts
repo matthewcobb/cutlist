@@ -13,7 +13,6 @@ interface ThreeModules {
 }
 
 type Mesh = import('three').Mesh;
-type Material = import('three').Material;
 type Object3D = import('three').Object3D;
 type MeshStandardMaterial = import('three').MeshStandardMaterial;
 
@@ -26,7 +25,7 @@ interface ViewerState {
   controls: InstanceType<ThreeModules['OrbitControls']>;
   raycaster: import('three').Raycaster;
   mouse: import('three').Vector2;
-  highlightMaterial: MeshStandardMaterial;
+  batchMaterial: MeshStandardMaterial;
   edgeMaterial: InstanceType<ThreeModules['LineMaterial']>;
   shadowLight: import('three').DirectionalLight;
   resizeObserver: ResizeObserver;
@@ -124,14 +123,16 @@ export default function useThreeViewer(
 
   let state: ViewerState | null = null;
 
-  // Part tracking
-  const partMeshes = new Map<number, Mesh[]>();
-  const meshToPart = new Map<Mesh, number>();
-  const originalMaterials = new Map<Mesh, Material | Material[]>();
-  const edgeLines = new Map<Mesh, Object3D>();
-  const modelRoots = new Set<Object3D>();
-  let ghostMaterials = new WeakMap<Material, Material>();
-  let raycastTargets: Mesh[] | null = null;
+  // BatchedMesh tracking (replaces per-mesh Maps)
+  let batchedMesh: import('three').BatchedMesh | null = null;
+  const instanceToPartNumber: number[] = [];
+  const partNumberToInstances = new Map<number, number[]>();
+  const originalColors = new Map<number, [number, number, number, number]>();
+  let sceneBounds: import('three').Box3 | null = null;
+
+  // Edge lines (single merged draw call)
+  let mergedEdgeLines: InstanceType<ThreeModules['LineSegments2']> | null =
+    null;
 
   const ready = ref(false);
   let needsRender = true;
@@ -155,32 +156,41 @@ export default function useThreeViewer(
     }
   }
 
-  // ─── Raycast ────────────────────────────────────────────────────
+  // ─── Raycast (throttled to 1 per animation frame) ──────────────
 
-  function getRaycastTargets(): Mesh[] {
-    if (!raycastTargets) raycastTargets = [...meshToPart.keys()];
-    return raycastTargets;
-  }
+  let lastPointerEvent: PointerEvent | null = null;
+  let raycastPending = false;
 
   function raycastPart(event: {
     clientX: number;
     clientY: number;
   }): number | null {
-    if (!state) return null;
+    if (!state || !batchedMesh) return null;
     const rect = state.renderer.domElement.getBoundingClientRect();
     state.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     state.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     state.raycaster.setFromCamera(state.mouse, state.camera);
-    const hit = state.raycaster.intersectObjects(getRaycastTargets(), false)[0];
-    return hit ? (meshToPart.get(hit.object as Mesh) ?? null) : null;
+    const hits = state.raycaster.intersectObject(batchedMesh, false);
+    if (hits.length === 0) return null;
+    const batchId = (hits[0] as any).batchId as number | undefined;
+    return batchId != null ? (instanceToPartNumber[batchId] ?? null) : null;
   }
 
   function onPointerMove(event: PointerEvent) {
     if (cameraMoving) return;
-    const partNum = raycastPart(event);
-    store.hoveredPartNumber.value = partNum;
-    if (state)
-      state.renderer.domElement.style.cursor = partNum != null ? 'pointer' : '';
+    lastPointerEvent = event;
+    if (!raycastPending) {
+      raycastPending = true;
+      requestAnimationFrame(() => {
+        raycastPending = false;
+        if (lastPointerEvent && state) {
+          const partNum = raycastPart(lastPointerEvent);
+          store.hoveredPartNumber.value = partNum;
+          state.renderer.domElement.style.cursor =
+            partNum != null ? 'pointer' : '';
+        }
+      });
+    }
   }
 
   function onClick(event: MouseEvent) {
@@ -204,7 +214,7 @@ export default function useThreeViewer(
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.25;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     const rect = el.getBoundingClientRect();
     renderer.setSize(rect.width, rect.height);
     el.appendChild(renderer.domElement);
@@ -260,18 +270,18 @@ export default function useThreeViewer(
     scene.environment = envMap;
     scene.environmentIntensity = 0.15;
 
-    const highlightMaterial = new THREE.MeshStandardMaterial({
-      color: HIGHLIGHT_COLOR,
-      emissive: HIGHLIGHT_COLOR,
-      emissiveIntensity: 0.25,
+    const batchMaterial = new THREE.MeshStandardMaterial({
       roughness: 0.35,
-      metalness: 0.1,
-      envMapIntensity: 0.4,
+      metalness: 0.05,
+      envMapIntensity: 0.3,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
     });
 
     const edgeMaterial = new modules.LineMaterial({
       color: 0x1a1a2e,
-      linewidth: 3,
+      linewidth: 2,
       transparent: true,
       opacity: 0.6,
       depthWrite: false,
@@ -303,7 +313,7 @@ export default function useThreeViewer(
       controls,
       raycaster: new THREE.Raycaster(),
       mouse: new THREE.Vector2(),
-      highlightMaterial,
+      batchMaterial,
       edgeMaterial,
       shadowLight,
       resizeObserver,
@@ -322,7 +332,7 @@ export default function useThreeViewer(
     partNumberOffset: number = 0,
   ) {
     if (!state) return;
-    const { modules, scene, edgeMaterial } = state;
+    const { modules, scene } = state;
     const { THREE } = modules;
 
     const gen = ++loadGeneration;
@@ -336,10 +346,26 @@ export default function useThreeViewer(
     );
     if (gen !== loadGeneration || !state) return;
 
+    // Compute world matrices so we can extract them per-mesh
+    gltf.scene.updateMatrixWorld(true);
+
     const nodeColorMap = new Map<number, string>();
     for (const { nodeIndex, colorHex } of nodePartMap) {
       nodeColorMap.set(nodeIndex, colorHex);
     }
+
+    // ── First pass: collect all meshes + metadata ──
+
+    interface MeshEntry {
+      geometry: import('three').BufferGeometry;
+      matrixWorld: import('three').Matrix4;
+      color: [number, number, number]; // sRGB 0–1
+      partNumber: number;
+    }
+
+    const meshEntries: MeshEntry[] = [];
+    let totalVertices = 0;
+    let totalIndices = 0;
 
     for (const { nodeIndex, partNumber } of nodePartMap) {
       const adjustedPartNumber = partNumber + partNumberOffset;
@@ -351,72 +377,154 @@ export default function useThreeViewer(
       }
       if (!node || gen !== loadGeneration || !state) continue;
 
+      const colorHex = nodeColorMap.get(nodeIndex) ?? '#808080';
+      const hexVal = parseInt(colorHex.slice(1), 16);
+      const sr = ((hexVal >> 16) & 0xff) / 255;
+      const sg = ((hexVal >> 8) & 0xff) / 255;
+      const sb = (hexVal & 0xff) / 255;
+
       node.traverse((child) => {
         if (!(child as Mesh).isMesh) return;
         const mesh = child as Mesh;
 
-        const existing = partMeshes.get(adjustedPartNumber) ?? [];
-        existing.push(mesh);
-        partMeshes.set(adjustedPartNumber, existing);
-        meshToPart.set(mesh, adjustedPartNumber);
-        originalMaterials.set(mesh, mesh.material);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
+        totalVertices += mesh.geometry.attributes.position.count;
+        totalIndices += mesh.geometry.index ? mesh.geometry.index.count : 0;
 
-        // Apply the normalized color resolved at import time.
-        // setRGB with SRGBColorSpace so Three.js converts sRGB→linear internally
-        const colorHex = nodeColorMap.get(nodeIndex);
-        if (colorHex) {
-          const hexVal = parseInt(colorHex.slice(1), 16);
-          const sr = ((hexVal >> 16) & 0xff) / 255;
-          const sg = ((hexVal >> 8) & 0xff) / 255;
-          const sb = (hexVal & 0xff) / 255;
-          const mats = Array.isArray(mesh.material)
-            ? mesh.material
-            : [mesh.material];
-          for (const m of mats) {
-            const std = m as MeshStandardMaterial;
-            if (!std.isMeshStandardMaterial) continue;
-            std.color.setRGB(sr, sg, sb, THREE.SRGBColorSpace);
-            std.roughness = 0.35;
-            std.metalness = 0.05;
-            std.envMapIntensity = 0.3;
-          }
-        }
-
-        // Edge lines: EdgesGeometry → Line2 for GPU-based line width
-        // Must be a sibling (not child) — Box3.expandByObject traverses children
-        // and LineSegments2.updateWorldMatrix causes infinite recursion.
-        if (mesh.parent) {
-          const edges = new THREE.EdgesGeometry(mesh.geometry, 15);
-          const positions = edges.attributes.position.array as Float32Array;
-          edges.dispose();
-
-          const lsg = new modules.LineSegmentsGeometry();
-          lsg.setPositions(positions);
-          const lines = new modules.LineSegments2(lsg, edgeMaterial);
-          lines.computeLineDistances();
-          lines.raycast = () => {};
-          lines.position.copy(mesh.position);
-          lines.rotation.copy(mesh.rotation);
-          lines.scale.copy(mesh.scale);
-          mesh.parent.add(lines);
-          edgeLines.set(mesh, lines);
-        }
+        meshEntries.push({
+          geometry: mesh.geometry,
+          matrixWorld: mesh.matrixWorld.clone(),
+          color: [sr, sg, sb],
+          partNumber: adjustedPartNumber,
+        });
       });
     }
 
-    scene.add(gltf.scene);
-    modelRoots.add(gltf.scene);
-    raycastTargets = null;
+    if (meshEntries.length === 0 || gen !== loadGeneration || !state) return;
+
+    // ── Create BatchedMesh (single draw call for all parts) ──
+
+    const batch = new THREE.BatchedMesh(
+      meshEntries.length,
+      totalVertices,
+      totalIndices > 0 ? totalIndices : undefined,
+      state.batchMaterial,
+    );
+    batch.castShadow = true;
+    batch.receiveShadow = true;
+    batch.sortObjects = false; // no sorting needed when fully opaque
+
+    const color = new THREE.Color();
+    const vec4 = new THREE.Vector4();
+    const bounds = new THREE.Box3();
+    const meshBox = new THREE.Box3();
+
+    for (const entry of meshEntries) {
+      const geometryId = batch.addGeometry(entry.geometry);
+      const instanceId = batch.addInstance(geometryId);
+      batch.setMatrixAt(instanceId, entry.matrixWorld);
+
+      // Per-instance color (sRGB → linear via Color)
+      color.setRGB(
+        entry.color[0],
+        entry.color[1],
+        entry.color[2],
+        THREE.SRGBColorSpace,
+      );
+      vec4.set(color.r, color.g, color.b, 1.0);
+      batch.setColorAt(instanceId, vec4);
+
+      // Track batchId → partNumber mappings
+      instanceToPartNumber[instanceId] = entry.partNumber;
+      const existing = partNumberToInstances.get(entry.partNumber) ?? [];
+      existing.push(instanceId);
+      partNumberToInstances.set(entry.partNumber, existing);
+      originalColors.set(instanceId, [color.r, color.g, color.b, 1.0]);
+
+      // Accumulate scene bounds
+      entry.geometry.computeBoundingBox();
+      if (entry.geometry.boundingBox) {
+        meshBox
+          .copy(entry.geometry.boundingBox)
+          .applyMatrix4(entry.matrixWorld);
+        bounds.union(meshBox);
+      }
+    }
+
+    sceneBounds = bounds;
+    batchedMesh = batch;
+    scene.add(batch);
+
     fitCamera();
+    requestRender();
+
+    // Start async edge computation (non-blocking — model renders immediately)
+    computeEdgesAsync(meshEntries, gen);
+
+    // Free GPU memory for original GLTF geometries/materials
+    // (CPU-side arrays persist for async edge computation)
+    gltf.scene.traverse((child) => {
+      const m = child as Mesh;
+      if (!m.isMesh) return;
+      m.geometry.dispose();
+      const mats = Array.isArray(m.material) ? m.material : [m.material];
+      for (const mat of mats) mat?.dispose();
+    });
+  }
+
+  // ─── Async edge computation ─────────────────────────────────────
+
+  async function computeEdgesAsync(
+    entries: {
+      geometry: import('three').BufferGeometry;
+      matrixWorld: import('three').Matrix4;
+    }[],
+    gen: number,
+  ) {
+    if (!state) return;
+    const { THREE } = state.modules;
+
+    const allPositions: number[] = [];
+    const v = new THREE.Vector3();
+    const CHUNK = 50; // meshes per yield
+
+    for (let i = 0; i < entries.length; i += CHUNK) {
+      if (gen !== loadGeneration || !state) return;
+
+      const end = Math.min(i + CHUNK, entries.length);
+      for (let j = i; j < end; j++) {
+        const { geometry, matrixWorld } = entries[j];
+        const edges = new THREE.EdgesGeometry(geometry, 15);
+        const pos = edges.attributes.position.array as Float32Array;
+        for (let k = 0; k < pos.length; k += 3) {
+          v.set(pos[k], pos[k + 1], pos[k + 2]).applyMatrix4(matrixWorld);
+          allPositions.push(v.x, v.y, v.z);
+        }
+        edges.dispose();
+      }
+
+      // Yield to main thread between chunks
+      await new Promise((r) => setTimeout(r, 0));
+    }
+
+    if (gen !== loadGeneration || !state || allPositions.length === 0) return;
+
+    const lsg = new state.modules.LineSegmentsGeometry();
+    lsg.setPositions(new Float32Array(allPositions));
+    const lines = new state.modules.LineSegments2(lsg, state.edgeMaterial);
+    lines.computeLineDistances();
+    lines.raycast = () => {};
+    lines.castShadow = false;
+
+    lines.renderOrder = 1; // always render after batch mesh
+    mergedEdgeLines = lines;
+    state.scene.add(lines);
     requestRender();
   }
 
   // ─── Camera ─────────────────────────────────────────────────────
 
   function fitCamera() {
-    if (!state) return;
+    if (!state || !sceneBounds || sceneBounds.isEmpty()) return;
     const {
       modules: { THREE },
       scene,
@@ -425,15 +533,7 @@ export default function useThreeViewer(
       shadowLight,
     } = state;
 
-    const box = new THREE.Box3();
-    for (const meshes of partMeshes.values()) {
-      for (const mesh of meshes) {
-        mesh.updateWorldMatrix(true, false);
-        box.expandByObject(mesh);
-      }
-    }
-    if (box.isEmpty()) return;
-
+    const box = sceneBounds;
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
@@ -459,8 +559,8 @@ export default function useThreeViewer(
         uniforms: {
           uColor1: { value: new THREE.Color(0x2dd4bf) },
           uColor2: { value: new THREE.Color(0x14b8a6) },
-          uGridSize: { value: 0.05 },
-          uLineWidth: { value: 0.002 },
+          uGridSize: { value: 0.1 },
+          uLineWidth: { value: 0.004 },
         },
         vertexShader: GRID_VERTEX_SHADER,
         fragmentShader: GRID_FRAGMENT_SHADER,
@@ -486,11 +586,11 @@ export default function useThreeViewer(
     state.floorMesh.position.set(center.x, floorY, center.z);
     state.floorMesh.scale.set(floorSize, floorSize, 1);
 
-    // Scale grid to model size (~20 cells across)
+    // Fixed 100mm grid cells (GLTF uses meters, so 0.1 = 100mm)
     const floorMat = state.floorMesh.material as import('three').ShaderMaterial;
     if (floorMat.uniforms) {
-      floorMat.uniforms.uGridSize.value = maxDim / 20;
-      floorMat.uniforms.uLineWidth.value = maxDim / 800;
+      floorMat.uniforms.uGridSize.value = 0.1;
+      floorMat.uniforms.uLineWidth.value = 0.004;
     }
 
     // Shadow camera sized to model
@@ -518,86 +618,66 @@ export default function useThreeViewer(
   // ─── Highlight ──────────────────────────────────────────────────
 
   function highlightPart(partNumber: number | null) {
-    if (!state) return;
+    if (!state || !batchedMesh) return;
+    const { THREE } = state.modules;
+    const vec4 = new THREE.Vector4();
 
-    // Restore all to original
-    for (const [mesh, original] of originalMaterials) {
-      mesh.material = original;
-      const lines = edgeLines.get(mesh);
-      if (lines) lines.visible = true;
-    }
+    if (partNumber == null) {
+      // Restore all to original — fully opaque
+      state.batchMaterial.transparent = false;
+      state.batchMaterial.needsUpdate = true; // recompile shader with OPAQUE define
+      batchedMesh.sortObjects = false;
+      for (const [id, rgba] of originalColors) {
+        vec4.set(rgba[0], rgba[1], rgba[2], 1.0);
+        batchedMesh.setColorAt(id, vec4);
+      }
+    } else {
+      // Ghost non-target parts via per-instance alpha
+      state.batchMaterial.transparent = true;
+      state.batchMaterial.needsUpdate = true; // recompile shader without OPAQUE define
+      batchedMesh.sortObjects = true;
 
-    const targetMeshes =
-      partNumber != null ? partMeshes.get(partNumber) : undefined;
-    if (targetMeshes) {
-      const targetSet = new Set(targetMeshes);
-      for (const [mesh, original] of originalMaterials) {
-        if (targetSet.has(mesh)) {
-          mesh.material = state.highlightMaterial;
+      const targetInstances = new Set(
+        partNumberToInstances.get(partNumber) ?? [],
+      );
+      const highlightColor = new THREE.Color(HIGHLIGHT_COLOR);
+
+      for (const [id, rgba] of originalColors) {
+        if (targetInstances.has(id)) {
+          vec4.set(highlightColor.r, highlightColor.g, highlightColor.b, 1.0);
         } else {
-          mesh.material = getGhostMaterial(original);
-          const lines = edgeLines.get(mesh);
-          if (lines) lines.visible = false;
+          vec4.set(rgba[0], rgba[1], rgba[2], GHOST_OPACITY);
         }
+        batchedMesh.setColorAt(id, vec4);
       }
     }
 
     requestRender();
   }
 
-  function getGhostMaterial(
-    original: Material | Material[],
-  ): Material | Material[] {
-    if (Array.isArray(original)) {
-      return original.map((m) => getGhostMaterial(m) as Material);
-    }
-    let ghost = ghostMaterials.get(original);
-    if (!ghost) {
-      ghost = original.clone();
-      ghost.transparent = true;
-      ghost.opacity = GHOST_OPACITY;
-      ghost.depthWrite = false;
-      ghostMaterials.set(original, ghost);
-    }
-    return ghost;
-  }
-
   // ─── Cleanup ────────────────────────────────────────────────────
-
-  function disposeSceneGraph(obj: Object3D) {
-    obj.traverse((child) => {
-      const mesh = child as Mesh;
-      if (mesh.isMesh) {
-        mesh.geometry?.dispose();
-        const mats = Array.isArray(mesh.material)
-          ? mesh.material
-          : [mesh.material];
-        for (const mat of mats) mat?.dispose();
-      }
-    });
-  }
 
   function clearModels() {
     if (!state) return;
-    loadGeneration++;
+    loadGeneration++; // cancels async edge computation + in-progress loads
 
-    for (const lines of edgeLines.values()) {
-      (lines as import('three').LineSegments).geometry?.dispose();
-      lines.removeFromParent();
+    if (mergedEdgeLines) {
+      mergedEdgeLines.geometry.dispose();
+      state.scene.remove(mergedEdgeLines);
+      mergedEdgeLines = null;
     }
-    edgeLines.clear();
 
-    for (const root of modelRoots) {
-      disposeSceneGraph(root);
-      state.scene.remove(root);
+    if (batchedMesh) {
+      batchedMesh.geometry.dispose();
+      state.scene.remove(batchedMesh);
+      batchedMesh = null;
     }
-    modelRoots.clear();
 
-    partMeshes.clear();
-    meshToPart.clear();
-    originalMaterials.clear();
-    ghostMaterials = new WeakMap();
-    raycastTargets = null;
+    instanceToPartNumber.length = 0;
+    partNumberToInstances.clear();
+    originalColors.clear();
+    sceneBounds = null;
+
     requestRender();
   }
 
@@ -612,6 +692,7 @@ export default function useThreeViewer(
     state.renderer.domElement.remove();
     state.controls.dispose();
     state.resizeObserver.disconnect();
+    state.batchMaterial.dispose();
 
     state = null;
     ready.value = false;

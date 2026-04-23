@@ -21,7 +21,7 @@ export default createSharedComposable(() => {
     });
 
   const bladeWidth = defineSettingValue('bladeWidth');
-  const extraSpace = defineSettingValue('extraSpace');
+  const margin = defineSettingValue('margin');
   const optimize = defineSettingValue('optimize');
   const showPartNumbers = defineSettingValue('showPartNumbers');
 
@@ -51,14 +51,9 @@ export default createSharedComposable(() => {
 
   const resetSettings = () => {
     bladeWidth.value = settings.value?.bladeWidth;
-    extraSpace.value = settings.value?.extraSpace;
+    margin.value = settings.value?.margin;
     optimize.value = settings.value?.optimize;
     showPartNumbers.value = settings.value?.showPartNumbers;
-  };
-
-  /** Reset project stock to global defaults. */
-  const resetStock = () => {
-    stock.value = settings.value?.stock;
   };
 
   // Populate store from IDB settings once they're ready.
@@ -83,8 +78,7 @@ export default createSharedComposable(() => {
     const changes: Partial<CutlistSettings> = {};
     if (settings.value?.bladeWidth !== bladeWidth.value)
       changes.bladeWidth = bladeWidth.value;
-    if (settings.value?.extraSpace !== extraSpace.value)
-      changes.extraSpace = extraSpace.value;
+    if (settings.value?.margin !== margin.value) changes.margin = margin.value;
     if (settings.value?.optimize !== optimize.value)
       changes.optimize = optimize.value;
     if (settings.value?.showPartNumbers !== showPartNumbers.value)
@@ -95,12 +89,11 @@ export default createSharedComposable(() => {
   return {
     bladeWidth,
     distanceUnit,
-    extraSpace,
+    margin,
     optimize,
     showPartNumbers,
     stock,
     resetSettings,
-    resetStock,
     isLoading,
     changes,
   };

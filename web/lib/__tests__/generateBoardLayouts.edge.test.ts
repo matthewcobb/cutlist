@@ -8,7 +8,7 @@ import {
 
 const baseConfig: Config = {
   bladeWidth: 0,
-  extraSpace: 0,
+  margin: 0,
   optimize: 'auto',
   maxSearchMs: 8000,
   precision: 1e-5,
@@ -37,9 +37,8 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: ['18mm'],
-        sizes: [{ width: '1m', length: '2m' }],
+
+        sizes: [{ width: '1m', length: '2m', thickness: ['18mm'] }],
       },
     ];
     const parts = [
@@ -59,16 +58,14 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: ['18mm'],
-        sizes: [{ width: '1m', length: '2m' }],
+
+        sizes: [{ width: '1m', length: '2m', thickness: ['18mm'] }],
       },
       {
         material: 'Plywood',
         unit: 'mm',
-        hasGrain: false,
-        thickness: ['18mm'],
-        sizes: [{ width: '1m', length: '2m' }],
+
+        sizes: [{ width: '1m', length: '2m', thickness: ['18mm'] }],
       },
     ];
     const parts = [
@@ -97,9 +94,8 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: ['18mm'],
-        sizes: [{ width: '1000mm', length: '2000mm' }],
+
+        sizes: [{ width: '1000mm', length: '2000mm', thickness: ['18mm'] }],
       },
     ];
     // 0.018m === 18mm
@@ -111,30 +107,74 @@ describe('generateBoardLayouts edge cases', () => {
     expect(result.layouts).toHaveLength(1);
   });
 
-  // 4. extraSpace reduces effective bin — part close to 1m doesn't fit in (1-extraSpace)
-  it('does not place a part that exceeds the effective bin size after extraSpace is applied', () => {
-    // Bin is 1m×1m; extraSpace is 10mm → effective area is 0.99m×0.99m
+  // 4. margin reduces effective bin — part close to 1m doesn't fit in (1m - 2×margin)
+  it('does not place a part that exceeds the effective bin size after margin is applied', () => {
+    // Bin is 1m×1m; margin is 10mm → effective area is 0.98m×0.98m
     // Part is 0.995m×0.995m which fits the raw board but not the reduced area
     const stock: StockMatrix[] = [
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: ['18mm'],
-        sizes: [{ width: '1m', length: '1m' }],
+
+        sizes: [{ width: '1m', length: '1m', thickness: ['18mm'] }],
       },
     ];
-    const configWithExtraSpace: Config = {
+    const configWithMargin: Config = {
       ...baseConfig,
-      extraSpace: 0.01, // 10mm in meters
+      margin: 0.01, // 10mm in meters
     };
     const parts = [makePart(1, 0.995, 0.995)];
 
-    const result = generateBoardLayouts(parts, stock, configWithExtraSpace);
+    const result = generateBoardLayouts(parts, stock, configWithMargin);
 
     // Part should not fit on the reduced effective area → leftover
     expect(result.leftovers).toHaveLength(1);
     expect(result.layouts).toHaveLength(0);
+  });
+
+  // 4b. margin insets placements from all edges and sets marginM on output
+  it('insets placements from all board edges by the margin', () => {
+    const stock: StockMatrix[] = [
+      {
+        material: 'MDF',
+        unit: 'mm',
+
+        sizes: [{ width: '1m', length: '1m', thickness: ['18mm'] }],
+      },
+    ];
+    const margin = 0.05; // 50mm
+    const config: Config = { ...baseConfig, margin };
+    const parts = [makePart(1, 0.3, 0.3), makePart(2, 0.3, 0.3)];
+
+    const result = generateBoardLayouts(parts, stock, config);
+
+    expect(result.leftovers).toHaveLength(0);
+    expect(result.layouts).toHaveLength(1);
+    expect(result.layouts[0].marginM).toBe(margin);
+
+    for (const p of result.layouts[0].placements) {
+      expect(p.leftM).toBeGreaterThanOrEqual(margin - 1e-9);
+      expect(p.bottomM).toBeGreaterThanOrEqual(margin - 1e-9);
+      expect(p.rightM).toBeLessThanOrEqual(1 - margin + 1e-9);
+      expect(p.topM).toBeLessThanOrEqual(1 - margin + 1e-9);
+    }
+  });
+
+  // 4c. zero margin produces marginM: 0 in output
+  it('sets marginM to 0 when no margin is configured', () => {
+    const stock: StockMatrix[] = [
+      {
+        material: 'MDF',
+        unit: 'mm',
+
+        sizes: [{ width: '1m', length: '1m', thickness: ['18mm'] }],
+      },
+    ];
+    const parts = [makePart(1, 0.3, 0.3)];
+
+    const result = generateBoardLayouts(parts, stock, baseConfig);
+
+    expect(result.layouts[0].marginM).toBe(0);
   });
 
   // 5. Empty parts list → layouts=[], leftovers=[]
@@ -143,9 +183,8 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: ['18mm'],
-        sizes: [{ width: '1m', length: '2m' }],
+
+        sizes: [{ width: '1m', length: '2m', thickness: ['18mm'] }],
       },
     ];
 
@@ -171,9 +210,8 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: ['18mm'],
-        sizes: [{ width: '500mm', length: '500mm' }],
+
+        sizes: [{ width: '500mm', length: '500mm', thickness: ['18mm'] }],
       },
     ];
     const parts = [makePart(1, 0.4, 0.4), makePart(2, 0.4, 0.4)];
@@ -190,9 +228,8 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: ['18mm'],
-        sizes: [{ width: '500mm', length: '500mm' }],
+
+        sizes: [{ width: '500mm', length: '500mm', thickness: ['18mm'] }],
       },
     ];
     // Part is 1m×1m — larger than the 0.5m×0.5m board
@@ -212,9 +249,8 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: ['18mm'],
-        sizes: [{ width: '1m', length: '3m' }],
+
+        sizes: [{ width: '1m', length: '3m', thickness: ['18mm'] }],
       },
     ];
     const config: Config = {
@@ -235,7 +271,113 @@ describe('generateBoardLayouts edge cases', () => {
     expect(first.leftovers).toHaveLength(0);
   });
 
-  // 10. bladeWidth reduces packing capacity — fewer parts fit on a board
+  // 10. Changing one material's grain lock must not alter another material's layouts
+  it('does not change layouts for material B when grain lock changes on material A', () => {
+    const stock: StockMatrix[] = [
+      {
+        material: 'Plywood',
+        unit: 'mm',
+
+        sizes: [{ width: '1200mm', length: '2400mm', thickness: ['12mm'] }],
+      },
+      {
+        material: 'MDF',
+        unit: 'mm',
+
+        sizes: [{ width: '1200mm', length: '2400mm', thickness: ['18mm'] }],
+      },
+    ];
+
+    const mdfParts = [
+      makePart(1, 0.4, 0.8, 'MDF', 0.018),
+      makePart(2, 0.3, 0.6, 'MDF', 0.018),
+      makePart(3, 0.5, 0.5, 'MDF', 0.018),
+      makePart(4, 0.2, 0.9, 'MDF', 0.018),
+    ];
+
+    const plyPartsNoGrain = [
+      makePart(10, 0.3, 0.7, 'Plywood', 0.012),
+      makePart(11, 0.5, 0.5, 'Plywood', 0.012),
+      makePart(12, 0.4, 0.6, 'Plywood', 0.012),
+    ];
+
+    const plyPartsWithGrain = plyPartsNoGrain.map((p) => ({
+      ...p,
+      grainLock: 'length' as const,
+    }));
+
+    const resultA = generateBoardLayouts(
+      [...mdfParts, ...plyPartsNoGrain],
+      stock,
+      baseConfig,
+    );
+    const resultB = generateBoardLayouts(
+      [...mdfParts, ...plyPartsWithGrain],
+      stock,
+      baseConfig,
+    );
+
+    const mdfLayoutsA = resultA.layouts.filter(
+      (l) => l.stock.material === 'MDF',
+    );
+    const mdfLayoutsB = resultB.layouts.filter(
+      (l) => l.stock.material === 'MDF',
+    );
+
+    expect(mdfLayoutsA).toEqual(mdfLayoutsB);
+  });
+
+  // 10b. Same material, different thickness — grain change on 12mm must not affect 18mm
+  it('does not change 18mm layouts when grain lock changes on 12mm of the same material', () => {
+    const stock: StockMatrix[] = [
+      {
+        material: 'Plywood',
+        unit: 'mm',
+
+        sizes: [
+          { width: '1200mm', length: '2400mm', thickness: ['18mm', '12mm'] },
+        ],
+      },
+    ];
+
+    const ply18Parts = [
+      makePart(1, 0.4, 0.8, 'Plywood', 0.018),
+      makePart(2, 0.3, 0.6, 'Plywood', 0.018),
+      makePart(3, 0.5, 0.5, 'Plywood', 0.018),
+    ];
+
+    const ply12NoGrain = [
+      makePart(10, 0.3, 0.7, 'Plywood', 0.012),
+      makePart(11, 0.5, 0.5, 'Plywood', 0.012),
+    ];
+
+    const ply12WithGrain = ply12NoGrain.map((p) => ({
+      ...p,
+      grainLock: 'length' as const,
+    }));
+
+    const resultA = generateBoardLayouts(
+      [...ply18Parts, ...ply12NoGrain],
+      stock,
+      baseConfig,
+    );
+    const resultB = generateBoardLayouts(
+      [...ply18Parts, ...ply12WithGrain],
+      stock,
+      baseConfig,
+    );
+
+    const ply18LayoutsA = resultA.layouts.filter(
+      (l) => Math.abs(l.stock.thicknessM - 0.018) < 1e-5,
+    );
+    const ply18LayoutsB = resultB.layouts.filter(
+      (l) => Math.abs(l.stock.thicknessM - 0.018) < 1e-5,
+    );
+
+    expect(ply18LayoutsA).toEqual(ply18LayoutsB);
+  });
+
+  // 11. bladeWidth reduces packing capacity — fewer parts fit on a board
   it('fits fewer parts when bladeWidth adds kerf gaps between parts', () => {
     // Board: 1m × 1m
     // Pack 4 parts each 0.49m × 0.49m — without gap they tile 2×2 fine (0.98 ≤ 1.0).
@@ -246,9 +388,8 @@ describe('generateBoardLayouts edge cases', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: ['18mm'],
-        sizes: [{ width: '1m', length: '1m' }],
+
+        sizes: [{ width: '1m', length: '1m', thickness: ['18mm'] }],
       },
     ];
 

@@ -3,50 +3,124 @@
 
 bladeWidth: 3
 distanceUnit: mm
-extraSpace: 3
+margin: 0
 optimize: CNC
 showPartNumbers: true
+
+# Stock presets available in the "Add preset" dropdown.
+# Entries with `default: true` are auto-added to new projects.
 stock:
-  - material: Plywood
+  - label: Plywood (mm)
+    default: true
+    material: Plywood
+    color: '#d2b996'
     unit: mm
-    thickness:
-      - 18
-      - 12
-      - 9
-      - 6
     sizes:
       - width: 1220
         length: 2440
-  - material: MDF
+        thickness: [18, 12, 9, 6]
+
+  - label: MDF (mm)
+    default: true
+    material: MDF
+    color: '#b09078'
     unit: mm
-    thickness:
-      - 18
-      - 12
-      - 9
-      - 6
-      - 3
     sizes:
       - width: 1220
         length: 2440
-  - material: Plywood
+        thickness: [18, 12, 9, 6, 3]
+
+  - label: Particle Board (mm)
+    default: false
+    material: Particle Board
+    color: '#c8b48c'
+    unit: mm
+    sizes:
+      - width: 1220
+        length: 2440
+        thickness: [18, 16, 12]
+
+  - label: Melamine (mm)
+    default: false
+    material: Melamine
+    color: '#ebe6de'
+    unit: mm
+    sizes:
+      - width: 1220
+        length: 2440
+        thickness: [18, 16]
+
+  - label: OSB (mm)
+    default: false
+    material: OSB
+    color: '#c3a050'
+    unit: mm
+    sizes:
+      - width: 1220
+        length: 2440
+        thickness: [18, 12, 9]
+
+  - label: Hardboard (mm)
+    default: false
+    material: Hardboard
+    color: '#694123'
+    unit: mm
+    sizes:
+      - width: 1220
+        length: 2440
+        thickness: [6, 3]
+
+  - label: Plywood (in)
+    default: true
+    material: Plywood
+    color: '#d2b996'
     unit: in
-    thickness:
-      - 0.75
-      - 0.5
-      - 0.25
     sizes:
       - width: 48
         length: 96
-  - material: Hardwood
+        thickness: [0.75, 0.5, 0.25]
+
+  - label: MDF (in)
+    default: false
+    material: MDF
+    color: '#b09078'
     unit: in
-    thickness:
-      - 0.75
-      - 1
-      - 1.5
+    sizes:
+      - width: 48
+        length: 96
+        thickness: [0.75, 0.5, 0.25]
+
+  - label: Hardwood Lumber (in)
+    default: true
+    material: Hardwood
+    color: '#a5784a'
+    unit: in
     sizes:
       - width: 6
         length: 96
+        thickness: [0.75, 1, 1.5]
       - width: 8
         length: 96
+        thickness: [0.75, 1, 1.5]
       - width: 12
         length: 96
+        thickness: [0.75, 1, 1.5]
+
+  - label: Softwood Lumber (in)
+    default: false
+    material: Softwood
+    color: '#dcc391'
+    unit: in
+    sizes:
+      - width: 3.5
+        length: 96
+        thickness: [0.75, 1.5]
+      - width: 5.5
+        length: 96
+        thickness: [0.75, 1.5]
+      - width: 7.25
+        length: 96
+        thickness: [0.75, 1.5]
+      - width: 11.25
+        length: 96
+        thickness: [0.75, 1.5]

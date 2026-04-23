@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Part } from '~/utils/parseGltf';
+import type { BoardLayout, BoardLayoutLeftover } from 'cutlist';
+import type { ColorInfo, NodePartMapping, Part } from '~/utils/parseGltf';
 import {
   DEFAULT_SETTINGS,
   DEFAULT_STOCK_YAML,
@@ -26,6 +27,18 @@ export interface IdbProject {
 
 export interface PartOverride {
   grainLock?: 'length' | 'width';
+  name?: string;
+}
+
+/**
+ * Cached output of `deriveFromGltf` for a GLTF model. Keyed by DERIVE_VERSION
+ * — stale entries (lower version) are ignored and re-derived.
+ */
+export interface DerivedCache {
+  version: number;
+  parts: Part[];
+  colors: ColorInfo[];
+  nodePartMap: NodePartMapping[];
 }
 
 export interface IdbModel {
@@ -40,11 +53,26 @@ export interface IdbModel {
   gltfJson: object | null;
   /** Per-part user overrides, keyed by partNumber. Extensible for future fields. */
   partOverrides: Record<number, PartOverride>;
+  /** Cached derive output for GLTF models. Undefined until first derive. */
+  derivedCache?: DerivedCache;
   createdAt: string;
 }
 
 /** Model record without gltfJson — what we keep in the reactive store. */
 export type IdbModelMeta = Omit<IdbModel, 'gltfJson'>;
+
+/**
+ * Persisted layout result for a project. Keyed by projectId; `fingerprint`
+ * hashes the packing inputs (parts + stock + config) so a mismatch triggers
+ * recompute. Written by the layout worker path, read on project switch.
+ */
+export interface IdbLayoutCache {
+  projectId: string;
+  fingerprint: string;
+  layouts: BoardLayout[];
+  leftovers: BoardLayoutLeftover[];
+  savedAt: string;
+}
 
 export interface IdbBuildStep {
   id: string;
@@ -94,6 +122,10 @@ interface CutlistDb extends DBSchema {
     value: IdbBuildStep;
     indexes: { projectId: string };
   };
+  layoutCache: {
+    key: string;
+    value: IdbLayoutCache;
+  };
 }
 
 // ─── DB singleton ─────────────────────────────────────────────────────────────
@@ -102,7 +134,7 @@ let dbPromise: Promise<IDBPDatabase<CutlistDb>> | null = null;
 
 function getDb(): Promise<IDBPDatabase<CutlistDb>> {
   if (!dbPromise) {
-    dbPromise = openDB<CutlistDb>('cutlist-db', 2, {
+    dbPromise = openDB<CutlistDb>('cutlist-db', 3, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
           const projects = db.createObjectStore('projects', { keyPath: 'id' });
@@ -118,6 +150,9 @@ function getDb(): Promise<IDBPDatabase<CutlistDb>> {
             keyPath: 'id',
           });
           buildSteps.createIndex('projectId', 'projectId');
+        }
+        if (oldVersion < 3) {
+          db.createObjectStore('layoutCache', { keyPath: 'projectId' });
         }
       },
     })
@@ -209,10 +244,12 @@ export function useIdb() {
     id: string,
   ): Promise<(IdbProject & { models: IdbModelMeta[] }) | undefined> {
     const db = await getDb();
-    const project = await db.get('projects', id);
+    const [project, allModels] = await Promise.all([
+      db.get('projects', id),
+      db.getAllFromIndex('models', 'projectId', id),
+    ]);
     if (!project) return undefined;
 
-    const allModels = await db.getAllFromIndex('models', 'projectId', id);
     const models: IdbModelMeta[] = allModels.map(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       ({ gltfJson: _g, ...meta }) => applyModelDefaults(meta),
@@ -269,7 +306,7 @@ export function useIdb() {
   async function deleteProject(id: string): Promise<void> {
     const db = await getDb();
     const tx = db.transaction(
-      ['projects', 'models', 'buildSteps'],
+      ['projects', 'models', 'buildSteps', 'layoutCache'],
       'readwrite',
     );
     const modelKeys = await tx
@@ -286,6 +323,7 @@ export function useIdb() {
     for (const key of stepKeys) {
       tx.objectStore('buildSteps').delete(key);
     }
+    tx.objectStore('layoutCache').delete(id);
     tx.objectStore('projects').delete(id);
     await tx.done;
   }
@@ -333,7 +371,9 @@ export function useIdb() {
 
   async function updateModel(
     id: string,
-    patch: Partial<Pick<IdbModel, 'enabled' | 'parts' | 'partOverrides'>>,
+    patch: Partial<
+      Pick<IdbModel, 'enabled' | 'parts' | 'partOverrides' | 'derivedCache'>
+    >,
   ): Promise<void> {
     const db = await getDb();
     const existing = await db.get('models', id);
@@ -385,6 +425,27 @@ export function useIdb() {
     return { ...DEFAULT_SETTINGS };
   }
 
+  // Layout cache
+
+  async function getLayoutCache(
+    projectId: string,
+  ): Promise<IdbLayoutCache | undefined> {
+    const db = await getDb();
+    return db.get('layoutCache', projectId);
+  }
+
+  async function putLayoutCache(entry: IdbLayoutCache): Promise<void> {
+    const db = await getDb();
+    // JSON round-trip strips Vue reactive proxies and class instances.
+    const raw = JSON.parse(JSON.stringify(entry)) as IdbLayoutCache;
+    await db.put('layoutCache', raw);
+  }
+
+  async function deleteLayoutCache(projectId: string): Promise<void> {
+    const db = await getDb();
+    await db.delete('layoutCache', projectId);
+  }
+
   async function getDemoSeeded(): Promise<boolean> {
     const db = await getDb();
     const record = await db.get('settings', DEMO_SEEDED_KEY);
@@ -421,5 +482,8 @@ export function useIdb() {
     createBuildStep,
     updateBuildStep,
     deleteBuildStep,
+    getLayoutCache,
+    putLayoutCache,
+    deleteLayoutCache,
   };
 }

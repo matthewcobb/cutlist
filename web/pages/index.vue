@@ -80,85 +80,116 @@ function scrollToContent() {
           <!-- prettier-ignore -->
           <div class="absolute inset-0 pointer-events-none select-none" aria-hidden="true">
             <svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" class="w-full h-full">
-              <rect x="10" y="15" width="200" height="190" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
-              <rect x="15" y="20" width="60" height="55" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="45" y="51" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
-              <rect x="77" y="20" width="65" height="55" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="109" y="51" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>
-              <rect x="144" y="20" width="61" height="55" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="174" y="51" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#3</text>
-              <rect x="15" y="78" width="88" height="62" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="59" y="113" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#4</text>
-              <rect x="105" y="78" width="83" height="62" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="146" y="113" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#5</text>
-              <rect x="190" y="78" width="15" height="62" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
-              <rect x="15" y="143" width="72" height="57" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="51" y="175" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#6</text>
-              <rect x="89" y="143" width="72" height="57" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="125" y="175" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#7</text>
-              <rect x="163" y="143" width="42" height="57" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
-              <line x1="10" y1="8" x2="210" y2="8" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="10" y1="5" x2="10" y2="11" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="210" y1="5" x2="210" y2="11" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/>
-              <rect x="222" y="8" width="305" height="145" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
-              <rect x="227" y="13" width="72" height="65" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="263" y="49" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
-              <rect x="301" y="13" width="72" height="65" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="337" y="49" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>
-              <rect x="375" y="13" width="72" height="65" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="411" y="49" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#3</text>
-              <rect x="449" y="13" width="73" height="65" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="485" y="49" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#4</text>
-              <rect x="227" y="81" width="145" height="67" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="299" y="118" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#5</text>
-              <rect x="374" y="81" width="90" height="67" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="419" y="118" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#6</text>
-              <rect x="466" y="81" width="56" height="67" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
-              <rect x="542" y="18" width="196" height="180" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
-              <rect x="547" y="23" width="92" height="86" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="593" y="70" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
-              <rect x="641" y="23" width="92" height="86" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="687" y="70" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>
-              <rect x="547" y="112" width="57" height="81" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="575" y="156" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#3</text>
-              <rect x="606" y="112" width="57" height="81" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="634" y="156" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#4</text>
-              <rect x="665" y="112" width="68" height="81" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
-              <rect x="756" y="10" width="232" height="222" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
-              <rect x="761" y="15" width="110" height="72" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="816" y="55" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
-              <rect x="873" y="15" width="110" height="72" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="928" y="55" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>
-              <rect x="761" y="90" width="72" height="65" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="797" y="126" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#3</text>
-              <rect x="835" y="90" width="72" height="65" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="871" y="126" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#4</text>
-              <rect x="909" y="90" width="74" height="65" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="946" y="126" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#5</text>
-              <rect x="761" y="158" width="100" height="69" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="811" y="196" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#6</text>
-              <rect x="863" y="158" width="80" height="69" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="903" y="196" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#7</text>
-              <rect x="945" y="158" width="38" height="69" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
-              <line x1="994" y1="10" x2="994" y2="232" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="991" y1="10" x2="997" y2="10" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="991" y1="232" x2="997" y2="232" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/>
-              <rect x="10" y="248" width="140" height="160" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
-              <rect x="15" y="253" width="62" height="73" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="46" y="293" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
-              <rect x="79" y="253" width="66" height="73" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="112" y="293" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>
-              <rect x="15" y="329" width="62" height="74" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="46" y="369" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#3</text>
-              <rect x="79" y="329" width="66" height="74" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="112" y="369" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#4</text>
-              <rect x="162" y="240" width="365" height="185" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
-              <rect x="167" y="245" width="145" height="88" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="239" y="293" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
-              <rect x="314" y="245" width="108" height="88" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="368" y="293" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>
-              <rect x="424" y="245" width="98" height="88" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="473" y="293" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#3</text>
-              <rect x="167" y="336" width="100" height="84" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="217" y="382" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#4</text>
-              <rect x="269" y="336" width="100" height="84" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="319" y="382" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#5</text>
-              <rect x="371" y="336" width="100" height="84" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="421" y="382" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#6</text>
-              <rect x="473" y="336" width="49" height="84" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
-              <line x1="162" y1="431" x2="527" y2="431" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="162" y1="428" x2="162" y2="434" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="527" y1="428" x2="527" y2="434" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/>
-              <rect x="540" y="245" width="258" height="170" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
-              <rect x="545" y="250" width="122" height="80" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="606" y="294" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
-              <rect x="669" y="250" width="124" height="80" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="731" y="294" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>
-              <rect x="545" y="333" width="75" height="77" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="582" y="375" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#3</text>
-              <rect x="622" y="333" width="75" height="77" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="659" y="375" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#4</text>
-              <rect x="699" y="333" width="75" height="77" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="736" y="375" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#5</text>
-              <rect x="776" y="333" width="17" height="77" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
-              <rect x="812" y="248" width="178" height="168" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
-              <rect x="817" y="253" width="80" height="80" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="857" y="297" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
-              <rect x="899" y="253" width="84" height="80" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="941" y="297" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>
-              <rect x="817" y="336" width="120" height="75" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="877" y="377" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#3</text>
-              <rect x="939" y="336" width="44" height="75" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
-              <rect x="10" y="432" width="290" height="118" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
-              <rect x="15" y="437" width="66" height="103" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="48" y="492" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
-              <rect x="83" y="437" width="66" height="103" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="116" y="492" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>
-              <rect x="151" y="437" width="66" height="103" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="184" y="492" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#3</text>
-              <rect x="219" y="437" width="76" height="103" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="257" y="492" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#4</text>
-              <rect x="314" y="442" width="212" height="108" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
-              <rect x="319" y="447" width="67" height="98" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="352" y="500" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
-              <rect x="388" y="447" width="67" height="98" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="421" y="500" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>
-              <rect x="457" y="447" width="64" height="98" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="489" y="500" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#3</text>
-              <rect x="540" y="436" width="185" height="114" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
-              <rect x="545" y="441" width="82" height="104" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="586" y="497" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
-              <rect x="629" y="441" width="78" height="104" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="668" y="497" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>
-              <rect x="709" y="441" width="11" height="104" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
-              <rect x="740" y="430" width="250" height="120" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
-              <rect x="745" y="435" width="79" height="110" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="784" y="494" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#1</text>
-              <rect x="826" y="435" width="79" height="110" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="865" y="494" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#2</text>
-              <rect x="907" y="435" width="78" height="110" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="946" y="494" font-size="8" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">#3</text>
-              <line x1="740" y1="423" x2="990" y2="423" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="740" y1="420" x2="740" y2="426" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="990" y1="420" x2="990" y2="426" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/>
+              <!-- Board A: Cabinet sides + back + shelves (300x190) -->
+              <rect x="10" y="10" width="300" height="190" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
+              <rect x="15" y="15" width="52" height="178" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="41" y="108" font-size="7" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Side L</text>
+              <rect x="70" y="15" width="52" height="178" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="96" y="108" font-size="7" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Side R</text>
+              <rect x="125" y="15" width="178" height="95" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="214" y="66" font-size="7" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Back</text>
+              <rect x="125" y="113" width="86" height="26" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="168" y="130" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Shelf</text>
+              <rect x="125" y="142" width="86" height="26" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="168" y="159" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Shelf</text>
+              <rect x="125" y="171" width="86" height="22" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="168" y="186" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Shelf</text>
+              <rect x="214" y="113" width="89" height="80" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+              <!-- Dimension line -->
+              <line x1="10" y1="4" x2="310" y2="4" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="10" y1="1" x2="10" y2="7" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="310" y1="1" x2="310" y2="7" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/>
+
+              <!-- Board B: Drawer fronts + dividers (260x170) -->
+              <rect x="325" y="15" width="260" height="170" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
+              <rect x="330" y="20" width="120" height="28" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="390" y="38" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Drawer front</text>
+              <rect x="453" y="20" width="120" height="28" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="513" y="38" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Drawer front</text>
+              <rect x="330" y="51" width="120" height="28" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="390" y="69" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Drawer front</text>
+              <rect x="453" y="51" width="120" height="28" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="513" y="69" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Drawer front</text>
+              <rect x="330" y="82" width="72" height="96" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="366" y="134" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Divider</text>
+              <rect x="405" y="82" width="72" height="96" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="441" y="134" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Divider</text>
+              <rect x="480" y="82" width="98" height="96" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+
+              <!-- Board C: Long shelves stacked (190x200) -->
+              <rect x="600" y="8" width="175" height="200" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
+              <rect x="605" y="13" width="162" height="26" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="686" y="30" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Top rail</text>
+              <rect x="605" y="42" width="162" height="26" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="686" y="59" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Bottom rail</text>
+              <rect x="605" y="71" width="162" height="26" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="686" y="88" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Stretcher</text>
+              <rect x="605" y="100" width="100" height="100" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="655" y="154" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Door</text>
+              <rect x="708" y="100" width="59" height="100" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+              <!-- Dimension line -->
+              <line x1="781" y1="8" x2="781" y2="208" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="778" y1="8" x2="784" y2="8" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="778" y1="208" x2="784" y2="208" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/>
+
+              <!-- Board D: Big panels (200x195) -->
+              <rect x="800" y="12" width="190" height="195" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
+              <rect x="805" y="17" width="90" height="130" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="850" y="86" font-size="7" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Panel</text>
+              <rect x="898" y="17" width="85" height="85" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="940" y="63" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Top</text>
+              <rect x="898" y="105" width="85" height="42" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="940" y="130" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Kick</text>
+              <rect x="805" y="150" width="60" height="50" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="835" y="179" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Cleat</text>
+              <rect x="868" y="150" width="115" height="50" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+
+              <!-- Board E: Wide board with long parts (370x125) -->
+              <rect x="10" y="220" width="370" height="125" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
+              <rect x="15" y="225" width="355" height="22" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="192" y="240" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Face frame top</text>
+              <rect x="15" y="250" width="355" height="22" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="192" y="265" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Face frame bottom</text>
+              <rect x="15" y="275" width="170" height="62" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="100" y="310" font-size="7" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Bottom</text>
+              <rect x="188" y="275" width="85" height="62" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="230" y="310" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Shelf</text>
+              <rect x="276" y="275" width="97" height="62" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+              <!-- Dimension line -->
+              <line x1="10" y1="351" x2="380" y2="351" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="10" y1="348" x2="10" y2="354" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="380" y1="348" x2="380" y2="354" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/>
+
+              <!-- Board F: Mixed small parts (220x165) -->
+              <rect x="395" y="215" width="220" height="165" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
+              <rect x="400" y="220" width="42" height="152" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="421" y="300" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace" transform="rotate(-90,421,300)">Stile</text>
+              <rect x="445" y="220" width="42" height="152" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="466" y="300" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace" transform="rotate(-90,466,300)">Stile</text>
+              <rect x="490" y="220" width="118" height="45" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="549" y="247" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Rail</text>
+              <rect x="490" y="268" width="118" height="45" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="549" y="295" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Rail</text>
+              <rect x="490" y="316" width="118" height="56" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+
+              <!-- Board G: Small parts (180x155) -->
+              <rect x="630" y="225" width="165" height="155" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
+              <rect x="635" y="230" width="75" height="68" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="672" y="268" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Gable</text>
+              <rect x="713" y="230" width="75" height="68" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="750" y="268" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Gable</text>
+              <rect x="635" y="301" width="50" height="72" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="660" y="341" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">End</text>
+              <rect x="688" y="301" width="50" height="72" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="713" y="341" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">End</text>
+              <rect x="741" y="301" width="47" height="72" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+
+              <!-- Board H: Narrow strips board (185x155) -->
+              <rect x="810" y="222" width="180" height="155" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
+              <rect x="815" y="227" width="168" height="20" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="899" y="241" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Trim</text>
+              <rect x="815" y="250" width="168" height="20" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="899" y="264" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Trim</text>
+              <rect x="815" y="273" width="168" height="20" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="899" y="287" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Edging</text>
+              <rect x="815" y="296" width="168" height="20" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="899" y="310" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Edging</text>
+              <rect x="815" y="319" width="90" height="51" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="860" y="348" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Nailer</text>
+              <rect x="908" y="319" width="75" height="51" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+
+              <!-- Row 3 partial boards -->
+              <!-- Board I: Wide landscape (310x130) -->
+              <rect x="10" y="370" width="310" height="130" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
+              <rect x="15" y="375" width="145" height="55" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="87" y="406" font-size="7" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Lid</text>
+              <rect x="163" y="375" width="150" height="55" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="238" y="406" font-size="7" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Base</text>
+              <rect x="15" y="433" width="95" height="22" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="62" y="448" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Apron F</text>
+              <rect x="113" y="433" width="95" height="22" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="160" y="448" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Apron B</text>
+              <rect x="211" y="433" width="48" height="22" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="235" y="448" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Cleat</text>
+              <rect x="15" y="458" width="298" height="35" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+              <rect x="262" y="433" width="51" height="22" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+
+              <!-- Board J (250x155) -->
+              <rect x="335" y="395" width="250" height="155" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
+              <rect x="340" y="400" width="115" height="90" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="397" y="449" font-size="7" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Door L</text>
+              <rect x="458" y="400" width="115" height="90" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="515" y="449" font-size="7" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Door R</text>
+              <rect x="340" y="493" width="75" height="22" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="377" y="508" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Filler</text>
+              <rect x="418" y="493" width="75" height="22" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="455" y="508" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Filler</text>
+              <rect x="340" y="518" width="237" height="25" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+              <rect x="496" y="493" width="81" height="22" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+
+              <!-- Board K (190x145) -->
+              <rect x="600" y="400" width="190" height="150" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
+              <rect x="605" y="405" width="178" height="65" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="694" y="441" font-size="7" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Countertop</text>
+              <rect x="605" y="473" width="55" height="70" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="632" y="512" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Brace</text>
+              <rect x="663" y="473" width="55" height="70" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="690" y="512" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Brace</text>
+              <rect x="721" y="473" width="62" height="70" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
+              <!-- Dimension line -->
+              <line x1="797" y1="400" x2="797" y2="550" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="794" y1="400" x2="800" y2="400" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/><line x1="794" y1="550" x2="800" y2="550" stroke="rgba(20,184,166,0.13)" stroke-width="0.5"/>
+
+              <!-- Board L (185x145) -->
+              <rect x="810" y="398" width="180" height="152" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1"/>
+              <rect x="815" y="403" width="80" height="140" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="855" y="477" font-size="7" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Tall</text>
+              <rect x="898" y="403" width="85" height="65" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="940" y="440" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Shelf</text>
+              <rect x="898" y="471" width="85" height="28" fill="rgba(20,184,166,0.07)" stroke="rgba(20,184,166,0.30)" stroke-width="0.75"/><text x="940" y="489" font-size="6" fill="rgba(20,184,166,0.20)" text-anchor="middle" font-family="monospace">Nailer</text>
+              <rect x="898" y="502" width="85" height="41" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,3"/>
             </svg>
           </div>
 
@@ -169,16 +200,21 @@ function scrollToContent() {
 
           <!-- Hero content -->
           <div
-            class="relative z-10 flex flex-col items-center gap-6 w-full max-w-sm px-4 text-center"
+            class="relative z-10 flex flex-col items-center gap-6 w-full max-w-md px-4 text-center"
           >
             <div class="text-xl font-bold tracking-tight">
               <span class="text-white">cutlist</span
               ><span class="text-teal-400">studio</span>
             </div>
 
-            <p class="text-lg text-muted leading-relaxed -mt-2">
-              Optimized cutting plans for sheet stock
-            </p>
+            <div class="-mt-2">
+              <p class="text-lg text-body leading-relaxed">
+                Turn your design into a cut plan.
+              </p>
+              <p class="text-sm text-muted mt-1.5">
+                Free, forever. No account. Works offline.
+              </p>
+            </div>
 
             <div
               class="w-full rounded-xl border p-6 transition-all duration-200 backdrop-blur-sm"
@@ -239,7 +275,7 @@ function scrollToContent() {
             </div>
 
             <p class="text-xs text-muted leading-relaxed">
-              Projects are stored locally in your browser. No account needed.
+              Everything stays in your browser. Nothing to sign up for.
             </p>
           </div>
 
@@ -286,13 +322,13 @@ function scrollToContent() {
               <h2
                 class="mt-4 text-3xl sm:text-4xl font-bold text-white tracking-tight"
               >
-                From parts list to cut plan
+                From model to shop in minutes
               </h2>
               <p
                 class="mt-4 text-lg text-muted max-w-2xl mx-auto leading-relaxed"
               >
-                Define what you need to cut, tell the app what stock you have,
-                and get layouts that minimize material waste.
+                Drop in your parts, pick your sheet stock, and get an optimized
+                cutting plan ready to print.
               </p>
             </div>
 
@@ -310,19 +346,20 @@ function scrollToContent() {
                     >
                   </div>
                   <h3 class="text-xl font-semibold text-white">
-                    Define your parts
+                    Add your parts
                   </h3>
                 </div>
                 <p class="text-muted leading-relaxed mb-4">
-                  Import a GLTF 3D model and the app automatically extracts
-                  every flat panel as a part with accurate dimensions. Or enter
-                  parts manually if you prefer to work from a sketch or
-                  spreadsheet.
+                  Import a 3D model and every flat panel gets extracted
+                  automatically. Built for
+                  <span class="text-body">Onshape</span> exports, but any GLTF
+                  file works. Prefer a spreadsheet? Just type your parts in
+                  manually.
                 </p>
                 <div class="flex flex-wrap gap-2">
                   <span
                     class="px-2.5 py-1 rounded-md text-xs text-teal-400 bg-teal-400/5 border border-teal-400/15"
-                    >GLTF import</span
+                    >Onshape / GLTF import</span
                   >
                   <span
                     class="px-2.5 py-1 rounded-md text-xs text-teal-400 bg-teal-400/5 border border-teal-400/15"
@@ -391,13 +428,13 @@ function scrollToContent() {
                     >
                   </div>
                   <h3 class="text-xl font-semibold text-white">
-                    Set your stock
+                    Pick your stock
                   </h3>
                 </div>
                 <p class="text-muted leading-relaxed mb-4">
-                  Add the sheet materials you have on hand or plan to buy. Set
-                  real dimensions, material types, and grain direction. The
-                  optimizer accounts for blade kerf width too.
+                  Add the sheets you're working with -- dimensions, material,
+                  grain direction. Even accounts for the width of your saw
+                  blade.
                 </p>
                 <div class="flex flex-wrap gap-2">
                   <span
@@ -410,7 +447,7 @@ function scrollToContent() {
                   >
                   <span
                     class="px-2.5 py-1 rounded-md text-xs text-teal-400 bg-teal-400/5 border border-teal-400/15"
-                    >Kerf width</span
+                    >Blade kerf</span
                   >
                 </div>
               </div>
@@ -478,19 +515,19 @@ function scrollToContent() {
                     >
                   </div>
                   <h3 class="text-xl font-semibold text-white">
-                    Get optimized layouts
+                    Get your cut plan
                   </h3>
                 </div>
                 <p class="text-muted leading-relaxed mb-4">
-                  The packing engine runs multiple algorithms in parallel,
-                  scores the results, and shows you the layout that wastes the
-                  least material. Every cut is a straight, through-cut you can
-                  make with a table saw or track saw.
+                  A bunch of arrangements get tried and the best one wins. Every
+                  cut is a straight through-cut -- the kind you can actually
+                  make with a table saw. Export to a scaled PDF and take it to
+                  the shop.
                 </p>
                 <div class="flex flex-wrap gap-2">
                   <span
                     class="px-2.5 py-1 rounded-md text-xs text-teal-400 bg-teal-400/5 border border-teal-400/15"
-                    >Guillotine cuts</span
+                    >Table-saw cuts</span
                   >
                   <span
                     class="px-2.5 py-1 rounded-md text-xs text-teal-400 bg-teal-400/5 border border-teal-400/15"
@@ -522,13 +559,14 @@ function scrollToContent() {
                 <!-- prettier-ignore -->
                 <svg viewBox="0 0 244 122" xmlns="http://www.w3.org/2000/svg" class="w-full rounded-lg">
                   <rect width="244" height="122" fill="rgba(20,184,166,0.03)" stroke="rgba(20,184,166,0.22)" stroke-width="1" rx="2"/>
-                  <rect x="3" y="3" width="78" height="56" fill="rgba(20,184,166,0.10)" stroke="rgba(20,184,166,0.35)" stroke-width="0.75" rx="1"/><text x="42" y="35" font-size="7" fill="rgba(20,184,166,0.40)" text-anchor="middle" font-family="monospace">Side L</text>
-                  <rect x="83" y="3" width="78" height="56" fill="rgba(20,184,166,0.10)" stroke="rgba(20,184,166,0.35)" stroke-width="0.75" rx="1"/><text x="122" y="35" font-size="7" fill="rgba(20,184,166,0.40)" text-anchor="middle" font-family="monospace">Side R</text>
-                  <rect x="163" y="3" width="78" height="56" fill="rgba(20,184,166,0.10)" stroke="rgba(20,184,166,0.35)" stroke-width="0.75" rx="1"/><text x="202" y="35" font-size="7" fill="rgba(20,184,166,0.40)" text-anchor="middle" font-family="monospace">Back</text>
-                  <rect x="3" y="61" width="58" height="58" fill="rgba(20,184,166,0.10)" stroke="rgba(20,184,166,0.35)" stroke-width="0.75" rx="1"/><text x="32" y="94" font-size="7" fill="rgba(20,184,166,0.40)" text-anchor="middle" font-family="monospace">Shelf</text>
-                  <rect x="63" y="61" width="58" height="58" fill="rgba(20,184,166,0.10)" stroke="rgba(20,184,166,0.35)" stroke-width="0.75" rx="1"/><text x="92" y="94" font-size="7" fill="rgba(20,184,166,0.40)" text-anchor="middle" font-family="monospace">Shelf</text>
-                  <rect x="123" y="61" width="58" height="58" fill="rgba(20,184,166,0.10)" stroke="rgba(20,184,166,0.35)" stroke-width="0.75" rx="1"/><text x="152" y="94" font-size="7" fill="rgba(20,184,166,0.40)" text-anchor="middle" font-family="monospace">Shelf</text>
-                  <rect x="183" y="61" width="58" height="58" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,2" rx="1"/>
+                  <rect x="3" y="3" width="38" height="116" fill="rgba(20,184,166,0.10)" stroke="rgba(20,184,166,0.35)" stroke-width="0.75" rx="1"/><text x="22" y="64" font-size="6" fill="rgba(20,184,166,0.40)" text-anchor="middle" font-family="monospace">Side L</text>
+                  <rect x="43" y="3" width="38" height="116" fill="rgba(20,184,166,0.10)" stroke="rgba(20,184,166,0.35)" stroke-width="0.75" rx="1"/><text x="62" y="64" font-size="6" fill="rgba(20,184,166,0.40)" text-anchor="middle" font-family="monospace">Side R</text>
+                  <rect x="83" y="3" width="158" height="62" fill="rgba(20,184,166,0.10)" stroke="rgba(20,184,166,0.35)" stroke-width="0.75" rx="1"/><text x="162" y="38" font-size="7" fill="rgba(20,184,166,0.40)" text-anchor="middle" font-family="monospace">Back</text>
+                  <rect x="83" y="67" width="76" height="18" fill="rgba(20,184,166,0.10)" stroke="rgba(20,184,166,0.35)" stroke-width="0.75" rx="1"/><text x="121" y="80" font-size="6" fill="rgba(20,184,166,0.40)" text-anchor="middle" font-family="monospace">Shelf</text>
+                  <rect x="161" y="67" width="76" height="18" fill="rgba(20,184,166,0.10)" stroke="rgba(20,184,166,0.35)" stroke-width="0.75" rx="1"/><text x="199" y="80" font-size="6" fill="rgba(20,184,166,0.40)" text-anchor="middle" font-family="monospace">Shelf</text>
+                  <rect x="83" y="87" width="76" height="18" fill="rgba(20,184,166,0.10)" stroke="rgba(20,184,166,0.35)" stroke-width="0.75" rx="1"/><text x="121" y="100" font-size="6" fill="rgba(20,184,166,0.40)" text-anchor="middle" font-family="monospace">Shelf</text>
+                  <rect x="161" y="87" width="76" height="32" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,2" rx="1"/>
+                  <rect x="83" y="107" width="76" height="12" fill="rgba(20,184,166,0.02)" stroke="rgba(20,184,166,0.10)" stroke-width="0.75" stroke-dasharray="3,2" rx="1"/>
                 </svg>
                 <div
                   class="flex items-center justify-between mt-3 text-xs text-muted"
@@ -549,53 +587,47 @@ function scrollToContent() {
             <div class="text-center mb-16">
               <span
                 class="text-xs font-mono text-teal-400 uppercase tracking-widest"
-                >Built for the workshop</span
+                >Features</span
               >
               <h2
                 class="mt-4 text-3xl sm:text-4xl font-bold text-white tracking-tight"
               >
-                Real cuts, not theory
+                All of this, for free
               </h2>
-              <p
-                class="mt-4 text-lg text-muted max-w-2xl mx-auto leading-relaxed"
-              >
-                Most nesting software ignores how you actually cut material.
-                Cutlist Studio is built around the constraints of real tools.
-              </p>
             </div>
 
             <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <div
                 v-for="feature in [
                   {
-                    icon: 'i-lucide-scissors',
-                    title: 'Guillotine cuts',
-                    desc: 'Every cut goes edge-to-edge, the way a table saw or track saw actually works. No impossible L-shaped cuts.',
+                    icon: 'i-lucide-heart',
+                    title: 'Completely free',
+                    desc: 'No trial, no tier limits, no surprise paywall. The whole app is free, forever.',
                   },
                   {
-                    icon: 'i-lucide-cpu',
-                    title: 'CNC mode',
-                    desc: 'Working with a CNC router? Switch to unconstrained nesting for tighter packing when cuts don\'t need to be straight-through.',
+                    icon: 'i-lucide-scissors',
+                    title: 'Cuts you can actually make',
+                    desc: 'Every cut goes edge-to-edge, the way a table saw or track saw works. No impossible L-shaped cuts. Got a CNC? Switch to unconstrained mode.',
                   },
                   {
                     icon: 'i-lucide-file-text',
-                    title: 'PDF export',
-                    desc: 'Print your cutting diagrams and take them to the shop. Each board gets its own page with labeled parts and dimensions.',
+                    title: 'Scaled PDF drawings',
+                    desc: 'Export your cut plan as a PDF with each board on its own page. Labeled parts, real dimensions, ready for the shop floor.',
                   },
                   {
                     icon: 'i-lucide-box',
                     title: '3D model viewer',
-                    desc: 'Imported a GLTF model? View it in 3D, click parts to identify them in the cut list, and verify dimensions before cutting.',
+                    desc: 'Imported a model? Spin it around, click parts to find them in the cut list, and double-check dimensions before you cut anything.',
                   },
                   {
                     icon: 'i-lucide-wifi-off',
                     title: 'Works offline',
-                    desc: 'Everything runs in your browser. No server, no uploads, no internet required. Your projects stay on your machine.',
+                    desc: 'Everything runs in your browser. No server, no uploads, no internet needed. Take your laptop to the workshop.',
                   },
                   {
-                    icon: 'i-lucide-lock-open',
-                    title: 'No account needed',
-                    desc: 'Just open the app and start working. Projects are stored in your browser\'s local storage. Export them as files to back up or share.',
+                    icon: 'i-lucide-user-x',
+                    title: 'No account, no tracking',
+                    desc: 'Just open the app and start working. Your projects live in your browser. Export them as files to back up or share.',
                   },
                 ]"
                 :key="feature.title"
@@ -625,11 +657,11 @@ function scrollToContent() {
             <h2
               class="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-4"
             >
-              Ready to optimize your cuts?
+              Ready to build something?
             </h2>
             <p class="text-muted leading-relaxed mb-8">
-              Start a new project and see your first cutting plan in minutes.
-              It's free, private, and runs entirely in your browser.
+              Drop in your parts, get an optimized cut plan, and start building.
+              Free, private, no sign-up.
             </p>
             <div
               class="flex flex-col sm:flex-row items-center justify-center gap-3"

@@ -4,6 +4,11 @@ import { groupPartsByNumber } from '~/lib/utils/bom-utils';
 import { parseStock } from '~/utils/parseStock';
 import { cycleGrainLock } from '~/utils/grain';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
+import {
+  STORAGE_KEYS,
+  getLocalStorageJson,
+  setLocalStorageJson,
+} from '~/utils/localStorage';
 import type { ManualPartInput } from '~/composables/useProjects';
 
 const { data } = useBoardLayoutsQuery();
@@ -19,23 +24,75 @@ const {
   updateManualPart,
   removeManualPart,
   updatePartGrainLock,
+  updatePartNameOverride,
 } = useProjects();
 const { distanceUnit, stock } = useProjectSettings();
 const formatDistance = useFormatDistance();
 const toast = useToast();
 const fileInput = ref<HTMLInputElement | null>(null);
+const tab = useProjectTab();
+const modelViewer = useModelViewerStore();
 
 // ── UI state ─────────────────────────────────────────────────────────────────
 
 const modelsExpanded = ref(true);
-const search = ref('');
-const sortKey = ref<
-  'number' | 'name' | 'qty' | 'thickness' | 'width' | 'length'
->('number');
-const sortDir = ref<'asc' | 'desc'>('asc');
+
+// ── Persisted BOM filter/sort state ─────────────────────────────────────────
+
+type SortKey = 'number' | 'name' | 'qty' | 'thickness' | 'width' | 'length';
+interface BomFilter {
+  search: string;
+  sortKey: SortKey;
+  sortDir: 'asc' | 'desc';
+}
+const SORT_KEYS = new Set<SortKey>([
+  'number',
+  'name',
+  'qty',
+  'thickness',
+  'width',
+  'length',
+]);
+
+function loadBomFilter(): BomFilter {
+  if (!activeId.value) return { search: '', sortKey: 'number', sortDir: 'asc' };
+  const stored = getLocalStorageJson<Partial<BomFilter>>(
+    STORAGE_KEYS.ui.projectBomFilter(activeId.value),
+  );
+  return {
+    search: typeof stored?.search === 'string' ? stored.search : '',
+    sortKey: SORT_KEYS.has(stored?.sortKey as SortKey)
+      ? (stored!.sortKey as SortKey)
+      : 'number',
+    sortDir: stored?.sortDir === 'desc' ? 'desc' : 'asc',
+  };
+}
+
+const restored = loadBomFilter();
+const search = ref(restored.search);
+const sortKey = ref<SortKey>(restored.sortKey);
+const sortDir = ref<'asc' | 'desc'>(restored.sortDir);
+
+watch([search, sortKey, sortDir], () => {
+  if (!activeId.value) return;
+  setLocalStorageJson(STORAGE_KEYS.ui.projectBomFilter(activeId.value), {
+    search: search.value,
+    sortKey: sortKey.value,
+    sortDir: sortDir.value,
+  });
+});
 const showAddForm = ref(false);
 const editingPartNumber = ref<number | null>(null);
+const renamingPartNumber = ref<number | null>(null);
+const partNameDraft = ref('');
+const partNameInput = ref<HTMLInputElement | null>(null);
+function onPartNameInputMounted(el: unknown) {
+  const input = el as HTMLInputElement | null;
+  partNameInput.value = input;
+  input?.select();
+}
 const pendingRemoveModelId = ref<string | null>(null);
+const splitContainer = ref<HTMLDivElement | null>(null);
 
 // ── File import ──────────────────────────────────────────────────────────────
 
@@ -183,6 +240,8 @@ function getManualEditInfo(adjustedPn: number) {
 interface BomRow {
   number: number;
   name: string;
+  modelId: string;
+  modelName: string;
   qty: number;
   material: string;
   thicknessM: number;
@@ -192,6 +251,34 @@ interface BomRow {
   leftoverCount: number;
   isManual: boolean;
 }
+
+function modelDisplayName(model: {
+  filename: string;
+  source: 'gltf' | 'manual';
+}): string {
+  const filename = model.filename.trim();
+  if (filename) return filename;
+  return model.source === 'manual' ? 'Manual Parts' : 'Model';
+}
+
+const modelByPartNumber = computed(() => {
+  const models = enabledModels.value;
+  const offsets = computePartNumberOffsets(models);
+  const map = new Map<number, { id: string; name: string }>();
+  for (let i = 0; i < models.length; i++) {
+    const label = modelDisplayName(models[i]);
+    const seen = new Set<number>();
+    for (const part of models[i].parts) {
+      if (seen.has(part.partNumber)) continue;
+      map.set(part.partNumber + offsets[i], {
+        id: models[i].id,
+        name: label,
+      });
+      seen.add(part.partNumber);
+    }
+  }
+  return map;
+});
 
 const allRows = computed<BomRow[]>(() => {
   // Use packing engine results when available (authoritative)
@@ -208,9 +295,12 @@ const allRows = computed<BomRow[]>(() => {
       data.value.leftovers,
     ).map((instanceList) => {
       const part = instanceList[0];
+      const model = modelByPartNumber.value.get(part.partNumber);
       return {
         number: part.partNumber,
         name: part.name,
+        modelId: model?.id ?? '',
+        modelName: model?.name ?? '',
         qty: instanceList.length,
         material: part.material,
         thicknessM: part.thicknessM,
@@ -246,6 +336,8 @@ const allRows = computed<BomRow[]>(() => {
       groups.set(pn + offsets[i], {
         number: pn + offsets[i],
         name: parts[0].name,
+        modelId: models[i].id,
+        modelName: modelDisplayName(models[i]),
         material: project.colorMap[parts[0].colorKey] ?? parts[0].colorKey,
         qty: parts.length,
         thicknessM: parts[0].size.thickness,
@@ -277,6 +369,24 @@ const gltfModels = computed(
 const totalModelParts = computed(() =>
   gltfModels.value.reduce((s, m) => s + m.parts.length, 0),
 );
+const hasModelPreview = computed(() =>
+  enabledModels.value.some((m) => m.source !== 'manual'),
+);
+const {
+  panelWidth: previewPanelWidth,
+  isResizing: isResizingPreview,
+  startResize: startPreviewResize,
+} = usePersistedSplitPanel(splitContainer, hasModelPreview, {
+  storageKey: () =>
+    STORAGE_KEYS.ui.projectBomPreviewWidth(activeId.value ?? '__none__'),
+  minPanelWidthPx: 280,
+  minMainWidthPx: 420,
+  defaultPanelRatio: 1 / 2,
+});
+const highlightedPartNumber = computed(
+  () =>
+    modelViewer.hoveredPartNumber.value ?? modelViewer.selectedPartNumber.value,
+);
 
 // ── Compact dimension format ─────────────────────────────────────────────────
 
@@ -288,7 +398,7 @@ function formatDim(m: number | undefined | null): string {
 
 // ── Sorting ──────────────────────────────────────────────────────────────────
 
-function toggleSort(key: typeof sortKey.value) {
+function toggleSort(key: SortKey) {
   if (sortKey.value === key) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
   } else {
@@ -322,6 +432,36 @@ function sortCompare(a: BomRow, b: BomRow): number {
   return sortDir.value === 'desc' ? -cmp : cmp;
 }
 
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(
+    target.closest('button,input,textarea,select,a,[role="button"],label'),
+  );
+}
+
+function onRowClick(row: BomRow, event: MouseEvent) {
+  if (isInteractiveTarget(event.target)) return;
+  modelViewer.selectedPartNumber.value = row.number;
+}
+
+function onRowEnter(row: BomRow) {
+  modelViewer.hoveredPartNumber.value = row.number;
+}
+
+function onRowLeave(row: BomRow) {
+  if (modelViewer.hoveredPartNumber.value === row.number) {
+    modelViewer.hoveredPartNumber.value = null;
+  }
+}
+
+function clearBomHover() {
+  modelViewer.hoveredPartNumber.value = null;
+}
+
+function openModelTab() {
+  tab.value = 'model';
+}
+
 // ── Filtered + grouped ───────────────────────────────────────────────────────
 
 interface MaterialGroup {
@@ -337,6 +477,7 @@ const filteredGroups = computed<MaterialGroup[]>(() => {
     filtered = filtered.filter(
       (r) =>
         r.name.toLowerCase().includes(q) ||
+        r.modelName.toLowerCase().includes(q) ||
         r.material.toLowerCase().includes(q) ||
         String(r.number).includes(q),
     );
@@ -356,11 +497,47 @@ const filteredGroups = computed<MaterialGroup[]>(() => {
   }));
 });
 
+const showModelColumn = computed(
+  () =>
+    new Set(allRows.value.map((row) => row.modelId).filter(Boolean)).size > 1,
+);
+const tableColspan = computed(() => (showModelColumn.value ? 9 : 8));
+
 // ── Manual part actions ──────────────────────────────────────────────────────
 
 function startEditManualPart(adjustedPn: number) {
   editingPartNumber.value = adjustedPn;
+  renamingPartNumber.value = null;
   showAddForm.value = false;
+}
+
+function startRenamePart(row: BomRow) {
+  renamingPartNumber.value = row.number;
+  partNameDraft.value = row.name;
+  editingPartNumber.value = null;
+}
+
+function cancelRenamePart() {
+  renamingPartNumber.value = null;
+  partNameDraft.value = '';
+}
+
+async function saveRenamePart(row: BomRow) {
+  if (renamingPartNumber.value !== row.number) return;
+  if (!activeId.value) return;
+  const nextName = partNameDraft.value.trim();
+  if (!nextName) {
+    toast.add({
+      title: 'Name required',
+      description: 'Part name cannot be empty.',
+      color: 'error',
+    });
+    return;
+  }
+  if (nextName !== row.name) {
+    await updatePartNameOverride(activeId.value, row.number, nextName);
+  }
+  cancelRenamePart();
 }
 
 async function handleAddPart(input: ManualPartInput) {
@@ -382,12 +559,17 @@ async function handleRemovePart(adjustedPn: number) {
   if (!activeId.value) return;
   await removeManualPart(activeId.value, adjustedPn - manualPartOffset.value);
   if (editingPartNumber.value === adjustedPn) editingPartNumber.value = null;
+  if (renamingPartNumber.value === adjustedPn) cancelRenamePart();
 }
+
+onUnmounted(() => {
+  clearBomHover();
+});
 </script>
 
 <template>
   <div
-    class="absolute inset-0 overflow-auto"
+    class="absolute inset-0 overflow-hidden"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"
@@ -425,491 +607,702 @@ async function handleRemovePart(adjustedPn: number) {
       </div>
     </Transition>
 
-    <template v-if="activeProject">
-      <!-- ─── Collapsible Models Panel ──────────────────────────────────── -->
+    <div ref="splitContainer" class="absolute inset-0 flex min-h-0 min-w-0">
       <div
-        class="mx-4 mt-3 mb-2 border border-default rounded-lg bg-base overflow-hidden"
+        class="relative flex-1 min-h-0 min-w-0 overflow-auto"
+        @mouseleave="clearBomHover"
       >
-        <button
-          type="button"
-          class="flex items-center gap-2 w-full p-3 text-left hover:bg-surface transition-colors"
-          @click="modelsExpanded = !modelsExpanded"
-        >
-          <UIcon
-            :name="
-              modelsExpanded
-                ? 'i-lucide-chevron-down'
-                : 'i-lucide-chevron-right'
-            "
-            class="w-4 h-4 text-dim shrink-0"
-          />
-          <span class="text-sm font-medium text-hi">Models</span>
-          <span v-if="gltfModels.length > 0" class="text-xs text-muted ml-auto">
-            {{ gltfModels.length }} model{{
-              gltfModels.length === 1 ? '' : 's'
-            }}
-            &middot; {{ totalModelParts }} part{{
-              totalModelParts === 1 ? '' : 's'
-            }}
-          </span>
-        </button>
-
-        <div
-          v-if="modelsExpanded"
-          class="px-3 pb-3 space-y-2 border-t border-subtle"
-        >
+        <template v-if="activeProject">
+          <!-- ─── Collapsible Models Panel ──────────────────────────────────── -->
           <div
-            v-for="model in gltfModels"
-            :key="model.id"
-            class="flex items-center gap-2 first:mt-2"
+            v-if="activeProject.models.length > 0"
+            class="mx-4 mt-3 mb-2 border border-default rounded-lg bg-base overflow-hidden"
           >
-            <UCheckbox
-              :model-value="model.enabled"
-              @update:model-value="toggleModel(activeProject!.id, model.id)"
-            />
-            <span class="text-sm text-body truncate flex-1">{{
-              model.filename
-            }}</span>
-            <span class="text-xs text-muted shrink-0">
-              {{ model.parts.length }} part{{
-                model.parts.length === 1 ? '' : 's'
-              }}
-            </span>
-            <template v-if="pendingRemoveModelId === model.id">
+            <button
+              type="button"
+              class="flex items-center gap-2 w-full p-3 text-left hover:bg-surface transition-colors"
+              @click="modelsExpanded = !modelsExpanded"
+            >
+              <UIcon
+                :name="
+                  modelsExpanded
+                    ? 'i-lucide-chevron-down'
+                    : 'i-lucide-chevron-right'
+                "
+                class="w-4 h-4 text-dim shrink-0"
+              />
+              <span class="text-sm font-medium text-hi">Models</span>
+              <span
+                v-if="gltfModels.length > 0"
+                class="text-xs text-muted ml-auto"
+              >
+                {{ gltfModels.length }} model{{
+                  gltfModels.length === 1 ? '' : 's'
+                }}
+                &middot; {{ totalModelParts }} part{{
+                  totalModelParts === 1 ? '' : 's'
+                }}
+              </span>
+            </button>
+
+            <div
+              v-if="modelsExpanded"
+              class="px-3 pb-3 space-y-2 border-t border-subtle"
+            >
+              <div
+                v-for="model in gltfModels"
+                :key="model.id"
+                class="flex items-center gap-2 first:mt-2"
+              >
+                <UCheckbox
+                  :model-value="model.enabled"
+                  @update:model-value="toggleModel(activeProject!.id, model.id)"
+                />
+                <span class="text-sm text-body truncate flex-1">{{
+                  model.filename
+                }}</span>
+                <span class="text-xs text-muted shrink-0">
+                  {{ model.parts.length }} part{{
+                    model.parts.length === 1 ? '' : 's'
+                  }}
+                </span>
+                <template v-if="pendingRemoveModelId === model.id">
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    label="Cancel"
+                    @click="pendingRemoveModelId = null"
+                  />
+                  <UButton
+                    size="xs"
+                    color="error"
+                    variant="solid"
+                    label="Remove"
+                    @click="
+                      removeModel(activeProject!.id, model.id);
+                      pendingRemoveModelId = null;
+                    "
+                  />
+                </template>
+                <UButton
+                  v-else
+                  size="xs"
+                  icon="i-lucide-x"
+                  color="neutral"
+                  variant="ghost"
+                  class="rounded-full"
+                  title="Remove model"
+                  @click="pendingRemoveModelId = model.id"
+                />
+              </div>
               <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                label="Cancel"
-                @click="pendingRemoveModelId = null"
+                size="sm"
+                color="primary"
+                variant="soft"
+                icon="i-lucide-plus"
+                label="Import Model"
+                @click="pickFile"
+              />
+              <ColorMappingPanel />
+            </div>
+          </div>
+
+          <!-- ─── Empty state ───────────────────────────────────────────────── -->
+          <div
+            v-if="
+              activeProject.models.length === 0 && activeProject.id === activeId
+            "
+            class="px-6 py-6 pb-24 space-y-6 max-w-lg mx-auto"
+          >
+            <!-- Heading + actions -->
+            <div class="text-center space-y-3">
+              <div
+                class="w-14 h-14 rounded-2xl bg-surface border border-subtle flex items-center justify-center mx-auto cursor-pointer hover:bg-teal-400/10 hover:border-teal-400/20 transition-colors group"
+                @click="pickFile"
+              >
+                <UIcon
+                  name="i-lucide-package-open"
+                  class="w-6 h-6 text-dim group-hover:text-teal-400/60 transition-colors"
+                />
+              </div>
+              <div class="space-y-1">
+                <p class="text-base font-semibold text-hi">
+                  Drag your .gltf model here
+                </p>
+                <p class="text-sm text-muted leading-relaxed">
+                  Optimised for Onshape, but any GLTF export will work. Import a
+                  model to automatically generate your cut list, or add parts
+                  manually.
+                </p>
+              </div>
+              <div class="flex items-center justify-center gap-2">
+                <UButton
+                  size="sm"
+                  color="primary"
+                  variant="soft"
+                  icon="i-lucide-upload"
+                  label="Import Model"
+                  @click="pickFile"
+                />
+                <UButton
+                  size="sm"
+                  color="neutral"
+                  variant="soft"
+                  icon="i-lucide-plus"
+                  label="Add Part Manually"
+                  @click="showAddForm = true"
+                />
+              </div>
+            </div>
+
+            <!-- Workflow steps -->
+            <ol class="space-y-4 list-none pl-0">
+              <li class="flex gap-3">
+                <span
+                  class="shrink-0 w-6 h-6 rounded-full bg-teal-400/15 text-teal-400 text-xs font-bold flex items-center justify-center mt-0.5"
+                  >1</span
+                >
+                <div>
+                  <p class="text-sm font-medium text-body">
+                    Build your model in Onshape
+                  </p>
+                  <p class="text-sm text-muted leading-relaxed mt-0.5">
+                    Model each part at its real-world dimensions. Assign a
+                    unique appearance colour to each material&nbsp;&mdash; e.g.
+                    oak parts one colour, plywood another.
+                  </p>
+                </div>
+              </li>
+              <li class="flex gap-3">
+                <span
+                  class="shrink-0 w-6 h-6 rounded-full bg-teal-400/15 text-teal-400 text-xs font-bold flex items-center justify-center mt-0.5"
+                  >2</span
+                >
+                <div>
+                  <p class="text-sm font-medium text-body">Export as GLTF</p>
+                  <p class="text-sm text-muted leading-relaxed mt-0.5">
+                    In Onshape, choose
+                    <span class="font-semibold text-body"
+                      >File &rarr; Export</span
+                    >, set format to
+                    <span class="font-mono text-dim">GLTF</span>, and download.
+                  </p>
+                  <img
+                    src="/onshape-export.png"
+                    alt="Onshape export dialog showing GLTF format selected"
+                    class="mt-2 rounded-lg border border-subtle w-full"
+                  />
+                </div>
+              </li>
+              <li class="flex gap-3">
+                <span
+                  class="shrink-0 w-6 h-6 rounded-full bg-teal-400/15 text-teal-400 text-xs font-bold flex items-center justify-center mt-0.5"
+                  >3</span
+                >
+                <div>
+                  <p class="text-sm font-medium text-body">
+                    Import to Cutlist Studio
+                  </p>
+                  <p class="text-sm text-muted leading-relaxed mt-0.5">
+                    Drop the
+                    <span class="font-mono text-dim">.gltf</span> file below or
+                    click Import. Map each colour to a stock material, and the
+                    optimiser will generate your board layouts.
+                  </p>
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          <!-- ─── Main BOM content ──────────────────────────────────────────── -->
+          <template v-else>
+            <!-- Summary bar -->
+            <div
+              v-if="allRows.length > 0"
+              class="flex items-center gap-2 px-5 pt-2 pb-1 text-xs text-muted"
+            >
+              <span
+                >{{ totalParts }} part{{ totalParts === 1 ? '' : 's' }}</span
+              >
+              <span class="text-dim">&middot;</span>
+              <span
+                >{{ materialNames.length }} material{{
+                  materialNames.length === 1 ? '' : 's'
+                }}</span
+              >
+              <template v-if="warningCount > 0">
+                <span class="text-dim">&middot;</span>
+                <span class="text-amber-500"
+                  >{{ warningCount }} warning{{
+                    warningCount === 1 ? '' : 's'
+                  }}</span
+                >
+              </template>
+            </div>
+
+            <!-- Toolbar: search + add part -->
+            <div class="flex items-center gap-2 px-5 pb-3">
+              <UInput
+                v-model="search"
+                placeholder="Filter parts..."
+                icon="i-lucide-search"
+                size="sm"
+                class="flex-1"
               />
               <UButton
-                size="xs"
-                color="error"
-                variant="solid"
-                label="Remove"
+                size="sm"
+                variant="soft"
+                color="neutral"
+                icon="i-lucide-plus"
+                label="Add Part"
                 @click="
-                  removeModel(activeProject!.id, model.id);
-                  pendingRemoveModelId = null;
+                  showAddForm = true;
+                  editingPartNumber = null;
                 "
               />
-            </template>
-            <UButton
-              v-else
-              size="xs"
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              class="rounded-full"
-              title="Remove model"
-              @click="pendingRemoveModelId = model.id"
-            />
-          </div>
-          <UButton
-            size="sm"
-            color="primary"
-            variant="soft"
-            icon="i-lucide-plus"
-            label="Import Model"
-            @click="pickFile"
-          />
-          <ColorMappingPanel />
-        </div>
-      </div>
+            </div>
 
-      <!-- ─── Empty state ───────────────────────────────────────────────── -->
-      <div
-        v-if="
-          activeProject.models.length === 0 &&
-          activeProject.id === activeId &&
-          !showAddForm
-        "
-        class="flex flex-col items-center justify-center gap-4 px-6 py-8 text-center"
-      >
-        <div
-          class="w-14 h-14 rounded-2xl bg-surface border border-subtle flex items-center justify-center cursor-pointer hover:bg-teal-400/10 hover:border-teal-400/20 transition-colors group"
-          @click="pickFile"
-        >
-          <UIcon
-            name="i-lucide-upload"
-            class="w-6 h-6 text-dim group-hover:text-teal-400/60 transition-colors"
-          />
-        </div>
-        <div class="space-y-1">
-          <p class="text-sm font-medium text-muted">No parts yet</p>
-          <p class="text-sm text-muted leading-relaxed max-w-[220px]">
-            Import a <span class="font-mono text-dim">.gltf</span> model, or add
-            parts manually
-          </p>
-        </div>
-        <div class="flex items-center gap-2">
-          <UButton
-            size="sm"
-            color="primary"
-            variant="soft"
-            icon="i-lucide-upload"
-            label="Import Model"
-            @click="pickFile"
-          />
-          <UButton
-            size="sm"
-            color="neutral"
-            variant="soft"
-            icon="i-lucide-plus"
-            label="Add Part"
-            @click="showAddForm = true"
-          />
-        </div>
-      </div>
-
-      <!-- ─── Main BOM content ──────────────────────────────────────────── -->
-      <template v-else>
-        <!-- Summary bar -->
-        <div
-          v-if="allRows.length > 0"
-          class="flex items-center gap-2 px-5 pt-2 pb-1 text-xs text-muted"
-        >
-          <span>{{ totalParts }} part{{ totalParts === 1 ? '' : 's' }}</span>
-          <span class="text-dim">&middot;</span>
-          <span
-            >{{ materialNames.length }} material{{
-              materialNames.length === 1 ? '' : 's'
-            }}</span
-          >
-          <template v-if="warningCount > 0">
-            <span class="text-dim">&middot;</span>
-            <span class="text-amber-500"
-              >{{ warningCount }} warning{{
-                warningCount === 1 ? '' : 's'
-              }}</span
+            <!-- Parts table -->
+            <table
+              v-if="filteredGroups.length > 0"
+              class="w-full text-sm border-separate border-spacing-0"
             >
-          </template>
-        </div>
+              <thead
+                class="sticky top-0 z-10 bg-base shadow-[inset_0_-1px_0_var(--color-mist-800)]"
+              >
+                <tr>
+                  <th
+                    class="pl-5 pr-4 py-2.5 text-left text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-14"
+                    @click="toggleSort('number')"
+                  >
+                    <span class="inline-flex items-center gap-0.5">
+                      #
+                      <UIcon
+                        v-if="sortKey === 'number'"
+                        :name="
+                          sortDir === 'asc'
+                            ? 'i-lucide-chevron-up'
+                            : 'i-lucide-chevron-down'
+                        "
+                        class="w-3 h-3 text-teal-400"
+                      />
+                    </span>
+                  </th>
+                  <th
+                    class="px-4 py-2.5 text-left text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors"
+                    @click="toggleSort('name')"
+                  >
+                    <span class="inline-flex items-center gap-0.5">
+                      Name
+                      <UIcon
+                        v-if="sortKey === 'name'"
+                        :name="
+                          sortDir === 'asc'
+                            ? 'i-lucide-chevron-up'
+                            : 'i-lucide-chevron-down'
+                        "
+                        class="w-3 h-3 text-teal-400"
+                      />
+                    </span>
+                  </th>
+                  <th
+                    v-if="showModelColumn"
+                    class="px-4 py-2.5 text-left text-xs font-medium text-muted tracking-wide w-48"
+                  >
+                    Model
+                  </th>
+                  <th
+                    class="px-4 py-2.5 text-right text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-14"
+                    @click="toggleSort('qty')"
+                  >
+                    <span class="inline-flex items-center justify-end gap-0.5">
+                      QTY
+                      <UIcon
+                        v-if="sortKey === 'qty'"
+                        :name="
+                          sortDir === 'asc'
+                            ? 'i-lucide-chevron-up'
+                            : 'i-lucide-chevron-down'
+                        "
+                        class="w-3 h-3 text-teal-400"
+                      />
+                    </span>
+                  </th>
+                  <th
+                    class="px-4 py-2.5 text-right text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-18"
+                    @click="toggleSort('thickness')"
+                  >
+                    <span class="inline-flex items-center justify-end gap-0.5">
+                      T
+                      <UIcon
+                        v-if="sortKey === 'thickness'"
+                        :name="
+                          sortDir === 'asc'
+                            ? 'i-lucide-chevron-up'
+                            : 'i-lucide-chevron-down'
+                        "
+                        class="w-3 h-3 text-teal-400"
+                      />
+                    </span>
+                  </th>
+                  <th
+                    class="px-4 py-2.5 text-right text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-22"
+                    @click="toggleSort('width')"
+                  >
+                    <span class="inline-flex items-center justify-end gap-0.5">
+                      W
+                      <UIcon
+                        v-if="sortKey === 'width'"
+                        :name="
+                          sortDir === 'asc'
+                            ? 'i-lucide-chevron-up'
+                            : 'i-lucide-chevron-down'
+                        "
+                        class="w-3 h-3 text-teal-400"
+                      />
+                    </span>
+                  </th>
+                  <th
+                    class="px-4 py-2.5 text-right text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-22"
+                    @click="toggleSort('length')"
+                  >
+                    <span class="inline-flex items-center justify-end gap-0.5">
+                      L
+                      <UIcon
+                        v-if="sortKey === 'length'"
+                        :name="
+                          sortDir === 'asc'
+                            ? 'i-lucide-chevron-up'
+                            : 'i-lucide-chevron-down'
+                        "
+                        class="w-3 h-3 text-teal-400"
+                      />
+                    </span>
+                  </th>
+                  <th
+                    class="px-4 py-2.5 text-left text-xs font-medium text-muted tracking-wide w-16"
+                  >
+                    Grain
+                  </th>
+                  <th class="pr-5 w-28"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template
+                  v-for="(group, gi) in filteredGroups"
+                  :key="group.material"
+                >
+                  <!-- Material group header -->
+                  <tr>
+                    <td
+                      :colspan="tableColspan"
+                      :class="['px-5 pb-1.5', gi === 0 ? 'pt-3' : 'pt-5']"
+                    >
+                      <div
+                        class="flex items-center gap-2.5 pb-1.5 border-b border-subtle"
+                      >
+                        <span class="text-sm font-semibold text-body">{{
+                          group.material
+                        }}</span>
+                        <span class="text-xs text-muted"
+                          >{{ group.totalParts }} part{{
+                            group.totalParts === 1 ? '' : 's'
+                          }}</span
+                        >
+                      </div>
+                    </td>
+                  </tr>
 
-        <!-- Toolbar: search + add part -->
-        <div class="flex items-center gap-2 px-5 pb-3">
-          <UInput
-            v-model="search"
-            placeholder="Filter parts..."
-            icon="i-lucide-search"
-            size="sm"
-            class="flex-1"
+                  <!-- Data rows -->
+                  <template v-for="row in group.rows" :key="row.number">
+                    <!-- Inline edit form for manual parts -->
+                    <tr v-if="row.isManual && editingPartNumber === row.number">
+                      <td :colspan="tableColspan" class="px-4 py-1.5">
+                        <ManualPartRow
+                          :materials="materials"
+                          :initial="getManualEditInfo(row.number)"
+                          @save="
+                            (d: ManualPartInput) =>
+                              handleUpdatePart(row.number, d)
+                          "
+                          @cancel="editingPartNumber = null"
+                        />
+                      </td>
+                    </tr>
+
+                    <!-- Normal data row -->
+                    <tr
+                      v-else
+                      class="group/row transition-colors text-[13px] cursor-pointer"
+                      :class="[
+                        row.leftoverCount > 0
+                          ? 'bg-amber-500/[0.06] hover:bg-amber-500/10'
+                          : 'hover:bg-surface',
+                        highlightedPartNumber === row.number
+                          ? 'bg-teal-500/12 ring-1 ring-inset ring-teal-400/40'
+                          : '',
+                      ]"
+                      @mouseenter="onRowEnter(row)"
+                      @mouseleave="onRowLeave(row)"
+                      @click="onRowClick(row, $event)"
+                    >
+                      <td class="pl-5 pr-4 py-2.5 text-muted tabular-nums">
+                        {{ row.number }}
+                      </td>
+                      <td class="px-4 py-2.5 text-body font-medium">
+                        <div
+                          v-if="renamingPartNumber === row.number"
+                          class="max-w-[16rem]"
+                        >
+                          <input
+                            :ref="onPartNameInputMounted"
+                            v-model="partNameDraft"
+                            class="w-full text-[13px] font-medium bg-transparent text-teal-400 outline-none border-b border-teal-400/50"
+                            @keydown.enter.prevent="saveRenamePart(row)"
+                            @keydown.esc.prevent="cancelRenamePart"
+                            @blur="saveRenamePart(row)"
+                            @click.stop
+                            @dblclick.stop
+                          />
+                        </div>
+                        <span
+                          v-else
+                          class="cursor-text"
+                          :title="
+                            row.isManual
+                              ? 'Double click to edit part'
+                              : 'Double click to rename part'
+                          "
+                          @dblclick="
+                            row.isManual
+                              ? startEditManualPart(row.number)
+                              : startRenamePart(row)
+                          "
+                        >
+                          {{ row.name }}
+                        </span>
+                      </td>
+                      <td
+                        v-if="showModelColumn"
+                        class="px-4 py-2.5 text-muted truncate max-w-[14rem]"
+                        :title="row.modelName"
+                      >
+                        {{ row.modelName }}
+                      </td>
+                      <td class="px-4 py-2.5 text-right text-body tabular-nums">
+                        {{ row.qty }}
+                      </td>
+                      <td
+                        class="px-4 py-2.5 text-right text-muted tabular-nums"
+                      >
+                        {{ formatDim(row.thicknessM) }}
+                      </td>
+                      <td class="px-4 py-2.5 text-right text-body tabular-nums">
+                        {{ formatDim(row.widthM) }}
+                      </td>
+                      <td class="px-4 py-2.5 text-right text-body tabular-nums">
+                        {{ formatDim(row.lengthM) }}
+                      </td>
+                      <td class="px-4 py-2.5">
+                        <button
+                          v-if="activeId"
+                          type="button"
+                          :title="
+                            row.grainLock === 'length'
+                              ? 'Length with grain (\u2195) \u2014 click to lock width'
+                              : row.grainLock === 'width'
+                                ? 'Width with grain (\u2194) \u2014 click to unlock'
+                                : 'Free rotation \u2014 click to lock grain'
+                          "
+                          :class="[
+                            'flex items-center gap-1 px-1.5 py-0.5 rounded text-xs transition-colors',
+                            row.grainLock
+                              ? 'text-teal-400 hover:text-teal-300'
+                              : 'text-dim hover:text-muted',
+                          ]"
+                          @click="
+                            updatePartGrainLock(
+                              activeId!,
+                              row.number,
+                              cycleGrainLock(row.grainLock),
+                            )
+                          "
+                        >
+                          <UIcon
+                            :name="
+                              row.grainLock
+                                ? 'i-lucide-lock'
+                                : 'i-lucide-lock-open'
+                            "
+                            class="w-3.5 h-3.5 shrink-0"
+                          />
+                          <UIcon
+                            v-if="row.grainLock === 'length'"
+                            name="i-ri-arrow-up-down-line"
+                            class="w-3.5 h-3.5 shrink-0"
+                          />
+                          <UIcon
+                            v-else-if="row.grainLock === 'width'"
+                            name="i-ri-arrow-left-right-line"
+                            class="w-3.5 h-3.5 shrink-0"
+                          />
+                        </button>
+                      </td>
+                      <td class="pr-5 pl-4 py-2.5">
+                        <div class="flex items-center justify-end gap-1.5">
+                          <template v-if="renamingPartNumber === row.number">
+                            <UButton
+                              size="xs"
+                              color="primary"
+                              variant="soft"
+                              label="Save"
+                              @mousedown.prevent
+                              @click="saveRenamePart(row)"
+                            />
+                            <UButton
+                              size="xs"
+                              color="neutral"
+                              variant="ghost"
+                              label="Cancel"
+                              @mousedown.prevent
+                              @click="cancelRenamePart"
+                            />
+                          </template>
+                          <template v-else>
+                            <span
+                              v-if="row.leftoverCount > 0"
+                              class="inline-flex items-center gap-1 text-xs text-amber-500"
+                              :title="
+                                row.leftoverCount === row.qty
+                                  ? 'No board found for this part'
+                                  : `${row.leftoverCount} of ${row.qty} could not be placed`
+                              "
+                            >
+                              <UIcon
+                                name="i-lucide-triangle-alert"
+                                class="w-3.5 h-3.5 shrink-0"
+                              />
+                              <span class="hidden sm:inline whitespace-nowrap">
+                                {{
+                                  row.leftoverCount === row.qty
+                                    ? 'No board'
+                                    : `${row.leftoverCount}/${row.qty}`
+                                }}
+                              </span>
+                            </span>
+                            <UButton
+                              v-if="!row.isManual"
+                              size="xs"
+                              icon="i-lucide-square-pen"
+                              color="neutral"
+                              variant="ghost"
+                              class="rounded-full opacity-0 group-hover/row:opacity-100 transition-opacity"
+                              title="Rename part"
+                              @click="startRenamePart(row)"
+                            />
+                            <template v-if="row.isManual">
+                              <UButton
+                                size="xs"
+                                icon="i-lucide-square-pen"
+                                color="neutral"
+                                variant="ghost"
+                                class="rounded-full opacity-0 group-hover/row:opacity-100 transition-opacity"
+                                title="Edit part"
+                                @click="startEditManualPart(row.number)"
+                              />
+                              <UButton
+                                size="xs"
+                                icon="i-lucide-x"
+                                color="neutral"
+                                variant="ghost"
+                                class="rounded-full opacity-0 group-hover/row:opacity-100 transition-opacity"
+                                title="Remove part"
+                                @click="handleRemovePart(row.number)"
+                              />
+                            </template>
+                          </template>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                </template>
+              </tbody>
+            </table>
+
+            <!-- No search results -->
+            <div
+              v-else-if="allRows.length > 0 && search.trim()"
+              class="flex flex-col items-center gap-2 py-8 text-sm text-muted"
+            >
+              <UIcon name="i-lucide-search-x" class="w-5 h-5 text-dim" />
+              No parts matching "{{ search }}"
+            </div>
+          </template>
+        </template>
+
+        <p v-else class="text-center p-4 text-muted">
+          Create a project to get started.
+        </p>
+      </div>
+
+      <template v-if="activeProject && hasModelPreview">
+        <div
+          class="relative w-3 shrink-0 cursor-col-resize select-none group"
+          @mousedown="startPreviewResize"
+        >
+          <div
+            class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-mist-700/55 transition-colors"
+            :class="
+              isResizingPreview
+                ? 'bg-teal-400/85'
+                : 'group-hover:bg-teal-400/65'
+            "
           />
-          <UButton
-            size="sm"
-            variant="soft"
-            color="neutral"
-            icon="i-lucide-plus"
-            label="Add Part"
-            @click="
-              showAddForm = true;
-              editingPartNumber = null;
+          <div
+            class="absolute top-1/2 left-1/2 h-14 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-mist-700/60 transition-colors"
+            :class="
+              isResizingPreview
+                ? 'bg-teal-400/90'
+                : 'group-hover:bg-teal-400/70'
             "
           />
         </div>
 
-        <!-- Add Part form -->
-        <div v-if="showAddForm" class="px-5 pb-3">
+        <aside
+          class="relative shrink-0 min-h-0 bg-mist-950 shadow-[-1px_0_0_0_rgba(57,68,71,0.35)]"
+          :style="{ width: `${previewPanelWidth}px` }"
+          @mouseleave="clearBomHover"
+        >
+          <ModelTab compact show-open-button @expand="openModelTab" />
+        </aside>
+      </template>
+    </div>
+
+    <!-- Add Part modal -->
+    <UModal v-model:open="showAddForm">
+      <template #content>
+        <div
+          class="p-6 flex flex-col gap-4 bg-elevated border border-default rounded-lg"
+        >
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-hi">Add Part</h2>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-x"
+              class="rounded-full"
+              @click="showAddForm = false"
+            />
+          </div>
           <ManualPartRow
             :materials="materials"
             @save="handleAddPart"
             @cancel="showAddForm = false"
           />
         </div>
-
-        <!-- Parts table -->
-        <table
-          v-if="filteredGroups.length > 0"
-          class="w-full text-sm border-separate border-spacing-0"
-        >
-          <thead
-            class="sticky top-0 z-10 bg-base shadow-[inset_0_-1px_0_var(--color-mist-800)]"
-          >
-            <tr>
-              <th
-                class="pl-5 pr-4 py-2.5 text-left text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-14"
-                @click="toggleSort('number')"
-              >
-                <span class="inline-flex items-center gap-0.5">
-                  #
-                  <UIcon
-                    v-if="sortKey === 'number'"
-                    :name="
-                      sortDir === 'asc'
-                        ? 'i-lucide-chevron-up'
-                        : 'i-lucide-chevron-down'
-                    "
-                    class="w-3 h-3 text-teal-400"
-                  />
-                </span>
-              </th>
-              <th
-                class="px-4 py-2.5 text-left text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors"
-                @click="toggleSort('name')"
-              >
-                <span class="inline-flex items-center gap-0.5">
-                  Name
-                  <UIcon
-                    v-if="sortKey === 'name'"
-                    :name="
-                      sortDir === 'asc'
-                        ? 'i-lucide-chevron-up'
-                        : 'i-lucide-chevron-down'
-                    "
-                    class="w-3 h-3 text-teal-400"
-                  />
-                </span>
-              </th>
-              <th
-                class="px-4 py-2.5 text-right text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-14"
-                @click="toggleSort('qty')"
-              >
-                <span class="inline-flex items-center justify-end gap-0.5">
-                  QTY
-                  <UIcon
-                    v-if="sortKey === 'qty'"
-                    :name="
-                      sortDir === 'asc'
-                        ? 'i-lucide-chevron-up'
-                        : 'i-lucide-chevron-down'
-                    "
-                    class="w-3 h-3 text-teal-400"
-                  />
-                </span>
-              </th>
-              <th
-                class="px-4 py-2.5 text-right text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-18"
-                @click="toggleSort('thickness')"
-              >
-                <span class="inline-flex items-center justify-end gap-0.5">
-                  T
-                  <UIcon
-                    v-if="sortKey === 'thickness'"
-                    :name="
-                      sortDir === 'asc'
-                        ? 'i-lucide-chevron-up'
-                        : 'i-lucide-chevron-down'
-                    "
-                    class="w-3 h-3 text-teal-400"
-                  />
-                </span>
-              </th>
-              <th
-                class="px-4 py-2.5 text-right text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-22"
-                @click="toggleSort('width')"
-              >
-                <span class="inline-flex items-center justify-end gap-0.5">
-                  W
-                  <UIcon
-                    v-if="sortKey === 'width'"
-                    :name="
-                      sortDir === 'asc'
-                        ? 'i-lucide-chevron-up'
-                        : 'i-lucide-chevron-down'
-                    "
-                    class="w-3 h-3 text-teal-400"
-                  />
-                </span>
-              </th>
-              <th
-                class="px-4 py-2.5 text-right text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-22"
-                @click="toggleSort('length')"
-              >
-                <span class="inline-flex items-center justify-end gap-0.5">
-                  L
-                  <UIcon
-                    v-if="sortKey === 'length'"
-                    :name="
-                      sortDir === 'asc'
-                        ? 'i-lucide-chevron-up'
-                        : 'i-lucide-chevron-down'
-                    "
-                    class="w-3 h-3 text-teal-400"
-                  />
-                </span>
-              </th>
-              <th
-                class="px-4 py-2.5 text-left text-xs font-medium text-muted tracking-wide w-16"
-              >
-                Grain
-              </th>
-              <th class="pr-5 w-28"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <template
-              v-for="(group, gi) in filteredGroups"
-              :key="group.material"
-            >
-              <!-- Material group header -->
-              <tr>
-                <td
-                  colspan="8"
-                  :class="['px-5 pb-1.5', gi === 0 ? 'pt-3' : 'pt-5']"
-                >
-                  <div
-                    class="flex items-center gap-2.5 pb-1.5 border-b border-subtle"
-                  >
-                    <span class="text-sm font-semibold text-body">{{
-                      group.material
-                    }}</span>
-                    <span class="text-xs text-muted"
-                      >{{ group.totalParts }} part{{
-                        group.totalParts === 1 ? '' : 's'
-                      }}</span
-                    >
-                  </div>
-                </td>
-              </tr>
-
-              <!-- Data rows -->
-              <template v-for="row in group.rows" :key="row.number">
-                <!-- Inline edit form for manual parts -->
-                <tr v-if="row.isManual && editingPartNumber === row.number">
-                  <td colspan="8" class="px-4 py-1.5">
-                    <ManualPartRow
-                      :materials="materials"
-                      :initial="getManualEditInfo(row.number)"
-                      @save="
-                        (d: ManualPartInput) => handleUpdatePart(row.number, d)
-                      "
-                      @cancel="editingPartNumber = null"
-                    />
-                  </td>
-                </tr>
-
-                <!-- Normal data row -->
-                <tr
-                  v-else
-                  class="group/row transition-colors text-[13px]"
-                  :class="
-                    row.leftoverCount > 0
-                      ? 'bg-amber-500/[0.06] hover:bg-amber-500/10'
-                      : 'hover:bg-surface'
-                  "
-                >
-                  <td class="pl-5 pr-4 py-2.5 text-muted tabular-nums">
-                    {{ row.number }}
-                  </td>
-                  <td class="px-4 py-2.5 text-body font-medium">
-                    {{ row.name }}
-                  </td>
-                  <td class="px-4 py-2.5 text-right text-body tabular-nums">
-                    {{ row.qty }}
-                  </td>
-                  <td class="px-4 py-2.5 text-right text-muted tabular-nums">
-                    {{ formatDim(row.thicknessM) }}
-                  </td>
-                  <td class="px-4 py-2.5 text-right text-body tabular-nums">
-                    {{ formatDim(row.widthM) }}
-                  </td>
-                  <td class="px-4 py-2.5 text-right text-body tabular-nums">
-                    {{ formatDim(row.lengthM) }}
-                  </td>
-                  <td class="px-4 py-2.5">
-                    <button
-                      v-if="activeId"
-                      type="button"
-                      :title="
-                        row.grainLock === 'length'
-                          ? 'Length with grain (\u2195) \u2014 click to lock width'
-                          : row.grainLock === 'width'
-                            ? 'Width with grain (\u2194) \u2014 click to unlock'
-                            : 'Free rotation \u2014 click to lock grain'
-                      "
-                      :class="[
-                        'flex items-center gap-1 px-1.5 py-0.5 rounded text-xs transition-colors',
-                        row.grainLock
-                          ? 'text-teal-400 hover:text-teal-300'
-                          : 'text-dim hover:text-muted',
-                      ]"
-                      @click="
-                        updatePartGrainLock(
-                          activeId!,
-                          row.number,
-                          cycleGrainLock(row.grainLock),
-                        )
-                      "
-                    >
-                      <UIcon
-                        :name="
-                          row.grainLock ? 'i-lucide-lock' : 'i-lucide-lock-open'
-                        "
-                        class="w-3.5 h-3.5 shrink-0"
-                      />
-                      <span>{{
-                        row.grainLock === 'length'
-                          ? '\u2195'
-                          : row.grainLock === 'width'
-                            ? '\u2194'
-                            : ''
-                      }}</span>
-                    </button>
-                  </td>
-                  <td class="pr-5 pl-4 py-2.5">
-                    <div class="flex items-center justify-end gap-1.5">
-                      <span
-                        v-if="row.leftoverCount > 0"
-                        class="inline-flex items-center gap-1 text-xs text-amber-500"
-                        :title="
-                          row.leftoverCount === row.qty
-                            ? 'No board found for this part'
-                            : `${row.leftoverCount} of ${row.qty} could not be placed`
-                        "
-                      >
-                        <UIcon
-                          name="i-lucide-triangle-alert"
-                          class="w-3.5 h-3.5 shrink-0"
-                        />
-                        <span class="hidden sm:inline whitespace-nowrap">
-                          {{
-                            row.leftoverCount === row.qty
-                              ? 'No board'
-                              : `${row.leftoverCount}/${row.qty}`
-                          }}
-                        </span>
-                      </span>
-                      <template v-if="row.isManual">
-                        <UButton
-                          size="xs"
-                          icon="i-lucide-square-pen"
-                          color="neutral"
-                          variant="ghost"
-                          class="rounded-full opacity-0 group-hover/row:opacity-100 transition-opacity"
-                          title="Edit part"
-                          @click="startEditManualPart(row.number)"
-                        />
-                        <UButton
-                          size="xs"
-                          icon="i-lucide-x"
-                          color="neutral"
-                          variant="ghost"
-                          class="rounded-full opacity-0 group-hover/row:opacity-100 transition-opacity"
-                          title="Remove part"
-                          @click="handleRemovePart(row.number)"
-                        />
-                      </template>
-                    </div>
-                  </td>
-                </tr>
-              </template>
-            </template>
-          </tbody>
-        </table>
-
-        <!-- No search results -->
-        <div
-          v-else-if="allRows.length > 0 && search.trim()"
-          class="flex flex-col items-center gap-2 py-8 text-sm text-muted"
-        >
-          <UIcon name="i-lucide-search-x" class="w-5 h-5 text-dim" />
-          No parts matching "{{ search }}"
-        </div>
       </template>
-    </template>
-
-    <p v-else class="text-center p-4 text-muted">
-      Create a project to get started.
-    </p>
+    </UModal>
   </div>
 </template>

@@ -2,6 +2,20 @@
 import type { BoardLayoutLeftover } from 'cutlist';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
 
+const props = withDefaults(
+  defineProps<{
+    compact?: boolean;
+    showOpenButton?: boolean;
+  }>(),
+  {
+    compact: false,
+    showOpenButton: false,
+  },
+);
+const emit = defineEmits<{
+  expand: [];
+}>();
+
 const { activeId, enabledModels: allEnabledModels } = useProjects();
 const enabledModels = computed(() =>
   allEnabledModels.value.filter((m) => m.source !== 'manual'),
@@ -19,19 +33,13 @@ const focusedModelIdx = ref(0);
 
 watch(activeId, () => {
   focusedModelIdx.value = 0;
+  gltfCache.clear();
 });
 
-watch(
-  () => enabledModels.value.length,
-  (newLen) => {
-    if (focusedModelIdx.value >= newLen)
-      focusedModelIdx.value = Math.max(0, newLen - 1);
-  },
-);
-
 const displayModels = computed(() => {
-  const m = enabledModels.value[focusedModelIdx.value];
-  return m ? [m] : enabledModels.value;
+  const idx = Math.min(focusedModelIdx.value, enabledModels.value.length - 1);
+  const m = enabledModels.value[idx];
+  return m ? [m] : [];
 });
 
 const hasGltfData = computed(() =>
@@ -44,6 +52,8 @@ const hasOnlyManualModels = computed(
     enabledModels.value.every((m) => m.source === 'manual'),
 );
 
+// In-memory cache to avoid redundant IDB reads when switching models.
+const gltfCache = new Map<string, object>();
 const allGltfData = ref<Map<string, object> | null>(null);
 
 async function loadGltfData() {
@@ -53,8 +63,12 @@ async function loadGltfData() {
   }
   const entries = await Promise.all(
     displayModels.value.map(async (m) => {
-      const gltfJson = await idb.getModelGltf(m.id);
-      return [m.id, gltfJson] as const;
+      let json = gltfCache.get(m.id);
+      if (!json) {
+        json = (await idb.getModelGltf(m.id)) ?? undefined;
+        if (json) gltfCache.set(m.id, json);
+      }
+      return [m.id, json] as const;
     }),
   );
   allGltfData.value = new Map(
@@ -169,6 +183,20 @@ const infoPart = computed(
         </select>
       </div>
 
+      <div
+        v-if="props.showOpenButton"
+        class="absolute top-4 right-4 z-10 bg-overlay backdrop-blur border border-subtle rounded-lg p-1"
+      >
+        <UButton
+          size="xs"
+          color="primary"
+          variant="soft"
+          icon="i-lucide-expand"
+          label="Open model view"
+          @click="emit('expand')"
+        />
+      </div>
+
       <!-- Part info panel -->
       <div
         v-if="infoPart"
@@ -202,7 +230,10 @@ const infoPart = computed(
       </div>
 
       <!-- Bottom-right controls -->
-      <div class="absolute bottom-4 right-4 z-10 flex flex-col items-end gap-2">
+      <div
+        v-if="!props.compact"
+        class="absolute bottom-4 right-4 z-10 flex flex-col items-end gap-2"
+      >
         <!-- Mouse controls legend -->
         <div
           class="bg-overlay backdrop-blur border border-subtle rounded-lg px-3 py-2.5 flex flex-col gap-2"

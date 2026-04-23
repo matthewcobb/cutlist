@@ -181,7 +181,7 @@ function createProject() {
       aria-label="Home"
       @click="goHome"
     >
-      <UIcon name="i-lucide-house" class="w-4 h-4" />
+      <UIcon name="i-lucide-house" class="block shrink-0 w-4 h-4" />
     </button>
     <TabList class="flex-1 min-w-0">
       <TabListItem
@@ -209,7 +209,7 @@ function createProject() {
         title="New project"
         @click="openNewProject"
       >
-        <UIcon name="i-lucide-plus" class="w-3.5 h-3.5" />
+        <UIcon name="i-lucide-plus" class="block shrink-0 w-3.5 h-3.5" />
         New
       </button>
     </div>
@@ -220,7 +220,7 @@ function createProject() {
       title="Export project"
       @click="exportProject"
     >
-      <UIcon name="i-lucide-download" class="w-4 h-4" />
+      <UIcon name="i-lucide-download" class="block shrink-0 w-4 h-4" />
       <span class="text-xs">Export</span>
     </button>
 
@@ -229,7 +229,7 @@ function createProject() {
       title="Import project"
       @click="pickAndImport"
     >
-      <UIcon name="i-lucide-upload" class="w-4 h-4" />
+      <UIcon name="i-lucide-upload" class="block shrink-0 w-4 h-4" />
       <span class="text-xs">Import</span>
     </button>
 
@@ -242,7 +242,7 @@ function createProject() {
         title="Project history"
         @click="showHistory ? closeHistory() : (showHistory = true)"
       >
-        <UIcon name="i-lucide-clock" class="w-4 h-4" />
+        <UIcon name="i-lucide-clock" class="block shrink-0 w-4 h-4" />
         <span class="text-xs">History</span>
         <span
           v-if="archivedList.length > 0"
@@ -372,7 +372,17 @@ function createProject() {
     >
       <template #content>
         <div class="p-6 space-y-4 bg-elevated border border-default rounded-lg">
-          <h3 class="text-lg font-medium text-white">Close project?</h3>
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-medium text-white">Close project?</h3>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-x"
+              class="rounded-full"
+              @click="cancelClose"
+            />
+          </div>
           <p class="text-sm text-muted">
             <span class="text-body font-medium">{{ pendingCloseName }}</span>
             will be moved to History where you can restore it later.
@@ -396,7 +406,17 @@ function createProject() {
     >
       <template #content>
         <div class="p-6 space-y-4 bg-elevated border border-default rounded-lg">
-          <h3 class="text-lg font-medium text-white">New Project</h3>
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-medium text-white">New Project</h3>
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-x"
+              class="rounded-full"
+              @click="showModal = false"
+            />
+          </div>
           <UInput
             v-model="projectName"
             placeholder="Project name"

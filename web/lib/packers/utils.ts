@@ -17,9 +17,14 @@ export function isValidPlacement<T>(
   placements: Rectangle<T>[],
   rect: Rectangle<T>,
   precision: number,
+  gap: number = 0,
 ): boolean {
   return (
     rect.isInside(bin, precision) &&
-    placements.every((p) => !rect.isIntersecting(p, precision))
+    placements.every((p) => {
+      const padded =
+        gap > 0 ? p.pad({ left: gap, right: gap, top: gap, bottom: gap }) : p;
+      return !rect.isIntersecting(padded, precision);
+    })
   );
 }

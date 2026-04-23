@@ -6,6 +6,7 @@ const props = defineProps<{
   measurement: RulerMeasurement;
   boardWidthM: number;
   boardLengthM: number;
+  preview?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -17,6 +18,7 @@ const formatDistance = useFormatDistance();
 
 const ARROW_SIZE = 6;
 const EXT_OVERSHOOT = 8;
+const pendingRemove = ref(false);
 
 const distanceM = computed(() =>
   Math.abs(props.measurement.anchorB - props.measurement.anchorA),
@@ -48,6 +50,7 @@ function arrowV(x: number, tipY: number, direction: 1 | -1) {
 let dragging = false;
 
 function onPointerDown(e: PointerEvent) {
+  if (props.preview) return;
   e.stopPropagation();
   e.preventDefault();
   (e.target as SVGElement).closest('g')?.setPointerCapture(e.pointerId);
@@ -63,36 +66,50 @@ function onPointerMove(e: PointerEvent) {
   if (isX.value) {
     const fracY = (rect.bottom - e.clientY) / rect.height;
     const newOffsetM = fracY * props.boardLengthM;
-    if (newOffsetM < -0.02 || newOffsetM > props.boardLengthM + 0.02) {
-      emit('remove');
-      dragging = false;
-      return;
-    }
+    pendingRemove.value =
+      newOffsetM < -0.02 || newOffsetM > props.boardLengthM + 0.02;
     emit('updateOffset', newOffsetM);
   } else {
     const fracX = (e.clientX - rect.left) / rect.width;
     const newOffsetM = fracX * props.boardWidthM;
-    if (newOffsetM < -0.02 || newOffsetM > props.boardWidthM + 0.02) {
-      emit('remove');
-      dragging = false;
-      return;
-    }
+    pendingRemove.value =
+      newOffsetM < -0.02 || newOffsetM > props.boardWidthM + 0.02;
     emit('updateOffset', newOffsetM);
   }
 }
 
 function onPointerUp() {
+  if (pendingRemove.value) {
+    emit('remove');
+  }
+  pendingRemove.value = false;
+  dragging = false;
+}
+
+function onLostPointerCapture() {
+  if (pendingRemove.value) {
+    emit('remove');
+  }
+  pendingRemove.value = false;
   dragging = false;
 }
 </script>
 
 <template>
   <g
-    class="dimension-annotation cursor-grab active:cursor-grabbing"
-    style="pointer-events: all"
+    :class="[
+      preview
+        ? 'dimension-preview'
+        : pendingRemove
+          ? 'dimension-removing'
+          : 'dimension-annotation',
+      !preview && 'cursor-grab active:cursor-grabbing',
+    ]"
+    :style="preview ? 'pointer-events: none' : 'pointer-events: all'"
     @pointerdown="onPointerDown"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
+    @lostpointercapture="onLostPointerCapture"
   >
     <template v-if="isX">
       <!-- Extension lines (vertical from each anchor to dimension line) -->
@@ -192,6 +209,13 @@ function onPointerUp() {
 
 <style scoped>
 .dimension-annotation {
-  color: #10b981;
+  color: #2dd4bf;
+}
+.dimension-removing {
+  color: #ef4444;
+}
+.dimension-preview {
+  color: #2dd4bf;
+  opacity: 0.5;
 }
 </style>

@@ -23,9 +23,7 @@ const stock = [
   {
     material: 'MDF',
     unit: 'mm' as const,
-    hasGrain: false,
-    thickness: ['0.018m'],
-    sizes: [{ width: '1m', length: '3m' }],
+    sizes: [{ width: '1m', length: '3m', thickness: ['0.018m'] }],
   },
 ];
 
@@ -33,7 +31,7 @@ describe('generateBoardLayouts', () => {
   it('rotates parts in cuts mode when needed to fit', () => {
     const config: Config = {
       bladeWidth: 0,
-      extraSpace: 0,
+      margin: 0,
       optimize: 'cuts',
       maxSearchMs: 8000,
       precision: 1e-5,
@@ -53,7 +51,7 @@ describe('generateBoardLayouts', () => {
   it('rotates parts in cnc mode when needed to fit', () => {
     const config: Config = {
       bladeWidth: 0,
-      extraSpace: 0,
+      margin: 0,
       optimize: 'cnc',
       maxSearchMs: 8000,
       precision: 1e-5,
@@ -73,7 +71,7 @@ describe('generateBoardLayouts', () => {
   it('is deterministic in auto mode', () => {
     const config: Config = {
       bladeWidth: 0,
-      extraSpace: 0,
+      margin: 0,
       optimize: 'auto',
       maxSearchMs: 8000,
       precision: 1e-5,

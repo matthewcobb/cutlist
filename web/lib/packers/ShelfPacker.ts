@@ -43,7 +43,7 @@ export function createShelfPacker<T>(
         if (placed) continue;
 
         // Open a new shelf
-        const shelfBottom = getNextShelfBottom(shelves, options);
+        const shelfBottom = getNextShelfBottom(shelves, bin, options);
         const oriented = chooseBestOrientation(rect, bin, shelfBottom, options);
         if (!oriented) {
           res.leftovers.push(rect.data);
@@ -92,8 +92,12 @@ interface Shelf {
   usedWidth: number;
 }
 
-function getNextShelfBottom(shelves: Shelf[], options: PackOptions): number {
-  if (shelves.length === 0) return 0;
+function getNextShelfBottom(
+  shelves: Shelf[],
+  bin: Rectangle<unknown>,
+  options: PackOptions,
+): number {
+  if (shelves.length === 0) return bin.bottom;
   const last = shelves[shelves.length - 1];
   return last.bottom + last.height + options.gap;
 }

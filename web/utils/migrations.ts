@@ -4,11 +4,8 @@ import { DEFAULT_STOCK_YAML, DEFAULT_SETTINGS } from '~/utils/settings';
 /**
  * Schema version for record shapes (independent of IDB database version).
  * Bump when any record type's fields change. Never decrement.
- *
- * Reset to 1 — no legacy migrations. If the DB has older data, clear it
- * (we are still in development and accept breaking changes).
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 type StoreName = 'projects' | 'models' | 'buildSteps' | 'settings';
 
@@ -27,7 +24,14 @@ export interface RecordMigration {
  *  - Each migration must be a pure function (no side effects, no async).
  *  - New required fields must have a sensible default.
  */
-export const migrations: RecordMigration[] = [];
+export const migrations: RecordMigration[] = [
+  {
+    // v2: `derivedCache` added to models. Populated lazily on first derive.
+    version: 2,
+    store: 'models',
+    migrate: (record: any) => ({ ...record, derivedCache: undefined }),
+  },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,174 @@
+import type { DeriveResult } from '~/utils/parseGltf';
+import type {
+  BoardLayout,
+  BoardLayoutLeftover,
+  ConfigInput,
+  PartToCut,
+} from 'cutlist';
+
+// ─── Types matching the worker messages ──────────────────────────────────────
+
+interface DeriveRequest {
+  type: 'derive';
+  id: number;
+  gltfJson: object;
+}
+
+interface LayoutRequest {
+  type: 'layout';
+  id: number;
+  parts: PartToCut[];
+  stockYaml: string;
+  config: ConfigInput;
+}
+
+interface DeriveResponse {
+  type: 'derive';
+  id: number;
+  result?: DeriveResult;
+  error?: string;
+}
+
+interface LayoutResponse {
+  type: 'layout';
+  id: number;
+  result?: { layouts: BoardLayout[]; leftovers: BoardLayoutLeftover[] };
+  error?: string;
+}
+
+type WorkerResponse = DeriveResponse | LayoutResponse;
+
+// ─── Two dedicated workers ───────────────────────────────────────────────────
+// Layout work is long-running and cancellable via terminate+respawn; derive
+// work is short and runs on its own worker so cancelling layouts doesn't kill
+// in-flight hydration.
+
+let deriveWorker: Worker | null = null;
+let layoutWorker: Worker | null = null;
+let nextId = 0;
+
+const pendingDerive = new Map<
+  number,
+  { resolve: (r: DeriveResult) => void; reject: (e: Error) => void }
+>();
+const pendingLayout = new Map<
+  number,
+  {
+    resolve: (r: {
+      layouts: BoardLayout[];
+      leftovers: BoardLayoutLeftover[];
+    }) => void;
+    reject: (e: Error) => void;
+  }
+>();
+
+function spawnWorker(): Worker {
+  return new Worker(
+    new URL('../workers/computation.worker.ts', import.meta.url),
+    { type: 'module' },
+  );
+}
+
+function getDeriveWorker(): Worker {
+  if (deriveWorker) return deriveWorker;
+  const w = spawnWorker();
+  w.onmessage = (e: MessageEvent<WorkerResponse>) => {
+    const msg = e.data;
+    if (msg.type !== 'derive') return;
+    const pending = pendingDerive.get(msg.id);
+    if (!pending) return;
+    pendingDerive.delete(msg.id);
+    if (msg.error) pending.reject(new Error(msg.error));
+    else pending.resolve(msg.result!);
+  };
+  w.onerror = (e) => {
+    console.error('Derive worker error:', e);
+    for (const [, p] of pendingDerive) p.reject(new Error('Worker error'));
+    pendingDerive.clear();
+    deriveWorker?.terminate();
+    deriveWorker = null;
+  };
+  deriveWorker = w;
+  return w;
+}
+
+function getLayoutWorker(): Worker {
+  if (layoutWorker) return layoutWorker;
+  const w = spawnWorker();
+  w.onmessage = (e: MessageEvent<WorkerResponse>) => {
+    const msg = e.data;
+    if (msg.type !== 'layout') return;
+    const pending = pendingLayout.get(msg.id);
+    if (!pending) return;
+    pendingLayout.delete(msg.id);
+    if (msg.error) pending.reject(new Error(msg.error));
+    else pending.resolve(msg.result!);
+  };
+  w.onerror = (e) => {
+    console.error('Layout worker error:', e);
+    for (const [, p] of pendingLayout) p.reject(new Error('Worker error'));
+    pendingLayout.clear();
+    layoutWorker?.terminate();
+    layoutWorker = null;
+  };
+  layoutWorker = w;
+  return w;
+}
+
+// ─── Public API ──────────────────────────────────────────────────────────────
+
+export function deriveModel(gltfJson: object): Promise<DeriveResult> {
+  const id = ++nextId;
+  const w = getDeriveWorker();
+  const plain = JSON.parse(JSON.stringify(gltfJson));
+  return new Promise<DeriveResult>((resolve, reject) => {
+    pendingDerive.set(id, { resolve, reject });
+    w.postMessage({
+      type: 'derive',
+      id,
+      gltfJson: plain,
+    } satisfies DeriveRequest);
+  });
+}
+
+/**
+ * Post a layout computation request. Returns a promise that resolves with the
+ * result. Callers should track their own request versioning to discard stale
+ * results (e.g. when inputs change before the previous result arrives).
+ */
+export function computeLayouts(
+  parts: PartToCut[],
+  stockYaml: string,
+  config: ConfigInput,
+): Promise<{ layouts: BoardLayout[]; leftovers: BoardLayoutLeftover[] }> {
+  const id = ++nextId;
+  const w = getLayoutWorker();
+  const plainParts = JSON.parse(JSON.stringify(parts));
+  const plainConfig = JSON.parse(JSON.stringify(config));
+  return new Promise((resolve, reject) => {
+    pendingLayout.set(id, { resolve, reject });
+    w.postMessage({
+      type: 'layout',
+      id,
+      parts: plainParts,
+      stockYaml,
+      config: plainConfig,
+    } satisfies LayoutRequest);
+  });
+}
+
+/**
+ * Terminate the layout worker, cancelling any in-flight or queued layout job.
+ * Pending promises reject with an AbortError; callers that guard on their own
+ * requestVersion will silently drop the rejection. A fresh worker is spawned
+ * lazily on the next `computeLayouts` call.
+ */
+export function cancelLayouts(): void {
+  if (!layoutWorker) return;
+  layoutWorker.terminate();
+  layoutWorker = null;
+  const err = new Error('Cancelled');
+  err.name = 'AbortError';
+  for (const [, p] of pendingLayout) p.reject(err);
+  pendingLayout.clear();
+}

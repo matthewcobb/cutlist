@@ -38,12 +38,14 @@ Manual parts
   → stores Part[] in IndexedDB (source of truth)
 
 On project load (useProjects → hydrateModel)
-  → GLTF models: deriveFromGltf(gltfJson) → Part[], colors, nodePartMap
+  → GLTF models: use derivedCache if DERIVE_VERSION matches,
+                 otherwise deriveFromGltf(gltfJson) and cache result
   → Manual models: reads stored Part[] directly
   → Both: applies partOverrides (user edits like grainLock)
   → user assigns colorMap (material per color)
   → useBoardLayoutsQuery resolves Part → PartToCut (adds material)
-  → generateBoardLayouts (web/lib/index.ts) → BoardLayout[]
+  → fingerprint(parts + stock + config) — match against IDB layoutCache
+  → on cache hit: skip worker; on miss: generateBoardLayouts in worker
   → BomTab / board preview display
   → exportPdf (web/utils/exportPdf.ts) or useExportProject (.cutlist.gz)
 ```
@@ -142,15 +144,21 @@ All data lives in IndexedDB. The app is still in development — breaking schema
 
 ### IdbModel — what's stored vs derived
 
-GLTF models store only `gltfJson` (raw) and `partOverrides` (user edits). Parts, colors, and nodePartMap are **re-derived on every project load** via `deriveFromGltf()` in `useProjects.ts`. This means changes to parse logic take effect immediately — no migration needed for derived data.
+GLTF models store `gltfJson` (raw), `partOverrides` (user edits), and a `derivedCache` field holding the last `deriveFromGltf` output plus the `DERIVE_VERSION` it was produced at. On load, the cache is reused if its version matches the current `DERIVE_VERSION`; otherwise derive runs in the worker and refills the cache.
 
-Manual models store `parts` directly (source of truth). They have no `gltfJson`.
+**Bump `DERIVE_VERSION`** (exported from [web/utils/parseGltf.ts](web/utils/parseGltf.ts)) whenever `deriveFromGltf`'s output shape or values change — otherwise stale caches will be served.
+
+Manual models store `parts` directly (source of truth). They have no `gltfJson` or `derivedCache`.
 
 Both model types use `partOverrides: Record<number, PartOverride>` for user edits (keyed by partNumber). To add a new per-part override, just add an optional field to `PartOverride` — no migration needed.
 
+### Layout cache
+
+Board layouts are cached per-project in the `layoutCache` IDB store, keyed by `projectId`. Each entry stores a fingerprint over `{parts, stock, config}` (FNV-1a hash via [web/utils/fingerprint.ts](web/utils/fingerprint.ts)). Exact fingerprint match skips the worker entirely; mismatch triggers a recompute (with the stale result shown SWR-style during compute). Invalidation is automatic — no manual cache-busting needed.
+
 ### Migrations (`web/utils/migrations.ts`)
 
-Currently at a clean slate (`SCHEMA_VERSION = 1`, zero migrations). The infrastructure exists for future use:
+Currently at `SCHEMA_VERSION = 2` (one migration: v2 adds `derivedCache` to models). The infrastructure:
 
 - **`SCHEMA_VERSION`** — bump when any record type's fields change.
 - **Startup sweep** — on app init, migrates all stored records to current schema.

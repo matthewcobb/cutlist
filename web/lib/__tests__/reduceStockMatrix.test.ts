@@ -11,9 +11,8 @@ describe('reduceStockMatrix', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: [18],
-        sizes: [{ width: 1220, length: 2440 }],
+
+        sizes: [{ width: 1220, length: 2440, thickness: [18] }],
       },
     ]);
     expect(result).toHaveLength(1);
@@ -27,9 +26,8 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Ply',
         unit: 'in',
-        hasGrain: false,
-        thickness: [0.75],
-        sizes: [{ width: 48, length: 96 }],
+
+        sizes: [{ width: 48, length: 96, thickness: [0.75] }],
       },
     ]);
     expect(result).toHaveLength(1);
@@ -43,9 +41,8 @@ describe('reduceStockMatrix', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: [18],
-        sizes: [{ width: 1220, length: 2440 }],
+
+        sizes: [{ width: 1220, length: 2440, thickness: [18] }],
       },
     ]);
     expect(result[0].thickness).toBeCloseTo(0.018, 6);
@@ -56,11 +53,10 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Ply',
         unit: 'mm',
-        hasGrain: false,
-        thickness: [12],
+
         sizes: [
-          { width: 600, length: 2440 },
-          { width: 1220, length: 2440 },
+          { width: 600, length: 2440, thickness: [12] },
+          { width: 1220, length: 2440, thickness: [12] },
         ],
       },
     ]);
@@ -69,20 +65,42 @@ describe('reduceStockMatrix', () => {
   });
 
   it('returns sizes × thicknesses count', () => {
-    // 2 sizes × 3 thicknesses = 6
+    // 2 sizes × 3 thicknesses each = 6
     const result = reduceStockMatrix([
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: [9, 12, 18],
+
         sizes: [
-          { width: 600, length: 1800 },
-          { width: 1220, length: 2440 },
+          { width: 600, length: 1800, thickness: [9, 12, 18] },
+          { width: 1220, length: 2440, thickness: [9, 12, 18] },
         ],
       },
     ]);
     expect(result).toHaveLength(6);
+  });
+
+  it('supports different thicknesses per size', () => {
+    const result = reduceStockMatrix([
+      {
+        material: 'Ply',
+        unit: 'mm',
+
+        sizes: [
+          { width: 1220, length: 2440, thickness: [18, 12, 9] },
+          { width: 1220, length: 1220, thickness: [12] },
+        ],
+      },
+    ]);
+    // 3 + 1 = 4
+    expect(result).toHaveLength(4);
+    // The 1220×1220 only comes in 12mm
+    const small = result.filter(
+      (s) =>
+        Math.abs(s.length - 1.22) < 0.001 && Math.abs(s.width - 1.22) < 0.001,
+    );
+    expect(small).toHaveLength(1);
+    expect(small[0].thickness).toBeCloseTo(0.012, 6);
   });
 
   it('string dimensions carry their own unit (backward compat)', () => {
@@ -90,9 +108,8 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Ply',
         unit: 'mm',
-        hasGrain: false,
-        thickness: ['1in'],
-        sizes: [{ width: '1220mm', length: '2440mm' }],
+
+        sizes: [{ width: '1220mm', length: '2440mm', thickness: ['1in'] }],
       },
     ]);
     expect(result).toHaveLength(1);
@@ -105,11 +122,10 @@ describe('reduceStockMatrix', () => {
       {
         material: 'Oak',
         unit: 'mm',
-        hasGrain: false,
-        thickness: [18],
+
         sizes: [
-          { width: 300, length: 1800 },
-          { width: 600, length: 2400 },
+          { width: 300, length: 1800, thickness: [18] },
+          { width: 600, length: 2400, thickness: [18] },
         ],
       },
     ]);
@@ -121,16 +137,14 @@ describe('reduceStockMatrix', () => {
       {
         material: 'MDF',
         unit: 'mm',
-        hasGrain: false,
-        thickness: [18],
-        sizes: [{ width: 1220, length: 2440 }],
+
+        sizes: [{ width: 1220, length: 2440, thickness: [18] }],
       },
       {
         material: 'Ply',
         unit: 'mm',
-        hasGrain: false,
-        thickness: [12],
-        sizes: [{ width: 600, length: 1800 }],
+
+        sizes: [{ width: 600, length: 1800, thickness: [12] }],
       },
     ]);
     expect(result).toHaveLength(2);
@@ -138,14 +152,13 @@ describe('reduceStockMatrix', () => {
     expect(result[1].material).toBe('Ply');
   });
 
-  it('mixes string and number dimensions within one material', () => {
+  it('mixes string and number dimensions within one size', () => {
     const result = reduceStockMatrix([
       {
         material: 'Mix',
         unit: 'mm',
-        hasGrain: false,
-        thickness: [18, '1in'],
-        sizes: [{ width: 1220, length: 2440 }],
+
+        sizes: [{ width: 1220, length: 2440, thickness: [18, '1in'] }],
       },
     ]);
     expect(result).toHaveLength(2);

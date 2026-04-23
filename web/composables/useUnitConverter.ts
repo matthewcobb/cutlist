@@ -1,12 +1,12 @@
 import { Distance } from 'cutlist';
 
 /**
- * Watches the active distance unit and converts bladeWidth / extraSpace
+ * Watches the active distance unit and converts bladeWidth / margin
  * whenever it changes. Uses createSharedComposable so only one watcher
  * runs regardless of how many components mount.
  */
 export const useUnitConverter = createSharedComposable(() => {
-  const { bladeWidth, distanceUnit, extraSpace } = useProjectSettings();
+  const { bladeWidth, distanceUnit, margin } = useProjectSettings();
 
   watch(distanceUnit, (newUnit, oldUnit) => {
     if (!newUnit || !oldUnit) return;
@@ -20,7 +20,7 @@ export const useUnitConverter = createSharedComposable(() => {
     };
 
     convert(bladeWidth);
-    convert(extraSpace);
+    convert(margin);
   });
 });
 
