@@ -196,24 +196,34 @@ const leftoversByStock = computed<LeftoverStockGroup[]>(() => {
                     v-if="part.grainLock"
                     class="absolute bottom-0.5 left-0.5 text-amber-500/60"
                   >
-                    <UIcon
-                      :name="
-                        part.grainLock === 'length'
-                          ? 'i-ri-arrow-up-down-line'
-                          : 'i-ri-arrow-left-right-line'
-                      "
-                      class="w-3 h-3"
-                    />
+                    <svg viewBox="0 0 24 24" class="w-3 h-3" aria-hidden="true">
+                      <path
+                        v-if="part.grainLock === 'length'"
+                        fill="currentColor"
+                        d="m11.95 7.95l-1.414 1.414L8 6.828V20H6V6.828L3.466 9.364L2.05 7.95L7 3zm10 8.1L17 21l-4.95-4.95l1.414-1.414l2.537 2.536L16 4h2v13.172l2.536-2.536z"
+                      />
+                      <path
+                        v-else
+                        fill="currentColor"
+                        d="M16.05 12.05L21 17l-4.95 4.95l-1.414-1.415L17.172 18H4v-2h13.172l-2.536-2.535zm-8.1-10l1.414 1.414l-2.536 2.535H20v2H6.828l2.536 2.536L7.95 11.95L3 7z"
+                      />
+                    </svg>
                   </div>
                   <!-- Rotation affordance on hover -->
                   <div
                     class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none"
                   >
-                    <UIcon
-                      name="i-ri-loop-left-line"
+                    <svg
+                      viewBox="0 0 24 24"
                       class="rotate-icon-amber drop-shadow-md"
                       :style="`width:${Math.max(14, Math.min(28, parseFloat(getPx(Math.min(part.widthM, part.lengthM) * 0.45))))}px;height:${Math.max(14, Math.min(28, parseFloat(getPx(Math.min(part.widthM, part.lengthM) * 0.45))))}px`"
-                    />
+                      aria-hidden="true"
+                    >
+                      <path
+                        fill="currentColor"
+                        d="M12 4a7.99 7.99 0 0 0-6.616 3.5H8v2H2v-6h2V6a9.98 9.98 0 0 1 8-4c5.523 0 10 4.477 10 10h-2a8 8 0 0 0-8-8m-8 8a8 8 0 0 0 14.616 4.5H16v-2h6v6h-2V18a9.98 9.98 0 0 1-8 4C6.477 22 2 17.523 2 12z"
+                      />
+                    </svg>
                   </div>
                 </div>
                 <span class="text-sm text-amber-500/60 text-nowrap">

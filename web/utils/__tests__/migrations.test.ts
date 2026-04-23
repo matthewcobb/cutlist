@@ -60,8 +60,25 @@ describe('migration registry invariants', () => {
     }
   });
 
-  it('migrations array is currently empty (clean slate)', () => {
-    expect(migrations).toHaveLength(0);
+  it('v2 migration adds derivedCache field to models with a sensible default', () => {
+    const v2 = migrations.find((m) => m.version === 2 && m.store === 'models');
+    expect(v2).toBeDefined();
+    const pre = {
+      id: 'm1',
+      projectId: 'p1',
+      filename: 'f.glb',
+      source: 'gltf',
+      parts: [],
+      enabled: true,
+      gltfJson: {},
+      partOverrides: {},
+      createdAt: '',
+    };
+    const post = v2!.migrate(pre);
+    expect(post).toHaveProperty('derivedCache', undefined);
+    // Untouched fields preserved
+    expect(post.id).toBe('m1');
+    expect(post.filename).toBe('f.glb');
   });
 });
 

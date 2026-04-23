@@ -11,7 +11,7 @@ import {
 } from '~/utils/localStorage';
 import type { ManualPartInput } from '~/composables/useProjects';
 
-const { data, isComputing } = useBoardLayoutsQuery();
+const { data } = useBoardLayoutsQuery();
 const {
   activeProject,
   activeId,
@@ -838,16 +838,6 @@ onUnmounted(() => {
                     warningCount === 1 ? '' : 's'
                   }}</span
                 >
-              </template>
-              <template v-if="isComputing">
-                <span class="text-dim">&middot;</span>
-                <span class="flex items-center gap-1 text-teal-400">
-                  <UIcon
-                    name="i-lucide-loader-2"
-                    class="w-3 h-3 animate-spin"
-                  />
-                  Computing layouts
-                </span>
               </template>
             </div>
 

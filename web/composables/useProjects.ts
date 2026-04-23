@@ -1,4 +1,9 @@
-import type { ColorInfo, NodePartMapping, Part } from '~/utils/parseGltf';
+import {
+  DERIVE_VERSION,
+  type ColorInfo,
+  type NodePartMapping,
+  type Part,
+} from '~/utils/parseGltf';
 import type { IdbModelMeta, PartOverride } from '~/composables/useIdb';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
 import { importProjectFromFile } from '~/utils/projectImport';
@@ -104,7 +109,21 @@ async function hydrateModel(
     };
   }
 
-  // GLTF models: re-derive from stored gltfJson (off main thread via worker)
+  // GLTF models: use cached derive if version matches, otherwise re-derive
+  // in the worker and persist the result for next time.
+  const cached = meta.derivedCache;
+  if (cached && cached.version === DERIVE_VERSION) {
+    return {
+      id: meta.id,
+      filename: meta.filename,
+      source: meta.source,
+      parts: applyOverrides(cached.parts, meta.partOverrides),
+      colors: cached.colors,
+      enabled: meta.enabled,
+      nodePartMap: cached.nodePartMap,
+    };
+  }
+
   const gltfJson = await idb.getModelGltf(meta.id);
   if (!gltfJson) {
     return {
@@ -119,6 +138,17 @@ async function hydrateModel(
 
   try {
     const derived = await deriveModel(gltfJson);
+    // Persist for subsequent loads. Swallow IDB errors — cache is advisory.
+    idb
+      .updateModel(meta.id, {
+        derivedCache: {
+          version: DERIVE_VERSION,
+          parts: derived.parts,
+          colors: derived.colors,
+          nodePartMap: derived.nodePartMap,
+        },
+      })
+      .catch(() => {});
     return {
       id: meta.id,
       filename: meta.filename,
@@ -185,7 +215,7 @@ async function init(idb: ReturnType<typeof useIdb>) {
 if (import.meta.client) {
   const idb = useIdb();
 
-  // Single watcher — loads project data when activeId changes (set by router)
+  // Single watcher — loads project data when activeId changes (set by router).
   watch(activeId, async (id) => {
     if (!id) {
       activeProjectData.value = null;

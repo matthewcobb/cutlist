@@ -30,6 +30,7 @@ watch(
 <template>
   <li
     class="shrink-0 min-w-[8rem]"
+    :data-tab-active="isActive ? 'true' : null"
     :class="
       isActive ? 'bg-gradient-to-b from-teal-400/30 to-transparent' : 'bg-base'
     "
@@ -61,12 +62,12 @@ watch(
       >
       <button
         v-if="!hideClose"
-        class="ml-auto hover:text-white transition-colors"
+        class="ml-auto shrink-0 w-3.5 h-3.5 flex items-center justify-center hover:text-white transition-colors"
         :class="isActive ? 'text-white' : 'text-muted'"
         title="Close"
         @click.stop.prevent="emit('close')"
       >
-        <UIcon name="i-lucide-x" class="size-3.5" />
+        <UIcon name="i-lucide-x" class="block size-3.5" />
       </button>
     </component>
   </li>

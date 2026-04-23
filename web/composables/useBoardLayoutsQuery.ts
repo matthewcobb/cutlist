@@ -6,23 +6,31 @@ import {
   type PartToCut,
 } from 'cutlist';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
-import { computeLayouts } from '~/composables/useComputationWorker';
+import {
+  cancelLayouts,
+  computeLayouts,
+} from '~/composables/useComputationWorker';
+import { fingerprint } from '~/utils/fingerprint';
 
 type LayoutResult = {
   layouts: BoardLayout[];
   leftovers: BoardLayoutLeftover[];
 };
 
-// Module-level cache: show the last result for a project while the worker
-// recomputes. Keyed by project ID — always overwritten when the worker
-// finishes, so it's stale-while-revalidate, not a source of truth.
-const layoutCache = new Map<string, LayoutResult>();
+interface CacheEntry extends LayoutResult {
+  fingerprint: string;
+}
 
-export default function () {
+// Module-level in-memory mirror of the IDB layout cache. Populated lazily on
+// first read per project, written on every successful compute.
+const layoutCache = new Map<string, CacheEntry>();
+
+export default createSharedComposable(() => {
   const { activeProject, activeId, enabledModels, projectLoading } =
     useProjects();
   const { bladeWidth, optimize, margin, distanceUnit, stock } =
     useProjectSettings();
+  const idb = useIdb();
 
   const parts = computed<PartToCut[] | undefined>(() => {
     const project = activeProject.value;
@@ -56,38 +64,32 @@ export default function () {
 
   let requestVersion = 0;
 
-  // Restore cached layouts immediately when the active project changes,
-  // before parts/settings have had a chance to populate. This prevents
-  // the blank flash during project switching.
+  // Restore in-memory cache on project switch. Bumps requestVersion so any
+  // in-flight compute from the previous project is discarded when it lands.
+  // Does NOT wipe `data` on a miss — we leave the previous layout visible
+  // (with an "Updating…" overlay) until the new one is ready.
   watch(activeId, (id) => {
+    requestVersion++;
+    cancelLayouts();
     if (!id) {
       data.value = undefined;
       isComputing.value = false;
+      error.value = null;
       return;
     }
-    const cached = layoutCache.get(id);
-    if (cached) {
-      data.value = cached;
-      isComputing.value = true;
-    } else {
-      data.value = undefined;
-      isComputing.value = true;
+    const mem = layoutCache.get(id);
+    if (mem) {
+      data.value = { layouts: mem.layouts, leftovers: mem.leftovers };
     }
+    isComputing.value = true;
+    error.value = null;
   });
 
   watch(
     [parts, bladeWidth, optimize, margin, distanceUnit, stock],
     async ([partsVal, bw, opt, mg, du, st]) => {
-      if (
-        partsVal == null ||
-        bw == null ||
-        opt == null ||
-        mg == null ||
-        du == null ||
-        st == null
-      ) {
-        // Don't clear data while the project is loading — keep showing
-        // cached layouts or the previous result until the new one arrives.
+      // Settings still hydrating → show spinner, wait for next tick.
+      if (bw == null || opt == null || mg == null || du == null || st == null) {
         if (projectLoading.value || activeId.value) {
           isComputing.value = true;
         } else {
@@ -98,15 +100,29 @@ export default function () {
         return;
       }
 
-      const projectId = activeProject.value?.id;
-      const version = ++requestVersion;
-      isComputing.value = true;
-      error.value = null;
+      // No active project / still loading → no layout to show.
+      if (partsVal == null) {
+        if (projectLoading.value) {
+          isComputing.value = true;
+        } else {
+          data.value = undefined;
+          isComputing.value = false;
+        }
+        error.value = null;
+        return;
+      }
 
-      // Show cached result while the worker recomputes
-      if (projectId && !data.value) {
-        const cached = layoutCache.get(projectId);
-        if (cached) data.value = cached;
+      const projectId = activeProject.value?.id;
+      if (!projectId) return;
+
+      // Empty BOM (no parts, or every part excluded) → skip the worker.
+      if (partsVal.length === 0) {
+        cancelLayouts();
+        requestVersion++;
+        data.value = { layouts: [], leftovers: [] };
+        isComputing.value = false;
+        error.value = null;
+        return;
       }
 
       const config: ConfigInput = {
@@ -116,16 +132,74 @@ export default function () {
         precision: 1e-5,
       };
 
-      try {
-        const result = await computeLayouts(partsVal, st, config);
-        // Only apply if this is still the latest request
-        if (version === requestVersion) {
-          data.value = result;
-          if (projectId) layoutCache.set(projectId, result);
-          isComputing.value = false;
+      const inputFp = fingerprint({ parts: partsVal, stock: st, config });
+      const version = ++requestVersion;
+
+      // Cache lookup: mem first, then IDB (populating mem on the way).
+      let cached = layoutCache.get(projectId);
+      if (!cached) {
+        try {
+          const stored = await idb.getLayoutCache(projectId);
+          if (version !== requestVersion) return;
+          if (activeProject.value?.id !== projectId) return;
+          if (stored) {
+            cached = {
+              layouts: stored.layouts,
+              leftovers: stored.leftovers,
+              fingerprint: stored.fingerprint,
+            };
+            layoutCache.set(projectId, cached);
+          }
+        } catch {
+          // Cache read is advisory — fall through to compute.
         }
+      }
+
+      // Exact fingerprint match → skip the worker entirely.
+      if (cached && cached.fingerprint === inputFp) {
+        data.value = { layouts: cached.layouts, leftovers: cached.leftovers };
+        isComputing.value = false;
+        error.value = null;
+        return;
+      }
+
+      isComputing.value = true;
+      error.value = null;
+
+      // Show stale cache during recompute if nothing else is visible yet.
+      if (cached && !data.value) {
+        data.value = { layouts: cached.layouts, leftovers: cached.leftovers };
+      }
+
+      try {
+        cancelLayouts();
+        const result = await computeLayouts(partsVal, st, config);
+        // Guard against a newer request (input changed or project switched).
+        if (version !== requestVersion) return;
+        if (activeProject.value?.id !== projectId) return;
+
+        data.value = result;
+        const entry: CacheEntry = {
+          layouts: result.layouts,
+          leftovers: result.leftovers,
+          fingerprint: inputFp,
+        };
+        layoutCache.set(projectId, entry);
+        idb
+          .putLayoutCache({
+            projectId,
+            fingerprint: inputFp,
+            layouts: result.layouts,
+            leftovers: result.leftovers,
+            savedAt: new Date().toISOString(),
+          })
+          .catch(() => {});
+        isComputing.value = false;
       } catch (e) {
-        if (version === requestVersion) {
+        if (
+          version === requestVersion &&
+          activeProject.value?.id === projectId
+        ) {
           error.value = e instanceof Error ? e.message : String(e);
           isComputing.value = false;
         }
@@ -139,4 +213,4 @@ export default function () {
     isComputing,
     error,
   };
-}
+});

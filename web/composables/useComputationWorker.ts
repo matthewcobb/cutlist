@@ -38,12 +38,15 @@ interface LayoutResponse {
 
 type WorkerResponse = DeriveResponse | LayoutResponse;
 
-// ─── Singleton worker instance ───────────────────────────────────────────────
+// ─── Two dedicated workers ───────────────────────────────────────────────────
+// Layout work is long-running and cancellable via terminate+respawn; derive
+// work is short and runs on its own worker so cancelling layouts doesn't kill
+// in-flight hydration.
 
-let worker: Worker | null = null;
+let deriveWorker: Worker | null = null;
+let layoutWorker: Worker | null = null;
 let nextId = 0;
 
-// Pending callbacks keyed by request id
 const pendingDerive = new Map<
   number,
   { resolve: (r: DeriveResult) => void; reject: (e: Error) => void }
@@ -59,51 +62,64 @@ const pendingLayout = new Map<
   }
 >();
 
-function getWorker(): Worker {
-  if (!worker) {
-    worker = new Worker(
-      new URL('../workers/computation.worker.ts', import.meta.url),
-      { type: 'module' },
-    );
-    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
-      const msg = e.data;
-      if (msg.type === 'derive') {
-        const pending = pendingDerive.get(msg.id);
-        if (pending) {
-          pendingDerive.delete(msg.id);
-          if (msg.error) pending.reject(new Error(msg.error));
-          else pending.resolve(msg.result!);
-        }
-      } else if (msg.type === 'layout') {
-        const pending = pendingLayout.get(msg.id);
-        if (pending) {
-          pendingLayout.delete(msg.id);
-          if (msg.error) pending.reject(new Error(msg.error));
-          else pending.resolve(msg.result!);
-        }
-      }
-    };
-    worker.onerror = (e) => {
-      console.error('Computation worker error:', e);
-      // Reject all pending requests
-      for (const [, p] of pendingDerive) p.reject(new Error('Worker error'));
-      for (const [, p] of pendingLayout) p.reject(new Error('Worker error'));
-      pendingDerive.clear();
-      pendingLayout.clear();
-      // Recreate on next use
-      worker?.terminate();
-      worker = null;
-    };
-  }
-  return worker;
+function spawnWorker(): Worker {
+  return new Worker(
+    new URL('../workers/computation.worker.ts', import.meta.url),
+    { type: 'module' },
+  );
+}
+
+function getDeriveWorker(): Worker {
+  if (deriveWorker) return deriveWorker;
+  const w = spawnWorker();
+  w.onmessage = (e: MessageEvent<WorkerResponse>) => {
+    const msg = e.data;
+    if (msg.type !== 'derive') return;
+    const pending = pendingDerive.get(msg.id);
+    if (!pending) return;
+    pendingDerive.delete(msg.id);
+    if (msg.error) pending.reject(new Error(msg.error));
+    else pending.resolve(msg.result!);
+  };
+  w.onerror = (e) => {
+    console.error('Derive worker error:', e);
+    for (const [, p] of pendingDerive) p.reject(new Error('Worker error'));
+    pendingDerive.clear();
+    deriveWorker?.terminate();
+    deriveWorker = null;
+  };
+  deriveWorker = w;
+  return w;
+}
+
+function getLayoutWorker(): Worker {
+  if (layoutWorker) return layoutWorker;
+  const w = spawnWorker();
+  w.onmessage = (e: MessageEvent<WorkerResponse>) => {
+    const msg = e.data;
+    if (msg.type !== 'layout') return;
+    const pending = pendingLayout.get(msg.id);
+    if (!pending) return;
+    pendingLayout.delete(msg.id);
+    if (msg.error) pending.reject(new Error(msg.error));
+    else pending.resolve(msg.result!);
+  };
+  w.onerror = (e) => {
+    console.error('Layout worker error:', e);
+    for (const [, p] of pendingLayout) p.reject(new Error('Worker error'));
+    pendingLayout.clear();
+    layoutWorker?.terminate();
+    layoutWorker = null;
+  };
+  layoutWorker = w;
+  return w;
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 export function deriveModel(gltfJson: object): Promise<DeriveResult> {
   const id = ++nextId;
-  const w = getWorker();
-  // Structured clone cannot handle Vue reactive proxies — strip them.
+  const w = getDeriveWorker();
   const plain = JSON.parse(JSON.stringify(gltfJson));
   return new Promise<DeriveResult>((resolve, reject) => {
     pendingDerive.set(id, { resolve, reject });
@@ -126,9 +142,7 @@ export function computeLayouts(
   config: ConfigInput,
 ): Promise<{ layouts: BoardLayout[]; leftovers: BoardLayoutLeftover[] }> {
   const id = ++nextId;
-  const w = getWorker();
-  // Structured clone cannot handle Vue reactive proxies or class instances —
-  // round-trip through JSON to get plain objects.
+  const w = getLayoutWorker();
   const plainParts = JSON.parse(JSON.stringify(parts));
   const plainConfig = JSON.parse(JSON.stringify(config));
   return new Promise((resolve, reject) => {
@@ -141,4 +155,20 @@ export function computeLayouts(
       config: plainConfig,
     } satisfies LayoutRequest);
   });
+}
+
+/**
+ * Terminate the layout worker, cancelling any in-flight or queued layout job.
+ * Pending promises reject with an AbortError; callers that guard on their own
+ * requestVersion will silently drop the rejection. A fresh worker is spawned
+ * lazily on the next `computeLayouts` call.
+ */
+export function cancelLayouts(): void {
+  if (!layoutWorker) return;
+  layoutWorker.terminate();
+  layoutWorker = null;
+  const err = new Error('Cancelled');
+  err.name = 'AbortError';
+  for (const [, p] of pendingLayout) p.reject(err);
+  pendingLayout.clear();
 }

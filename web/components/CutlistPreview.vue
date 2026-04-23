@@ -95,18 +95,6 @@ const filteredLeftovers = computed(() => {
       </div>
     </div>
 
-    <!-- Computing overlay (when recomputing with stale data visible) -->
-    <div
-      v-if="isComputing && data"
-      class="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-overlay backdrop-blur border border-subtle rounded-lg px-3 py-1.5"
-    >
-      <UIcon
-        name="i-lucide-loader-2"
-        class="w-3.5 h-3.5 animate-spin text-teal-400"
-      />
-      <span class="text-xs text-muted">Updating&hellip;</span>
-    </div>
-
     <!-- Settings toolbar -->
     <div
       class="absolute top-3 left-3 z-10 bg-overlay backdrop-blur border border-subtle rounded-lg px-3 py-2"

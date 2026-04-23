@@ -2,6 +2,7 @@
 import type { PdfScale } from '~/utils/exportPdf';
 
 const { download, isExporting, error, canExport } = useExportPdf();
+const { isComputing } = useBoardLayoutsQuery();
 
 const isOpen = ref(false);
 const scale = ref<PdfScale>(10);
@@ -23,11 +24,15 @@ async function onDownload() {
 <template>
   <div>
     <UButton
-      title="Export BOM and board layouts as a PDF"
+      :title="
+        isComputing
+          ? 'Waiting for layout to finish computing…'
+          : 'Export BOM and board layouts as a PDF'
+      "
       icon="i-lucide-file-down"
       color="neutral"
       size="sm"
-      :disabled="!canExport"
+      :disabled="!canExport || isComputing"
       @click="isOpen = true"
     >
       Print
@@ -79,7 +84,7 @@ async function onDownload() {
           <div class="flex flex-row-reverse gap-2">
             <UButton
               :loading="isExporting"
-              :disabled="!canExport"
+              :disabled="!canExport || isComputing"
               @click="onDownload"
             >
               Download

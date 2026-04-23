@@ -7,16 +7,16 @@ const items = computed(() => [
     onSelect: () => void (tab.value = 'bom'),
   },
   {
-    label: 'Model',
-    icon: 'i-lucide-box',
-    active: tab.value === 'model',
-    onSelect: () => void (tab.value = 'model'),
-  },
-  {
     label: 'Layout',
     icon: 'i-lucide-layers',
     active: tab.value === 'layout',
     onSelect: () => void (tab.value = 'layout'),
+  },
+  {
+    label: 'Model',
+    icon: 'i-lucide-box',
+    active: tab.value === 'model',
+    onSelect: () => void (tab.value = 'model'),
   },
   {
     label: 'Build',
@@ -40,6 +40,7 @@ const items = computed(() => [
 
 const tab = useProjectTab();
 const { activeProject } = useProjects();
+const { isComputing } = useBoardLayoutsQuery();
 </script>
 
 <template>
@@ -54,6 +55,26 @@ const { activeProject } = useProjects();
           color="neutral"
           class="pl-2 flex-1 min-w-0"
         />
+        <Transition
+          enter-active-class="transition-opacity duration-150"
+          enter-from-class="opacity-0"
+          enter-to-class="opacity-100"
+          leave-active-class="transition-opacity duration-150"
+          leave-from-class="opacity-100"
+          leave-to-class="opacity-0"
+        >
+          <span
+            v-if="isComputing"
+            class="shrink-0 flex items-center gap-1.5 mr-3 text-xs text-muted"
+            title="Recomputing layouts"
+          >
+            <UIcon
+              name="i-lucide-loader-2"
+              class="w-3.5 h-3.5 animate-spin text-teal-400"
+            />
+            <span class="hidden sm:inline">Updating&hellip;</span>
+          </span>
+        </Transition>
         <ExportPdfButton class="shrink-0 mr-2" />
       </div>
     </header>

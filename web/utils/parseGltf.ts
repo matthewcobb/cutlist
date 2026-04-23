@@ -78,6 +78,12 @@ const PRECISION = 1e-6;
 /** Coarser tolerance for grouping — parts within 0.1mm are the same cut. */
 const GROUP_PRECISION = 1e-4;
 
+/**
+ * Bump whenever `deriveFromGltf` output shape or semantics change. Persisted
+ * derive caches with a lower version are discarded and re-derived on load.
+ */
+export const DERIVE_VERSION = 1;
+
 /** Derive parts, colors, and node mapping from a raw GLTF JSON object. */
 export function deriveFromGltf(gltfJson: object): DeriveResult {
   const gltf = gltfJson as Gltf;
