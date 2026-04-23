@@ -154,14 +154,23 @@ Both model types use `partOverrides: Record<number, PartOverride>` for user edit
 
 ### Layout cache
 
-Board layouts are cached per-project in the `layoutCache` IDB store, keyed by `projectId`. Each entry stores a fingerprint over `{parts, stock, config}` (FNV-1a hash via [web/utils/fingerprint.ts](web/utils/fingerprint.ts)). Exact fingerprint match skips the worker entirely; mismatch triggers a recompute (with the stale result shown SWR-style during compute). Invalidation is automatic — no manual cache-busting needed.
+Board layouts are cached per-project in the `layoutCache` IDB store, keyed by `projectId`. Each entry stores a versioned fingerprint over `{parts, stock, config}` (FNV-1a hash via [web/utils/fingerprint.ts](web/utils/fingerprint.ts)) plus a `cacheVersion` field matching `LAYOUT_CACHE_VERSION`. On read, entries with a mismatched `cacheVersion` are treated as cache misses. Exact fingerprint match skips the worker entirely; mismatch triggers a recompute (with the stale result shown SWR-style during compute).
+
+### Versioning policy (three independent version numbers)
+
+| Version constant       | File            | Bump when                                                       |
+| ---------------------- | --------------- | --------------------------------------------------------------- |
+| `SCHEMA_VERSION`       | `migrations.ts` | Any IDB record type's fields change                             |
+| `LAYOUT_CACHE_VERSION` | `migrations.ts` | Packing algorithm output, scoring, or ConfigInput shape changes |
+| `DERIVE_VERSION`       | `parseGltf.ts`  | `deriveFromGltf` output shape or semantics change               |
 
 ### Migrations (`web/utils/migrations.ts`)
 
-Currently at `SCHEMA_VERSION = 2` (one migration: v2 adds `derivedCache` to models). The infrastructure:
+Currently at `SCHEMA_VERSION = 1` (production baseline, clean slate). The infrastructure:
 
 - **`SCHEMA_VERSION`** — bump when any record type's fields change.
-- **Startup sweep** — on app init, migrates all stored records to current schema.
+- **Atomic startup sweep** — on app init, migrates all stores in a single IDB transaction. If any migration throws, the entire transaction rolls back.
+- **Forward-version detection** — if the stored schema version is higher than the running code, the app throws `FutureSchemaError` instead of silently corrupting data.
 - **`applyDefaults`** in `useIdb.ts` — safety net on read paths.
 - **`migrateExport`** — applies same migrations to imported `.cutlist.gz` files.
 
@@ -173,6 +182,12 @@ Currently at `SCHEMA_VERSION = 2` (one migration: v2 adds `derivedCache` to mode
 4. Update the matching `applyDefaults` function in `useIdb.ts`
 5. Update `createX` to set the field for new records
 6. Add a test in `utils/__tests__/migrations.test.ts`
+
+### IDB error handling
+
+- **QuotaExceededError**: all writes go through `safeWrite()` which catches quota errors and sets `useIdbErrors().error` so the UI can show a toast.
+- **Multi-tab**: a `BroadcastChannel('cutlist-idb')` notifies other tabs of data changes. Last-write-wins semantics.
+- **Import validation**: all `.cutlist.gz` imports are validated against strict Zod schemas in `projectImport.ts` before touching IDB.
 
 ## Key Config Files
 

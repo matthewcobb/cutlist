@@ -10,7 +10,8 @@ import {
   cancelLayouts,
   computeLayouts,
 } from '~/composables/useComputationWorker';
-import { fingerprint } from '~/utils/fingerprint';
+import { versionedFingerprint } from '~/utils/fingerprint';
+import { LAYOUT_CACHE_VERSION } from '~/utils/migrations';
 
 type LayoutResult = {
   layouts: BoardLayout[];
@@ -132,7 +133,11 @@ export default createSharedComposable(() => {
         precision: 1e-5,
       };
 
-      const inputFp = fingerprint({ parts: partsVal, stock: st, config });
+      const inputFp = versionedFingerprint({
+        parts: partsVal,
+        stock: st,
+        config,
+      });
       const version = ++requestVersion;
 
       // Cache lookup: mem first, then IDB (populating mem on the way).
@@ -189,6 +194,7 @@ export default createSharedComposable(() => {
           .putLayoutCache({
             projectId,
             fingerprint: inputFp,
+            cacheVersion: LAYOUT_CACHE_VERSION,
             layouts: result.layouts,
             leftovers: result.leftovers,
             savedAt: new Date().toISOString(),

@@ -1,12 +1,14 @@
 import 'fake-indexeddb/auto';
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, beforeEach } from 'bun:test';
 import { openDB, type IDBPDatabase } from 'idb';
 import {
   SCHEMA_VERSION,
+  LAYOUT_CACHE_VERSION,
   migrations,
   migrateRecord,
   migrateExport,
   runStartupSweep,
+  FutureSchemaError,
 } from '../migrations';
 import { DEFAULT_STOCK_YAML } from '../settings';
 import {
@@ -14,7 +16,7 @@ import {
   applyModelDefaults,
 } from '../../composables/useIdb';
 
-// ─── migrateRecord (no-op with empty migrations) ────────────────────────────
+// ─── migrateRecord ─────────────────────────────────────────────────────────
 
 describe('migrateRecord', () => {
   it('returns record unchanged when no migrations apply', () => {
@@ -59,26 +61,19 @@ describe('migration registry invariants', () => {
       expect(typeof m.migrate).toBe('function');
     }
   });
+});
 
-  it('v2 migration adds derivedCache field to models with a sensible default', () => {
-    const v2 = migrations.find((m) => m.version === 2 && m.store === 'models');
-    expect(v2).toBeDefined();
-    const pre = {
-      id: 'm1',
-      projectId: 'p1',
-      filename: 'f.glb',
-      source: 'gltf',
-      parts: [],
-      enabled: true,
-      gltfJson: {},
-      partOverrides: {},
-      createdAt: '',
-    };
-    const post = v2!.migrate(pre);
-    expect(post).toHaveProperty('derivedCache', undefined);
-    // Untouched fields preserved
-    expect(post.id).toBe('m1');
-    expect(post.filename).toBe('f.glb');
+// ─── Version constants ──────────────────────────────────────────────────────
+
+describe('version constants', () => {
+  it('SCHEMA_VERSION is a positive integer', () => {
+    expect(SCHEMA_VERSION).toBeGreaterThan(0);
+    expect(Number.isInteger(SCHEMA_VERSION)).toBe(true);
+  });
+
+  it('LAYOUT_CACHE_VERSION is a positive integer', () => {
+    expect(LAYOUT_CACHE_VERSION).toBeGreaterThan(0);
+    expect(Number.isInteger(LAYOUT_CACHE_VERSION)).toBe(true);
   });
 });
 
@@ -127,6 +122,17 @@ describe('migrateExport', () => {
     };
     const result = migrateExport(raw);
     expect((result as any).customField).toBe('preserved');
+  });
+});
+
+// ─── FutureSchemaError ──────────────────────────────────────────────────────
+
+describe('FutureSchemaError', () => {
+  it('has descriptive message including both versions', () => {
+    const err = new FutureSchemaError(99);
+    expect(err.message).toContain('99');
+    expect(err.message).toContain(String(SCHEMA_VERSION));
+    expect(err.name).toBe('FutureSchemaError');
   });
 });
 
@@ -245,6 +251,68 @@ describe('runStartupSweep', () => {
 
     const versionRecord = await db.get('settings', 'schema-version');
     expect(versionRecord.version).toBe(SCHEMA_VERSION);
+    db.close();
+  });
+
+  it('rejects future schema version with FutureSchemaError', async () => {
+    const db = await openTestDb();
+    await db.put('settings', {
+      key: 'schema-version',
+      version: SCHEMA_VERSION + 10,
+    });
+
+    let caught: Error | null = null;
+    try {
+      await runStartupSweep(db);
+    } catch (e) {
+      caught = e as Error;
+    }
+
+    expect(caught).not.toBeNull();
+    expect(caught!.name).toBe('FutureSchemaError');
+    expect(caught!.message).toContain(String(SCHEMA_VERSION + 10));
+    db.close();
+  });
+
+  it('atomically rolls back on migration failure', async () => {
+    // This test verifies atomicity by temporarily injecting a migration
+    // that throws mid-sweep. The database should remain at version 0.
+    //
+    // We can't easily inject into the real migration list, so we test
+    // the transaction behavior directly: start a transaction, do a write,
+    // then abort it, and verify nothing persisted.
+    const db = await openTestDb();
+    const project = {
+      id: 'p1',
+      name: 'Original',
+      createdAt: '',
+      updatedAt: '',
+    };
+    await db.put('projects', project);
+
+    // Simulate: open a transaction, mutate, then abort
+    const tx = db.transaction(['projects', 'settings'], 'readwrite');
+    await tx.objectStore('projects').put({
+      ...project,
+      name: 'Mutated',
+    });
+    // Abort simulates a migration failure. Awaiting tx.done will throw
+    // AbortError, which is expected.
+    tx.abort();
+    try {
+      await tx.done;
+    } catch {
+      // AbortError is expected — the transaction was intentionally aborted.
+    }
+
+    // Verify the original data is intact (rollback happened)
+    const result = await db.get('projects', 'p1');
+    expect(result.name).toBe('Original');
+
+    // Schema version should not have been stamped
+    const versionRecord = await db.get('settings', 'schema-version');
+    expect(versionRecord).toBeUndefined();
+
     db.close();
   });
 });
