@@ -1,17 +1,13 @@
 <script lang="ts" setup>
 import { parseGltf } from '~/utils/parseGltf';
-import { groupPartsByNumber } from '~/lib/utils/bom-utils';
 import { parseStock } from '~/utils/parseStock';
 import { cycleGrainLock } from '~/utils/grain';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
-import {
-  STORAGE_KEYS,
-  getLocalStorageJson,
-  setLocalStorageJson,
-} from '~/utils/localStorage';
+import { STORAGE_KEYS } from '~/utils/localStorage';
 import type { ManualPartInput } from '~/composables/useProjects';
+import type { BomRow } from '~/composables/useBomRows';
+import type { SortKey } from '~/composables/useBomFilter';
 
-const { data } = useBoardLayoutsQuery();
 const {
   activeProject,
   activeId,
@@ -33,54 +29,24 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const tab = useProjectTab();
 const modelViewer = useModelViewerStore();
 
+// ── BOM rows & filter (extracted composables) ────────────────────────────────
+
+const {
+  allRows,
+  totalParts,
+  materialNames,
+  warningCount,
+  showModelColumn,
+  manualPartNumbers,
+} = useBomRows();
+const { search, sortKey, sortDir, toggleSort, filteredGroups } = useBomFilter(
+  activeId,
+  allRows,
+);
+
 // ── UI state ─────────────────────────────────────────────────────────────────
 
 const modelsExpanded = ref(true);
-
-// ── Persisted BOM filter/sort state ─────────────────────────────────────────
-
-type SortKey = 'number' | 'name' | 'qty' | 'thickness' | 'width' | 'length';
-interface BomFilter {
-  search: string;
-  sortKey: SortKey;
-  sortDir: 'asc' | 'desc';
-}
-const SORT_KEYS = new Set<SortKey>([
-  'number',
-  'name',
-  'qty',
-  'thickness',
-  'width',
-  'length',
-]);
-
-function loadBomFilter(): BomFilter {
-  if (!activeId.value) return { search: '', sortKey: 'number', sortDir: 'asc' };
-  const stored = getLocalStorageJson<Partial<BomFilter>>(
-    STORAGE_KEYS.ui.projectBomFilter(activeId.value),
-  );
-  return {
-    search: typeof stored?.search === 'string' ? stored.search : '',
-    sortKey: SORT_KEYS.has(stored?.sortKey as SortKey)
-      ? (stored!.sortKey as SortKey)
-      : 'number',
-    sortDir: stored?.sortDir === 'desc' ? 'desc' : 'asc',
-  };
-}
-
-const restored = loadBomFilter();
-const search = ref(restored.search);
-const sortKey = ref<SortKey>(restored.sortKey);
-const sortDir = ref<'asc' | 'desc'>(restored.sortDir);
-
-watch([search, sortKey, sortDir], () => {
-  if (!activeId.value) return;
-  setLocalStorageJson(STORAGE_KEYS.ui.projectBomFilter(activeId.value), {
-    search: search.value,
-    sortKey: sortKey.value,
-    sortDir: sortDir.value,
-  });
-});
 const showAddForm = ref(false);
 const editingPartNumber = ref<number | null>(null);
 const renamingPartNumber = ref<number | null>(null);
@@ -187,24 +153,6 @@ const manualPartOffset = computed(() => {
   return 0;
 });
 
-const manualPartNumbers = computed(() => {
-  const models = enabledModels.value;
-  const offsets = computePartNumberOffsets(models);
-  const set = new Set<number>();
-  for (let i = 0; i < models.length; i++) {
-    if (models[i].source === 'manual') {
-      const seen = new Set<number>();
-      for (const part of models[i].parts) {
-        if (!seen.has(part.partNumber)) {
-          set.add(part.partNumber + offsets[i]);
-          seen.add(part.partNumber);
-        }
-      }
-    }
-  }
-  return set;
-});
-
 const manualPartInfoMap = computed(() => {
   const model = manualModel.value;
   if (!model)
@@ -234,134 +182,6 @@ const manualPartInfoMap = computed(() => {
 function getManualEditInfo(adjustedPn: number) {
   return manualPartInfoMap.value.get(adjustedPn - manualPartOffset.value);
 }
-
-// ── BOM rows ─────────────────────────────────────────────────────────────────
-
-interface BomRow {
-  number: number;
-  name: string;
-  modelId: string;
-  modelName: string;
-  qty: number;
-  material: string;
-  thicknessM: number;
-  widthM: number;
-  lengthM: number;
-  grainLock?: 'length' | 'width';
-  leftoverCount: number;
-  isManual: boolean;
-}
-
-function modelDisplayName(model: {
-  filename: string;
-  source: 'gltf' | 'manual';
-}): string {
-  const filename = model.filename.trim();
-  if (filename) return filename;
-  return model.source === 'manual' ? 'Manual Parts' : 'Model';
-}
-
-const modelByPartNumber = computed(() => {
-  const models = enabledModels.value;
-  const offsets = computePartNumberOffsets(models);
-  const map = new Map<number, { id: string; name: string }>();
-  for (let i = 0; i < models.length; i++) {
-    const label = modelDisplayName(models[i]);
-    const seen = new Set<number>();
-    for (const part of models[i].parts) {
-      if (seen.has(part.partNumber)) continue;
-      map.set(part.partNumber + offsets[i], {
-        id: models[i].id,
-        name: label,
-      });
-      seen.add(part.partNumber);
-    }
-  }
-  return map;
-});
-
-const allRows = computed<BomRow[]>(() => {
-  // Use packing engine results when available (authoritative)
-  if (data.value != null) {
-    const leftoverCounts = new Map<number, number>();
-    for (const l of data.value.leftovers) {
-      leftoverCounts.set(
-        l.partNumber,
-        (leftoverCounts.get(l.partNumber) ?? 0) + 1,
-      );
-    }
-    return groupPartsByNumber(
-      data.value.layouts.flatMap((l) => l.placements),
-      data.value.leftovers,
-    ).map((instanceList) => {
-      const part = instanceList[0];
-      const model = modelByPartNumber.value.get(part.partNumber);
-      return {
-        number: part.partNumber,
-        name: part.name,
-        modelId: model?.id ?? '',
-        modelName: model?.name ?? '',
-        qty: instanceList.length,
-        material: part.material,
-        thicknessM: part.thicknessM,
-        widthM: part.widthM,
-        lengthM: part.lengthM,
-        grainLock: part.grainLock,
-        leftoverCount: leftoverCounts.get(part.partNumber) ?? 0,
-        isManual: manualPartNumbers.value.has(part.partNumber),
-      };
-    });
-  }
-
-  // Fallback: build from raw model parts when engine hasn't run
-  const project = activeProject.value;
-  if (!project) return [];
-  const models = enabledModels.value;
-  if (models.length === 0) return [];
-
-  const offsets = computePartNumberOffsets(models);
-  const excluded = new Set(project.excludedColors ?? []);
-  const groups = new Map<number, BomRow>();
-
-  for (let i = 0; i < models.length; i++) {
-    const isManual = models[i].source === 'manual';
-    const byPn = new Map<number, (typeof models)[0]['parts'][number][]>();
-    for (const part of models[i].parts) {
-      if (excluded.has(part.colorKey)) continue;
-      const list = byPn.get(part.partNumber) ?? [];
-      list.push(part);
-      byPn.set(part.partNumber, list);
-    }
-    for (const [pn, parts] of byPn) {
-      groups.set(pn + offsets[i], {
-        number: pn + offsets[i],
-        name: parts[0].name,
-        modelId: models[i].id,
-        modelName: modelDisplayName(models[i]),
-        material: project.colorMap[parts[0].colorKey] ?? parts[0].colorKey,
-        qty: parts.length,
-        thicknessM: parts[0].size.thickness,
-        widthM: parts[0].size.width,
-        lengthM: parts[0].size.length,
-        grainLock: parts[0].grainLock,
-        leftoverCount: 0,
-        isManual,
-      });
-    }
-  }
-
-  return [...groups.values()].sort((a, b) => a.number - b.number);
-});
-
-// ── Summary ──────────────────────────────────────────────────────────────────
-
-const totalParts = computed(() => allRows.value.reduce((s, r) => s + r.qty, 0));
-const materialNames = computed(() => [
-  ...new Set(allRows.value.map((r) => r.material)),
-]);
-const warningCount = computed(
-  () => allRows.value.filter((r) => r.leftoverCount > 0).length,
-);
 
 const gltfModels = computed(
   () => activeProject.value?.models.filter((m) => m.source !== 'manual') ?? [],
@@ -396,41 +216,7 @@ function formatDim(m: number | undefined | null): string {
   return distanceUnit.value === 'mm' ? s.replace(/mm$/, '') : s;
 }
 
-// ── Sorting ──────────────────────────────────────────────────────────────────
-
-function toggleSort(key: SortKey) {
-  if (sortKey.value === key) {
-    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
-  } else {
-    sortKey.value = key;
-    sortDir.value = 'asc';
-  }
-}
-
-function sortCompare(a: BomRow, b: BomRow): number {
-  let cmp = 0;
-  switch (sortKey.value) {
-    case 'number':
-      cmp = a.number - b.number;
-      break;
-    case 'name':
-      cmp = a.name.localeCompare(b.name);
-      break;
-    case 'qty':
-      cmp = a.qty - b.qty;
-      break;
-    case 'thickness':
-      cmp = a.thicknessM - b.thicknessM;
-      break;
-    case 'width':
-      cmp = a.widthM - b.widthM;
-      break;
-    case 'length':
-      cmp = a.lengthM - b.lengthM;
-      break;
-  }
-  return sortDir.value === 'desc' ? -cmp : cmp;
-}
+const tableColspan = computed(() => (showModelColumn.value ? 9 : 8));
 
 function isInteractiveTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -461,47 +247,6 @@ function clearBomHover() {
 function openModelTab() {
   tab.value = 'model';
 }
-
-// ── Filtered + grouped ───────────────────────────────────────────────────────
-
-interface MaterialGroup {
-  material: string;
-  rows: BomRow[];
-  totalParts: number;
-}
-
-const filteredGroups = computed<MaterialGroup[]>(() => {
-  let filtered = allRows.value;
-  const q = search.value.trim().toLowerCase();
-  if (q) {
-    filtered = filtered.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.modelName.toLowerCase().includes(q) ||
-        r.material.toLowerCase().includes(q) ||
-        String(r.number).includes(q),
-    );
-  }
-  filtered = [...filtered].sort(sortCompare);
-
-  const map = new Map<string, BomRow[]>();
-  for (const row of filtered) {
-    const list = map.get(row.material) ?? [];
-    list.push(row);
-    map.set(row.material, list);
-  }
-  return [...map.entries()].map(([material, rows]) => ({
-    material,
-    rows,
-    totalParts: rows.reduce((s, r) => s + r.qty, 0),
-  }));
-});
-
-const showModelColumn = computed(
-  () =>
-    new Set(allRows.value.map((row) => row.modelId).filter(Boolean)).size > 1,
-);
-const tableColspan = computed(() => (showModelColumn.value ? 9 : 8));
 
 // ── Manual part actions ──────────────────────────────────────────────────────
 
@@ -580,6 +325,7 @@ onUnmounted(() => {
       accept=".gltf"
       multiple
       class="hidden"
+      aria-label="Import GLTF model files"
       @change="onFileChange"
     />
 
@@ -621,6 +367,8 @@ onUnmounted(() => {
             <button
               type="button"
               class="flex items-center gap-2 w-full p-3 text-left hover:bg-surface transition-colors"
+              :aria-expanded="modelsExpanded"
+              aria-label="Toggle models panel"
               @click="modelsExpanded = !modelsExpanded"
             >
               <UIcon
@@ -867,6 +615,7 @@ onUnmounted(() => {
             <table
               v-if="filteredGroups.length > 0"
               class="w-full text-sm border-separate border-spacing-0"
+              aria-label="Bill of materials"
             >
               <thead
                 class="sticky top-0 z-10 bg-base shadow-[inset_0_-1px_0_var(--color-mist-800)]"
@@ -874,7 +623,18 @@ onUnmounted(() => {
                 <tr>
                   <th
                     class="pl-5 pr-4 py-2.5 text-left text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-14"
+                    :aria-sort="
+                      sortKey === 'number'
+                        ? sortDir === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    "
                     @click="toggleSort('number')"
+                    @keydown.enter.prevent="toggleSort('number')"
+                    @keydown.space.prevent="toggleSort('number')"
+                    tabindex="0"
+                    role="columnheader"
                   >
                     <span class="inline-flex items-center gap-0.5">
                       #
@@ -891,7 +651,18 @@ onUnmounted(() => {
                   </th>
                   <th
                     class="px-4 py-2.5 text-left text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors"
+                    :aria-sort="
+                      sortKey === 'name'
+                        ? sortDir === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    "
                     @click="toggleSort('name')"
+                    @keydown.enter.prevent="toggleSort('name')"
+                    @keydown.space.prevent="toggleSort('name')"
+                    tabindex="0"
+                    role="columnheader"
                   >
                     <span class="inline-flex items-center gap-0.5">
                       Name
@@ -914,7 +685,18 @@ onUnmounted(() => {
                   </th>
                   <th
                     class="px-4 py-2.5 text-right text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-14"
+                    :aria-sort="
+                      sortKey === 'qty'
+                        ? sortDir === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    "
                     @click="toggleSort('qty')"
+                    @keydown.enter.prevent="toggleSort('qty')"
+                    @keydown.space.prevent="toggleSort('qty')"
+                    tabindex="0"
+                    role="columnheader"
                   >
                     <span class="inline-flex items-center justify-end gap-0.5">
                       QTY
@@ -931,7 +713,18 @@ onUnmounted(() => {
                   </th>
                   <th
                     class="px-4 py-2.5 text-right text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-18"
+                    :aria-sort="
+                      sortKey === 'thickness'
+                        ? sortDir === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    "
                     @click="toggleSort('thickness')"
+                    @keydown.enter.prevent="toggleSort('thickness')"
+                    @keydown.space.prevent="toggleSort('thickness')"
+                    tabindex="0"
+                    role="columnheader"
                   >
                     <span class="inline-flex items-center justify-end gap-0.5">
                       T
@@ -948,7 +741,18 @@ onUnmounted(() => {
                   </th>
                   <th
                     class="px-4 py-2.5 text-right text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-22"
+                    :aria-sort="
+                      sortKey === 'width'
+                        ? sortDir === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    "
                     @click="toggleSort('width')"
+                    @keydown.enter.prevent="toggleSort('width')"
+                    @keydown.space.prevent="toggleSort('width')"
+                    tabindex="0"
+                    role="columnheader"
                   >
                     <span class="inline-flex items-center justify-end gap-0.5">
                       W
@@ -965,7 +769,18 @@ onUnmounted(() => {
                   </th>
                   <th
                     class="px-4 py-2.5 text-right text-xs font-medium text-muted tracking-wide cursor-pointer select-none hover:text-body transition-colors w-22"
+                    :aria-sort="
+                      sortKey === 'length'
+                        ? sortDir === 'asc'
+                          ? 'ascending'
+                          : 'descending'
+                        : 'none'
+                    "
                     @click="toggleSort('length')"
+                    @keydown.enter.prevent="toggleSort('length')"
+                    @keydown.space.prevent="toggleSort('length')"
+                    tabindex="0"
+                    role="columnheader"
                   >
                     <span class="inline-flex items-center justify-end gap-0.5">
                       L
@@ -1108,6 +923,13 @@ onUnmounted(() => {
                         <button
                           v-if="activeId"
                           type="button"
+                          :aria-label="
+                            row.grainLock === 'length'
+                              ? 'Grain locked to length. Click to lock width.'
+                              : row.grainLock === 'width'
+                                ? 'Grain locked to width. Click to unlock.'
+                                : 'Grain unlocked. Click to lock grain.'
+                          "
                           :title="
                             row.grainLock === 'length'
                               ? 'Length with grain (\u2195) \u2014 click to lock width'
@@ -1248,6 +1070,9 @@ onUnmounted(() => {
 
       <template v-if="activeProject && hasModelPreview">
         <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize preview panel"
           class="relative w-3 shrink-0 cursor-col-resize select-none group"
           @mousedown="startPreviewResize"
         >

@@ -23,16 +23,23 @@ export interface ExportPdfOptions {
   measurements?: RulerMeasurement[];
 }
 
-// 1 mm in PDF points
+/**
+ * Conversion factor: 1 mm = 72/25.4 PDF points (ISO 32000-1, 1 pt = 1/72 in).
+ */
 const MM = 2.83464566929;
 
-// A4 dimensions in mm
+/** ISO 216 A4 width in mm. */
 const A4_W_MM = 210;
+/** ISO 216 A4 height in mm. */
 const A4_H_MM = 297;
 
+/** Vertical space reserved for the page header (title + date + rule). */
 const HEADER_BAND_MM = 12;
+/** Vertical space reserved below the content area (currently unused). */
 const FOOTER_BAND_MM = 0;
+/** Vertical space for the per-board material/size subtitle line. */
 const BOARD_TITLE_BAND_MM = 8;
+/** Horizontal space reserved for a side legend column (currently unused). */
 const LEGEND_BAND_MM = 0;
 
 interface BomRow {
@@ -525,12 +532,17 @@ function drawBoardTilePage(
       color: rgb(1, 1, 1),
     });
     if (showPartNumbers) {
-      // Font size mirrors PartListItem.vue:17-22 — half part width, capped at
-      // ~1 inch (real). Then convert via scale to paper size.
-      const realCapM = Math.min(placement.widthM / 2, 0.0254);
+      // Part number sizing: half part width, capped at 1 inch real-world
+      // (matches PartListItem.vue), then scaled to paper coordinates.
+      const ONE_INCH_M = 0.0254;
+      const realCapM = Math.min(placement.widthM / 2, ONE_INCH_M);
       const fontPt = ((realCapM * 1000) / scale) * MM;
-      const minPt = 4;
-      const usePt = Math.max(minPt, Math.min(fontPt, 14));
+      const MIN_PART_LABEL_PT = 4;
+      const MAX_PART_LABEL_PT = 14;
+      const usePt = Math.max(
+        MIN_PART_LABEL_PT,
+        Math.min(fontPt, MAX_PART_LABEL_PT),
+      );
       const label = String(placement.partNumber);
       const textW = ctx.font.widthOfTextAtSize(label, usePt);
       const lx = px + pw - textW - 2;

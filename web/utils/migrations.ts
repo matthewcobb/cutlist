@@ -47,12 +47,15 @@ export const LAYOUT_CACHE_VERSION = 1;
 
 type StoreName = 'projects' | 'models' | 'buildSteps' | 'settings';
 
+/** A loosely-typed IDB record (string-keyed object with unknown values). */
+export type IdbRecord = Record<string, unknown>;
+
 export interface RecordMigration {
   /** The version this migration brings records TO. */
   version: number;
   store: StoreName;
   /** Pure function: old record in, patched record out. */
-  migrate: (record: any) => any;
+  migrate: (record: IdbRecord) => IdbRecord;
 }
 
 /**
@@ -73,9 +76,9 @@ export const migrations: RecordMigration[] = [
 /** Apply all migrations for a store from `fromVersion` to SCHEMA_VERSION. */
 export function migrateRecord(
   store: StoreName,
-  record: any,
+  record: IdbRecord,
   fromVersion: number,
-): any {
+): IdbRecord {
   let result = record;
   for (const m of migrations) {
     if (m.store === store && m.version > fromVersion) {
@@ -208,11 +211,11 @@ export async function runStartupSweep(db: IDBPDatabase<any>): Promise<void> {
 
 interface RawExport {
   version?: number;
-  project?: any;
-  models?: any[];
-  buildSteps?: any[];
-  settings?: any;
-  [key: string]: any;
+  project?: IdbRecord;
+  models?: IdbRecord[];
+  buildSteps?: IdbRecord[];
+  settings?: IdbRecord;
+  [key: string]: unknown;
 }
 
 /**
@@ -234,11 +237,11 @@ export function migrateExport(raw: RawExport): RawExport {
     ? migrateRecord('projects', raw.project, fromVersion)
     : raw.project;
 
-  const models = (raw.models ?? []).map((m: any) =>
+  const models = (raw.models ?? []).map((m) =>
     migrateRecord('models', m, fromVersion),
   );
 
-  const buildSteps = (raw.buildSteps ?? []).map((s: any) =>
+  const buildSteps = (raw.buildSteps ?? []).map((s) =>
     migrateRecord('buildSteps', s, fromVersion),
   );
 

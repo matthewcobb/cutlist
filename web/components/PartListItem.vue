@@ -43,6 +43,9 @@ const { showPartNumbers } = useProjectSettings();
     class="absolute cursor-pointer"
     :class="{ 'is-hovered': isHovered }"
     :style="`bottom:${bottom};left:${left}`"
+    role="button"
+    tabindex="0"
+    :aria-label="`Part ${placement.partNumber}: ${placement.name}`"
   >
     <div
       class="overflow-hidden relative rounded-xs part-piece transition-colors"

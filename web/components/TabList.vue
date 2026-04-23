@@ -51,6 +51,8 @@ onBeforeUnmount(() => {
   <div class="relative flex items-stretch min-w-0">
     <ul
       ref="scroller"
+      role="tablist"
+      aria-label="Open projects"
       class="flex overflow-x-auto bg-base flex-1 min-w-0 scroll-px-8"
       @scroll="updateOverflow"
     >

@@ -272,23 +272,27 @@ function getDb(): Promise<IDBPDatabase<CutlistDb>> {
 
 // ─── Defensive defaults (safety net for records that missed a sweep) ─────────
 
-export function applyProjectDefaults(p: any): IdbProject {
+export function applyProjectDefaults(
+  p: Partial<IdbProject> & { id: string; name: string },
+): IdbProject {
   return {
     ...p,
     stock: p.stock ?? DEFAULT_STOCK_YAML,
     colorMap: p.colorMap ?? {},
     excludedColors: p.excludedColors ?? [],
     distanceUnit: p.distanceUnit ?? 'mm',
-  };
+  } as IdbProject;
 }
 
-export function applyModelDefaults(m: any): IdbModelMeta {
+export function applyModelDefaults(
+  m: Partial<IdbModelMeta> & { id: string; projectId: string },
+): IdbModelMeta {
   return {
     ...m,
     source: m.source ?? 'gltf',
     enabled: m.enabled ?? true,
     partOverrides: m.partOverrides ?? {},
-  };
+  } as IdbModelMeta;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -537,6 +541,12 @@ export function useIdb() {
     pendingModelPatches.set(id, { patch: merged, timer });
   }
 
+  /** Flush all pending debounced model writes immediately. Useful for tests. */
+  async function flushPendingModelWrites(): Promise<void> {
+    const ids = [...pendingModelPatches.keys()];
+    await Promise.all(ids.map((id) => flushModelWrite(id)));
+  }
+
   async function deleteModel(id: string): Promise<void> {
     const db = await getDb();
     await db.delete('models', id);
@@ -648,5 +658,6 @@ export function useIdb() {
     getLayoutCache,
     putLayoutCache,
     deleteLayoutCache,
+    flushPendingModelWrites,
   };
 }

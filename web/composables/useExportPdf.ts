@@ -38,7 +38,7 @@ export default function () {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error(err);
+      console.error('[exportPdf] PDF generation failed:', err);
       error.value = err instanceof Error ? err.message : 'Failed to export PDF';
     } finally {
       isExporting.value = false;

@@ -100,6 +100,7 @@ describe('manual model IDB round-trip', () => {
     await idb.updateModel(modelId, {
       partOverrides: { 1: { grainLock: 'width' } },
     });
+    await idb.flushPendingModelWrites();
 
     const full = await idb.getProjectWithModels(project.id);
     const meta = full!.models[0];

@@ -160,7 +160,11 @@ function createProject() {
 </script>
 
 <template>
-  <div class="flex items-stretch bg-base min-h-10">
+  <div
+    class="flex items-stretch bg-base min-h-10"
+    role="toolbar"
+    aria-label="Project toolbar"
+  >
     <div
       class="shrink-0 flex items-center px-3 border-r border-subtle select-none"
     >
@@ -207,6 +211,7 @@ function createProject() {
       <button
         class="flex items-center gap-1 px-2 py-1 rounded border border-teal-400/40 text-teal-400 hover:bg-teal-400/10 hover:border-teal-400/70 transition-colors text-xs font-medium"
         title="New project"
+        aria-label="New project"
         @click="openNewProject"
       >
         <UIcon name="i-lucide-plus" class="block shrink-0 w-3.5 h-3.5" />
@@ -218,6 +223,7 @@ function createProject() {
       v-if="activeId"
       class="shrink-0 px-3 flex items-center gap-1.5 border-l border-subtle text-muted hover:text-teal-400 transition-colors"
       title="Export project"
+      aria-label="Export project"
       @click="exportProject"
     >
       <UIcon name="i-lucide-download" class="block shrink-0 w-4 h-4" />
@@ -227,6 +233,7 @@ function createProject() {
     <button
       class="shrink-0 px-3 flex items-center gap-1.5 border-l border-subtle text-muted hover:text-teal-400 transition-colors"
       title="Import project"
+      aria-label="Import project"
       @click="pickAndImport"
     >
       <UIcon name="i-lucide-upload" class="block shrink-0 w-4 h-4" />
@@ -240,6 +247,9 @@ function createProject() {
           showHistory ? 'text-teal-400' : 'text-muted hover:text-teal-400'
         "
         title="Project history"
+        aria-label="Project history"
+        :aria-expanded="showHistory"
+        aria-haspopup="true"
         @click="showHistory ? closeHistory() : (showHistory = true)"
       >
         <UIcon name="i-lucide-clock" class="block shrink-0 w-4 h-4" />
@@ -356,6 +366,7 @@ function createProject() {
       <div
         v-if="showHistory"
         class="fixed inset-0 z-40"
+        aria-hidden="true"
         @click="closeHistory"
       />
     </div>

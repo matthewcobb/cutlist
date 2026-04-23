@@ -30,6 +30,8 @@ watch(
 <template>
   <li
     class="shrink-0 min-w-[8rem]"
+    role="tab"
+    :aria-selected="isActive"
     :data-tab-active="isActive ? 'true' : null"
     :class="
       isActive ? 'bg-gradient-to-b from-teal-400/30 to-transparent' : 'bg-base'
@@ -44,6 +46,7 @@ watch(
       <input
         v-if="editing"
         ref="renameInput"
+        aria-label="Rename project"
         class="max-w-[12rem] text-sm font-medium bg-transparent text-teal-400 outline-none border-b border-teal-400/50"
         :value="name"
         @keydown.enter.stop="
@@ -65,6 +68,7 @@ watch(
         class="ml-auto shrink-0 w-3.5 h-3.5 flex items-center justify-center hover:text-white transition-colors"
         :class="isActive ? 'text-white' : 'text-muted'"
         title="Close"
+        :aria-label="`Close ${name ?? 'tab'}`"
         @click.stop.prevent="emit('close')"
       >
         <UIcon name="i-lucide-x" class="block size-3.5" />
