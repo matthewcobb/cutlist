@@ -52,6 +52,16 @@ const filteredLayouts = computed(() => {
     (l) => stockKey(l.stock) === selectedStock.value,
   );
 });
+
+const filteredLeftovers = computed(() => {
+  if (!data.value) return [];
+  const leftovers = data.value.leftovers;
+  if (selectedStock.value === ALL) return leftovers;
+  return leftovers.filter((l) => {
+    const key = `${l.material}__${l.thicknessM}`;
+    return selectedStock.value.startsWith(key);
+  });
+});
 </script>
 
 <template>
@@ -69,7 +79,10 @@ const filteredLayouts = computed(() => {
         </p>
         <div v-else ref="container" class="canvas-plane">
           <div class="canvas-grid" />
-          <LayoutList :layouts="filteredLayouts" />
+          <LayoutList
+            :layouts="filteredLayouts"
+            :leftovers="filteredLeftovers"
+          />
         </div>
       </template>
     </div>
@@ -97,10 +110,12 @@ const filteredLayouts = computed(() => {
 
     <!-- Controls -->
     <div class="absolute bottom-4 right-4 flex gap-3 z-10">
-      <RulerToggle class="bg-default rounded-lg" />
+      <RulerToggle
+        class="bg-overlay backdrop-blur border border-subtle rounded-lg"
+      />
       <ScaleController
         v-if="scale != null"
-        class="bg-default rounded-lg"
+        class="bg-overlay backdrop-blur border border-subtle rounded-lg px-1"
         :scale="scale"
         @reset-zoom="resetZoom"
         @zoom-in="zoomIn"

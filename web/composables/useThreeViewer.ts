@@ -155,7 +155,7 @@ export default function useThreeViewer(
       if (fitDistance > 0) {
         const camDist = state.camera.position.distanceTo(state.controls.target);
         const scale = Math.max(0.3, Math.min(1, fitDistance / camDist));
-        state.edgeMaterial.linewidth = 4 * scale;
+        state.edgeMaterial.linewidth = 3 * scale;
       }
       state.renderer.render(state.scene, state.camera);
       needsRender = false;
@@ -211,7 +211,7 @@ export default function useThreeViewer(
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.25;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     const rect = el.getBoundingClientRect();
     renderer.setSize(rect.width, rect.height);
     el.appendChild(renderer.domElement);

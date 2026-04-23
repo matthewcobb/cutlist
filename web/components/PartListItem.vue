@@ -26,6 +26,13 @@ const fontSize = computed(() =>
   ),
 );
 
+/** Icon size scales with the smaller part dimension, clamped 14–28px */
+const iconSize = computed(() => {
+  const minDimM = Math.min(props.placement.widthM, props.placement.lengthM);
+  const raw = parseFloat(getPx(minDimM * 0.45));
+  return `${Math.max(14, Math.min(28, raw))}px`;
+});
+
 const { showPartNumbers } = useProjectSettings();
 const { activeId, updatePartGrainLock } = useProjects();
 
@@ -47,23 +54,39 @@ function onClickGrainLock() {
     @click="onClickGrainLock"
   >
     <div
-      class="overflow-hidden relative rounded-xs bg-mist-500 group-hover:bg-teal-500/30 transition-colors"
+      class="overflow-hidden relative rounded-xs part-piece transition-colors"
       :style="`width:${width};height:${height}`"
     >
       <p
         v-if="showPartNumbers"
-        class="w-full text-clip text-body group-hover:text-teal-400 text-right p-px"
+        class="w-full text-clip part-number text-right p-px font-semibold"
         :style="`font-size:${fontSize};line-height:${fontSize}`"
       >
         {{ placement.partNumber }}
       </p>
-      <!-- Grain lock indicator -->
+      <!-- Grain lock indicator (always visible when locked) -->
       <div
         v-if="placement.grainLock"
-        class="absolute bottom-0.5 left-0.5 flex items-center gap-px text-teal-400/80"
-        :style="`font-size:${fontSize};line-height:${fontSize}`"
+        class="absolute bottom-0.5 left-0.5 flex items-center gap-px part-grain"
       >
-        <span>{{ placement.grainLock === 'length' ? '↕' : '↔' }}</span>
+        <UIcon
+          :name="
+            placement.grainLock === 'length'
+              ? 'i-ri-arrow-up-down-line'
+              : 'i-ri-arrow-left-right-line'
+          "
+          :style="`width:${fontSize};height:${fontSize}`"
+        />
+      </div>
+      <!-- Rotation affordance on hover -->
+      <div
+        class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none"
+      >
+        <UIcon
+          name="i-ri-loop-left-line"
+          class="rotate-icon drop-shadow-md"
+          :style="`width:${iconSize};height:${iconSize}`"
+        />
       </div>
     </div>
     <Teleport to="body">
@@ -75,3 +98,45 @@ function onClickGrainLock() {
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+.part-piece {
+  background: var(--part-color, #67787c);
+}
+.group:hover .part-piece {
+  background: var(--part-hover, #67787c);
+}
+.part-number {
+  color: var(--part-text, #333);
+}
+.group:hover .part-number {
+  color: var(--part-text-hover, #111);
+}
+.part-grain {
+  color: var(--part-grain, #555);
+}
+.group:hover .part-grain {
+  color: var(--part-text-hover, #111);
+}
+
+.rotate-icon {
+  color: var(--part-text, #333);
+  animation: gentle-rock 1.8s ease-in-out infinite;
+}
+.group:hover .rotate-icon {
+  color: var(--part-text-hover, #111);
+}
+
+@keyframes gentle-rock {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  40% {
+    transform: rotate(35deg);
+  }
+  60% {
+    transform: rotate(25deg);
+  }
+}
+</style>

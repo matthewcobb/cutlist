@@ -14,7 +14,7 @@ const items = computed(() => [
   },
   {
     label: 'Layout',
-    icon: 'i-lucide-eye',
+    icon: 'i-lucide-layers',
     active: tab.value === 'preview',
     onSelect: () => void (tab.value = 'preview'),
   },
@@ -25,8 +25,8 @@ const items = computed(() => [
     onSelect: () => void (tab.value = 'instructions'),
   },
   {
-    label: 'Boards',
-    icon: 'i-lucide-layers',
+    label: 'Stock',
+    icon: 'i-lucide-warehouse',
     active: tab.value === 'boards',
     onSelect: () => void (tab.value = 'boards'),
   },

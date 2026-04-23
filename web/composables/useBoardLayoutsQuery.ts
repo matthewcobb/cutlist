@@ -9,7 +9,7 @@ import { parseStock } from '~/utils/parseStock';
 
 export default function () {
   const { activeProject, enabledModels } = useProjects();
-  const { bladeWidth, optimize, extraSpace, distanceUnit, stock } =
+  const { bladeWidth, optimize, margin, distanceUnit, stock } =
     useProjectSettings();
 
   const parts = computed<PartToCut[] | undefined>(() => {
@@ -42,7 +42,7 @@ export default function () {
     if (
       parts.value == null ||
       bladeWidth.value == null ||
-      extraSpace.value == null ||
+      margin.value == null ||
       optimize.value == null ||
       distanceUnit.value == null ||
       stock.value == null
@@ -51,7 +51,7 @@ export default function () {
 
     const config: ConfigInput = {
       bladeWidth: new Distance(bladeWidth.value + distanceUnit.value).m,
-      extraSpace: new Distance(extraSpace.value + distanceUnit.value).m,
+      margin: new Distance(margin.value + distanceUnit.value).m,
       optimize:
         optimize.value === 'Auto'
           ? 'auto'

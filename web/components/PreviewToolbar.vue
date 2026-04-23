@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 const {
   bladeWidth,
-  extraSpace,
+  distanceUnit,
+  margin,
   optimize,
   showPartNumbers,
   isLoading,
@@ -44,7 +45,9 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="flex items-center gap-1.5">
-      <label class="text-xs text-muted whitespace-nowrap">Blade</label>
+      <label class="text-xs text-muted whitespace-nowrap"
+        >Blade ({{ distanceUnit }})</label
+      >
       <UInput
         v-model="bladeWidth"
         type="number"
@@ -56,8 +59,17 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="flex items-center gap-1.5">
-      <label class="text-xs text-muted whitespace-nowrap">Extra</label>
-      <UInput v-model="extraSpace" type="number" size="xs" class="w-20" />
+      <label class="text-xs text-muted whitespace-nowrap"
+        >Margin ({{ distanceUnit }})</label
+      >
+      <UInput
+        v-model="margin"
+        type="number"
+        min="0"
+        step="0.00001"
+        size="xs"
+        class="w-20"
+      />
     </div>
 
     <label class="flex items-center gap-1.5 cursor-pointer">

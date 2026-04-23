@@ -10,6 +10,11 @@ export default defineAppConfig({
         content: 'bg-elevated ring ring-mist-700 sm:max-w-md w-full',
       },
     },
+    popover: {
+      slots: {
+        content: 'bg-elevated ring-mist-700',
+      },
+    },
     formField: {
       slots: {
         label: 'text-mist-300 text-sm font-medium',

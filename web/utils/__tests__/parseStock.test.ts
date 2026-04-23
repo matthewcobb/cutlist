@@ -2,21 +2,20 @@ import { describe, expect, it } from 'bun:test';
 import { parseStock } from '../parseStock';
 
 describe('parseStock', () => {
-  it('parses a valid YAML string with one stock entry', () => {
+  it('parses a valid YAML string with per-size thicknesses', () => {
     const yaml = `
 - material: MDF
-  thickness: [0.018]
   sizes:
     - width: 1.2
       length: 2.4
+      thickness: [0.018]
 `;
     const result = parseStock(yaml);
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
       material: 'MDF',
       unit: 'mm',
-      thickness: [0.018],
-      sizes: [{ width: 1.2, length: 2.4 }],
+      sizes: [{ width: 1.2, length: 2.4, thickness: [0.018] }],
       hasGrain: true,
     });
   });
@@ -24,15 +23,15 @@ describe('parseStock', () => {
   it('parses multiple stock entries', () => {
     const yaml = `
 - material: MDF
-  thickness: [0.018]
   sizes:
     - width: 1.2
       length: 2.4
+      thickness: [0.018]
 - material: Ply
-  thickness: [0.012]
   sizes:
     - width: 0.6
       length: 1.8
+      thickness: [0.012]
 `;
     const result = parseStock(yaml);
     expect(result).toHaveLength(2);

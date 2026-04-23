@@ -50,21 +50,22 @@ export interface Stock {
    * material always rotate freely regardless of their grainLock setting.
    */
   hasGrain: boolean;
+  /** Display color for board previews (hex string). */
+  color?: string;
 }
 
 /**
- * A board size — a linked width × length pair.
+ * A board size — width × length plus the thicknesses available in that size.
  */
 export const StockSize = z.object({
   width: Distance,
   length: Distance,
+  thickness: z.array(Distance),
 });
 export type StockSize = z.infer<typeof StockSize>;
 
 /**
- * For a material, define board sizes and thicknesses. Each size is a linked
- * width × length pair. Thicknesses are independent — every size is available
- * in every thickness.
+ * For a material, define board sizes and the thicknesses available in each.
  */
 export const StockMatrix = z.object({
   material: z.string(),
@@ -74,9 +75,9 @@ export const StockMatrix = z.object({
    * unit and ignore this field. Defaults to 'mm'.
    */
   unit: z.enum(['mm', 'in']).default('mm'),
-  thickness: z.array(Distance),
   /**
-   * Available board sizes. Each entry is a specific width × length pair.
+   * Available board sizes. Each entry is a specific width × length pair with
+   * its own set of available thicknesses.
    */
   sizes: z.array(StockSize),
   /**
@@ -84,6 +85,8 @@ export const StockMatrix = z.object({
    * like MDF where orientation doesn't matter. Defaults to true.
    */
   hasGrain: z.boolean().default(true),
+  /** Display color for board previews (hex string, e.g. "#d2b996"). */
+  color: z.string().optional(),
 });
 export type StockMatrix = z.infer<typeof StockMatrix>;
 
@@ -143,9 +146,10 @@ export const Config = z.object({
     .union([z.literal('auto'), z.literal('cnc'), z.literal('cuts')])
     .default('auto'),
   /**
-   * Extra padding to add to the top and right sides of the boards/stock.
+   * Board margin — inset from all edges where parts will not be placed.
+   * Useful for clamping area, trimming damaged edges, or out-of-square stock.
    */
-  extraSpace: Distance.default('0'),
+  margin: Distance.default('0'),
   /**
    * Maximum time budget for the multi-pass optimizer.
    */
@@ -165,6 +169,8 @@ export type ConfigInput = z.input<typeof Config>;
 export interface BoardLayout {
   stock: BoardLayoutStock;
   placements: BoardLayoutPlacement[];
+  /** Board margin in meters (inset from all edges). 0 when no margin is set. */
+  marginM: number;
 }
 
 export interface BoardLayoutStock {
@@ -172,6 +178,7 @@ export interface BoardLayoutStock {
   widthM: number;
   lengthM: number;
   thicknessM: number;
+  color?: string;
 }
 
 export interface BoardLayoutLeftover {

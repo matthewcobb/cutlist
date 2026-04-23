@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.102",
+    "@iconify-json/ri": "^1.2.10",
     "@types/three": "^0.184.0",
     "idb": "^8.0.3",
     "js-yaml": "^4.1.0",

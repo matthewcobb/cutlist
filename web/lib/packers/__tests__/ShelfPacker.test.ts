@@ -183,6 +183,26 @@ describe('Shelf Packer', () => {
     }
   });
 
+  it('respects non-zero bin origin (e.g. board margin)', () => {
+    const packer = createShelfPacker<string>();
+    // Bin starts at (2, 3) — simulates a margin inset
+    const bin = new Rectangle(null, 2, 3, 10, 10);
+    const rects = [
+      new Rectangle('a', 0, 0, 4, 5),
+      new Rectangle('b', 0, 0, 4, 5),
+    ];
+    const result = packer.pack(bin, rects, baseOptions);
+
+    expect(result.leftovers).toEqual([]);
+    expect(result.placements).toHaveLength(2);
+    for (const p of result.placements) {
+      expect(p.left).toBeGreaterThanOrEqual(2);
+      expect(p.bottom).toBeGreaterThanOrEqual(3);
+      expect(p.right).toBeLessThanOrEqual(12);
+      expect(p.top).toBeLessThanOrEqual(13);
+    }
+  });
+
   it('produces guillotine-cuttable layouts (uniform shelf rows)', () => {
     const packer = createShelfPacker<string>();
     const bin = new Rectangle(null, 0, 0, 20, 20);
