@@ -5,6 +5,7 @@ import type {
   ConfigInput,
   PartToCut,
 } from 'cutlist';
+import { reportError } from './useAppErrors';
 
 // ─── Types matching the worker messages ──────────────────────────────────────
 
@@ -83,6 +84,12 @@ function getDeriveWorker(): Worker {
   };
   w.onerror = (e) => {
     console.error('Derive worker error:', e);
+    reportError({
+      title: 'Model processing failed',
+      description:
+        'The background worker crashed while processing a model. Try reloading the page.',
+      severity: 'error',
+    });
     for (const [, p] of pendingDerive) p.reject(new Error('Worker error'));
     pendingDerive.clear();
     deriveWorker?.terminate();
@@ -106,6 +113,12 @@ function getLayoutWorker(): Worker {
   };
   w.onerror = (e) => {
     console.error('Layout worker error:', e);
+    reportError({
+      title: 'Layout computation failed',
+      description:
+        'The background worker crashed while computing layouts. Try reloading the page.',
+      severity: 'error',
+    });
     for (const [, p] of pendingLayout) p.reject(new Error('Worker error'));
     pendingLayout.clear();
     layoutWorker?.terminate();

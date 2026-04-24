@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 useUrlSync();
+useAppErrors();
 </script>
 
 <template>

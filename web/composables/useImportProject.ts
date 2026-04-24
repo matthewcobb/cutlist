@@ -1,4 +1,5 @@
 import { importProjectFromFile as importProjectFromCompressedFile } from '~/utils/projectImport';
+import { reportError } from './useAppErrors';
 
 export default function useImportProject() {
   const { reloadProjectList, setActive } = useProjects();
@@ -18,7 +19,16 @@ export default function useImportProject() {
     input.accept = '.gz';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) await importFromFile(file);
+      if (!file) return;
+      try {
+        await importFromFile(file);
+      } catch (err) {
+        reportError({
+          title: 'Import failed',
+          description: err instanceof Error ? err.message : String(err),
+          severity: 'error',
+        });
+      }
     };
     input.click();
   }
