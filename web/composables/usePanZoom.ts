@@ -1,10 +1,25 @@
 import type { PanZoom, Transform } from 'panzoom';
 import panzoom from 'panzoom';
 
-export default function (container: Ref<HTMLElement | undefined>) {
+const DOT_GAP = 24;
+
+export default function (
+  container: Ref<HTMLElement | undefined>,
+  gridEl?: Ref<HTMLElement | undefined>,
+) {
   let instance = ref<PanZoom>();
   const scale = ref<number>();
   let initialTransform: Transform | undefined;
+
+  const syncGrid = () => {
+    const grid = gridEl?.value;
+    const pz = instance.value;
+    if (!grid || !pz) return;
+    const t = pz.getTransform();
+    const gap = DOT_GAP * t.scale;
+    grid.style.backgroundSize = `${gap}px ${gap}px`;
+    grid.style.backgroundPosition = `${t.x}px ${t.y}px`;
+  };
 
   whenever(
     container,
@@ -22,6 +37,8 @@ export default function (container: Ref<HTMLElement | undefined>) {
       instance.value.on('zoom', () => {
         scale.value = instance.value?.getTransform().scale;
       });
+      instance.value.on('transform', syncGrid);
+      syncGrid();
     },
     {},
   );

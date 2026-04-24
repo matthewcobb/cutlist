@@ -98,7 +98,7 @@ const { showPartNumbers } = useProjectSettings();
       >
         <svg
           viewBox="0 0 24 24"
-          class="rotate-icon drop-shadow-md"
+          class="rotate-icon"
           :style="`width:${iconSize};height:${iconSize}`"
           aria-hidden="true"
         >

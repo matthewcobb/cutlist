@@ -79,7 +79,7 @@ function onPointerDown(e: PointerEvent, part: BoardLayoutLeftover) {
         >
           <svg
             viewBox="0 0 24 24"
-            class="rotate-icon-amber drop-shadow-md"
+            class="rotate-icon-amber"
             :style="`width:${Math.max(14, Math.min(28, parseFloat(getPx(Math.min(part.widthM, part.lengthM) * 0.45))))}px;height:${Math.max(14, Math.min(28, parseFloat(getPx(Math.min(part.widthM, part.lengthM) * 0.45))))}px`"
             aria-hidden="true"
           >
@@ -112,10 +112,10 @@ function onPointerDown(e: PointerEvent, part: BoardLayoutLeftover) {
 <style scoped>
 .rotate-icon-amber {
   color: rgba(245, 158, 11, 0.8);
-  animation: gentle-rock 1.8s ease-in-out infinite;
 }
 .group:hover .rotate-icon-amber {
   color: rgba(245, 158, 11, 1);
+  animation: gentle-rock 1.8s ease-in-out infinite;
 }
 
 @keyframes gentle-rock {

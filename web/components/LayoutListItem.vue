@@ -9,7 +9,8 @@ const props = defineProps<{
 const getPx = useGetPx();
 const formatDistance = useFormatDistance();
 const { requestGrainLockChange } = useGrainLockConfirm();
-const { isRulerActive } = useRulerStore();
+const { isRulerActive, getMeasurementsForBoard } = useRulerStore();
+const boardMeasurements = getMeasurementsForBoard(props.boardIndex);
 
 const widthPx = computed(() => getPx(props.layout.stock.widthM));
 const heightPx = computed(() => getPx(props.layout.stock.lengthM));
@@ -148,7 +149,11 @@ const hoveredPlacement = computed<BoardLayoutPlacement | null>(() =>
         :placement="placement"
         :index="i"
       />
-      <BoardRulerOverlay :layout="layout" :board-index="boardIndex" />
+      <BoardRulerOverlay
+        v-if="isRulerActive || boardMeasurements.length > 0"
+        :layout="layout"
+        :board-index="boardIndex"
+      />
     </div>
     <Teleport to="body">
       <PartDetailsTooltip

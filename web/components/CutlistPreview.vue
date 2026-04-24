@@ -2,7 +2,8 @@
 const { data, isComputing, error, partCountWarning } = useBoardLayoutsQuery();
 
 const container = ref<HTMLDivElement>();
-const { scale, resetZoom, zoomIn, zoomOut } = usePanZoom(container);
+const gridEl = ref<HTMLDivElement>();
+const { scale, resetZoom, zoomIn, zoomOut } = usePanZoom(container, gridEl);
 
 const formatDistance = useFormatDistance();
 
@@ -77,18 +78,19 @@ const filteredLeftovers = computed(() => {
         >
           No board layouts found
         </p>
-        <div
-          v-else
-          ref="container"
-          class="canvas-plane"
-          :style="`--zoom:${scale ?? 1}`"
-        >
-          <div class="canvas-grid" />
-          <LayoutList
-            :layouts="filteredLayouts"
-            :leftovers="filteredLeftovers"
-          />
-        </div>
+        <template v-else>
+          <div ref="gridEl" class="canvas-grid" />
+          <div
+            ref="container"
+            class="canvas-plane"
+            :style="`--zoom:${scale ?? 1}`"
+          >
+            <LayoutList
+              :layouts="filteredLayouts"
+              :leftovers="filteredLeftovers"
+            />
+          </div>
+        </template>
       </template>
 
       <div
@@ -156,17 +158,13 @@ const filteredLeftovers = computed(() => {
 }
 
 .canvas-grid {
-  --dot-color: #394447;
-  --dot-size: 1px;
-  --dot-gap: 24px;
   position: absolute;
-  inset: -300vmax;
+  inset: 0;
   pointer-events: none;
-  background-size: var(--dot-gap) var(--dot-gap);
   background-image: radial-gradient(
-    circle,
-    var(--dot-color) var(--dot-size),
-    transparent var(--dot-size)
+    circle closest-side,
+    #394447 8.33%,
+    transparent 8.33%
   );
 }
 </style>
