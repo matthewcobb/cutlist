@@ -8,7 +8,7 @@
  * This ensures the override application pattern works correctly regardless
  * of how the composable initializes.
  */
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import type { PartToCut } from 'cutlist';
 
 type Part = Omit<PartToCut, 'material'> & { colorKey: string };

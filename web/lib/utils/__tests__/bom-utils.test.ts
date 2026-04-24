@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from 'vitest';
 import { groupPartsByNumber } from '../bom-utils';
 import type { BoardLayoutLeftover, BoardLayoutPlacement } from '../../types';
 

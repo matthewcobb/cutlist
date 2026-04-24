@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from 'vitest';
 import { Rectangle } from '../Rectangle';
 
 const epsilon = 1e-5;
@@ -44,7 +44,7 @@ describe('Rectangle', () => {
     });
   });
 
-  describe('pad', () => {
+  it('pad', () => {
     const rect = new Rectangle(null, 1, 1, 1, 1);
     const expected = new Rectangle(null, 0, -2, 4, 8);
     const actual = rect.pad({

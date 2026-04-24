@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { parseCollada } from '../parseCollada';
 
 /** Helper to create a File from text content. */

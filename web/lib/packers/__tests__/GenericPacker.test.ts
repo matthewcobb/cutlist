@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from 'vitest';
 import { createGenericPacker } from '../GenericPacker';
 import { Rectangle } from '../../geometry';
 import { getAllPossiblePlacements } from '../utils';

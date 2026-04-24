@@ -4,7 +4,7 @@
  * These functions take a context object with a real IDB (fake-indexeddb) and
  * a ref-like activeProjectData. We use Vue's ref() for the reactive wrapper.
  */
-import { describe, expect, it, beforeEach, mock } from 'bun:test';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { ref, type Ref } from 'vue';
 import { useIdb, type IdbModel } from '../useIdb';
 import type { Part } from '~/utils/modelTypes';
@@ -13,7 +13,7 @@ import { useManualParts } from '../useManualParts';
 import { DEFAULT_SETTINGS } from '../../utils/settings';
 
 const idb = useIdb();
-const mockUpdateColorMap = mock(async () => {});
+const mockUpdateColorMap = vi.fn(async () => {});
 
 function makeProject(id: string, models: Project['models'] = []): Project {
   return {

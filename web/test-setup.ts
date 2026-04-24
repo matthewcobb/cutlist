@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach } from 'bun:test';
+import { beforeEach } from 'vitest';
 import { ref, shallowRef } from 'vue';
 
 // Nuxt auto-imports these Vue primitives into every module. Bun's test runner

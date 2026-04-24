@@ -5,7 +5,7 @@
  * messages and drives responses manually.
  */
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConfigInput, PartToCut } from 'cutlist';
 
 interface PostedMessage {
@@ -44,7 +44,7 @@ class FakeWorker {
 }
 
 (globalThis as any).Worker = FakeWorker;
-mock.module('../useAppErrors', () => ({
+vi.mock('../useAppErrors', () => ({
   reportError: () => {},
 }));
 

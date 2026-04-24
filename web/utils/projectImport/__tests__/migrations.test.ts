@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { SCHEMA_VERSION, FutureSchemaError } from '../../versions';
 import { migrations, migrateRecord, migrateExport } from '../migrations';
 import { DEFAULT_SETTINGS, DEFAULT_STOCK_YAML } from '../../settings';

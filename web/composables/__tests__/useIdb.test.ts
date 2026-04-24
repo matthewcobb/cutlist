@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { useIdb, applyModelDefaults } from '../useIdb';
 import { DEFAULT_SETTINGS, DEFAULT_STOCK_YAML } from '../../utils/settings';
 import type { IdbModel, IdbBuildStep } from '../useIdb';

@@ -2,7 +2,7 @@
  * Edge-case tests for project import: corrupt data, boundary cases,
  * and round-trip fidelity with overrides and build steps.
  */
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { gzipSync } from 'node:zlib';
 import { SCHEMA_VERSION } from '../../versions';
 import {

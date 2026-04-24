@@ -7,17 +7,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All commands run from repo root. The web app source lives in `web/`.
 
 ```bash
-bun dev          # Start dev server
-bun build        # Production build
-bun test         # Run all tests
-bun test:watch   # Watch mode
-bun check        # Vue + TypeScript type check (vue-tsc --noEmit)
+bun dev              # Start dev server
+bun build            # Production build
+bun run test         # Run all tests (Vitest)
+bun run test:watch   # Watch mode
+bun run check        # Vue + TypeScript type check (vue-tsc --noEmit)
 ```
 
 Run a single test file:
 
 ```bash
-cd web && bun test lib/__tests__/generateBoardLayouts.edge.test.ts
+cd web && vitest run lib/__tests__/generateBoardLayouts.edge.test.ts
 ```
 
 Formatting runs automatically via lint-staged on commit (Prettier).
@@ -133,14 +133,18 @@ The app is always dark. The **mist palette** (cool blue-gray ramp) is the single
 
 ## Testing
 
-Tests use Bun's built-in test runner. Test files live alongside source in `__tests__/` subdirectories:
+Tests use [Vitest](https://vitest.dev) with `@nuxt/test-utils` for component tests. Test files live alongside source in `__tests__/` subdirectories:
 
 - `web/lib/__tests__/` — packing algorithm tests
 - `web/lib/packers/__tests__/` — individual packer unit tests
 - `web/lib/utils/__tests__/` — utility tests
 - `web/utils/__tests__/` — web utility tests
+- `web/composables/__tests__/` — composable + IDB tests
+- `web/middleware/__tests__/` — route middleware tests
 
-`bunfig.toml` preloads [web/test-setup.ts](web/test-setup.ts), which installs `fake-indexeddb` and runs a global `beforeEach` that calls `__resetDbForTests()` (dynamic import so Dexie does not load before `fake-indexeddb/auto`) then `indexedDB.deleteDatabase('cutlist-db')`. **Every test starts with an empty IndexedDB** — do not rely on data from other tests or on test order.
+Config lives in [web/vitest.config.ts](web/vitest.config.ts). The default environment is `happy-dom` (fast, no Nuxt boot). [web/test-setup.ts](web/test-setup.ts) is loaded as a `setupFiles` entry: it installs `fake-indexeddb` and runs a global `beforeEach` that calls `__resetDbForTests()` (dynamic import so Dexie does not load before `fake-indexeddb/auto`) then `indexedDB.deleteDatabase('cutlist-db')`. **Every test starts with an empty IndexedDB** — do not rely on data from other tests or on test order.
+
+For component tests that need Nuxt auto-imports / `mountSuspended`, opt-in to the Nuxt environment per file with `// @vitest-environment nuxt` at the top.
 
 ## Data Model (`web/composables/useIdb/`)
 
