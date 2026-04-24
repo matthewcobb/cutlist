@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { deriveFromGltf } from '../parseGltf';
+import { deriveFromGltf, parseGltf } from '../parseGltf';
+
+describe('parseGltf', () => {
+  it('Should wrap invalid JSON errors with the file name', async () => {
+    const file = new File(['{ not json'], 'broken.gltf', {
+      type: 'model/gltf+json',
+    });
+
+    await expect(parseGltf(file)).rejects.toThrow(
+      'Could not parse "broken.gltf" as JSON GLTF',
+    );
+  });
+});
 
 describe('deriveFromGltf error handling', () => {
   it('throws when nodes are missing', () => {

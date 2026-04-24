@@ -271,6 +271,48 @@ describe('removeManualPart', () => {
     expect(names).not.toContain('Stile');
   });
 
+  it('Should remove stale overrides and persist only raw remaining parts', async () => {
+    const partsWithOverridesApplied = [
+      makePart(1, { name: 'Rail', grainLock: 'length' }),
+      makePart(2, { name: 'Stile', grainLock: 'width' }),
+      makePart(3, { name: 'Panel' }),
+    ];
+    activeProjectData.value = makeProject(projectId, [
+      makeManualModel(modelId, partsWithOverridesApplied),
+    ]);
+
+    await idb.updateModel(modelId, {
+      parts: [
+        makePart(1, { name: 'Rail' }),
+        makePart(2, { name: 'Stile' }),
+        makePart(3, { name: 'Panel' }),
+      ],
+      partOverrides: {
+        1: { grainLock: 'length' },
+        2: { grainLock: 'width' },
+      },
+    });
+    await idb.flushPendingModelWrites();
+
+    const { removeManualPart } = useManualParts({
+      activeProjectData,
+      idb,
+      updateColorMap: mockUpdateColorMap,
+    });
+
+    await removeManualPart(projectId, 2);
+    await idb.flushPendingModelWrites();
+
+    const persisted = (await idb.getProjectWithModels(projectId))!.models[0];
+    expect(persisted.partOverrides).toEqual({ 1: { grainLock: 'length' } });
+    expect(persisted.parts.map((p) => p.partNumber)).toEqual([1, 3]);
+    expect(persisted.parts[0].grainLock).toBeUndefined();
+
+    const reactiveModel = activeProjectData.value!.models[0];
+    expect(reactiveModel.parts[0].grainLock).toBe('length');
+    expect(reactiveModel.parts.some((p) => p.partNumber === 2)).toBe(false);
+  });
+
   it('removes the manual model entirely when last part is removed', async () => {
     // Start with a single part
     const singlePartModelId = crypto.randomUUID();
@@ -407,7 +449,6 @@ describe('updateManualPart', () => {
     expect(rail.grainLock).toBe('width');
 
     // Check IDB has it stored in partOverrides
-    const full = await idb.getProjectWithModels(projectId);
     await idb.flushPendingModelWrites();
     const fullAfterFlush = await idb.getProjectWithModels(projectId);
     const idbModel = fullAfterFlush!.models[0];
@@ -444,6 +485,29 @@ describe('updateManualPart', () => {
     const idbModel = full!.models[0];
     // partOverrides entry for partNumber 1 should be gone (empty override removed)
     expect(idbModel.partOverrides[1]).toBeUndefined();
+  });
+
+  it('Should update the color map when changing to a new material', async () => {
+    const { updateManualPart } = useManualParts({
+      activeProjectData,
+      idb,
+      updateColorMap: mockUpdateColorMap,
+    });
+
+    await updateManualPart(
+      projectId,
+      1,
+      makeInput({
+        name: 'Rail',
+        material: 'Walnut',
+      }),
+    );
+
+    expect(mockUpdateColorMap).toHaveBeenCalledWith(
+      projectId,
+      'Walnut',
+      'Walnut',
+    );
   });
 
   it('does nothing if project ID does not match', async () => {

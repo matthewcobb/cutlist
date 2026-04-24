@@ -101,139 +101,45 @@ function generateLargeFixture(partCount: number): {
   return { parts, stock };
 }
 
-// ─── Performance tests ─────────────────────────────────────────────────────────
+function expectAllPartsAccountedFor(
+  result: ReturnType<typeof generateBoardLayouts>,
+  parts: PartToCut[],
+) {
+  const placedCount = result.layouts.reduce(
+    (total, layout) => total + layout.placements.length,
+    0,
+  );
+  expect(placedCount + result.leftovers.length).toBe(parts.length);
+}
 
-describe('performance: generateBoardLayouts', () => {
-  it('profiles 50 parts (baseline)', () => {
+// ─── Large fixture smoke tests ───────────────────────────────────────────────
+
+describe('generateBoardLayouts large fixture smoke tests', () => {
+  it('Should account for every part in auto mode', () => {
     const { parts, stock } = generateLargeFixture(50);
-    const config = {
+
+    const result = generateBoardLayouts(parts, stock, {
       bladeWidth: '3.175mm',
       margin: '0mm',
-      optimize: 'auto' as const,
+      optimize: 'auto',
       precision: 1e-5,
-    };
+    });
 
-    const start = performance.now();
-    const result = generateBoardLayouts(parts, stock, config);
-    const elapsed = performance.now() - start;
-
-    console.log(
-      `[50 parts] ${elapsed.toFixed(0)}ms | ${result.layouts.length} boards | ${result.leftovers.length} leftovers`,
-    );
     expect(result.layouts.length).toBeGreaterThan(0);
+    expectAllPartsAccountedFor(result, parts);
   });
 
-  it('profiles 100 parts', () => {
-    const { parts, stock } = generateLargeFixture(100);
-    const config = {
+  it('Should account for every part in cnc mode', () => {
+    const { parts, stock } = generateLargeFixture(50);
+
+    const result = generateBoardLayouts(parts, stock, {
       bladeWidth: '3.175mm',
       margin: '0mm',
-      optimize: 'auto' as const,
+      optimize: 'cnc',
       precision: 1e-5,
-    };
+    });
 
-    const start = performance.now();
-    const result = generateBoardLayouts(parts, stock, config);
-    const elapsed = performance.now() - start;
-
-    console.log(
-      `[100 parts] ${elapsed.toFixed(0)}ms | ${result.layouts.length} boards | ${result.leftovers.length} leftovers`,
-    );
     expect(result.layouts.length).toBeGreaterThan(0);
-  });
-
-  it('profiles 250 parts', () => {
-    const { parts, stock } = generateLargeFixture(250);
-    const config = {
-      bladeWidth: '3.175mm',
-      margin: '0mm',
-      optimize: 'auto' as const,
-      precision: 1e-5,
-    };
-
-    const start = performance.now();
-    const result = generateBoardLayouts(parts, stock, config);
-    const elapsed = performance.now() - start;
-
-    console.log(
-      `[250 parts] ${elapsed.toFixed(0)}ms | ${result.layouts.length} boards | ${result.leftovers.length} leftovers`,
-    );
-    expect(result.layouts.length).toBeGreaterThan(0);
-  });
-
-  it('profiles 500 parts', () => {
-    const { parts, stock } = generateLargeFixture(500);
-    const config = {
-      bladeWidth: '3.175mm',
-      margin: '0mm',
-      optimize: 'auto' as const,
-      precision: 1e-5,
-    };
-
-    const start = performance.now();
-    const result = generateBoardLayouts(parts, stock, config);
-    const elapsed = performance.now() - start;
-
-    console.log(
-      `[500 parts] ${elapsed.toFixed(0)}ms | ${result.layouts.length} boards | ${result.leftovers.length} leftovers`,
-    );
-    expect(result.layouts.length).toBeGreaterThan(0);
-  });
-
-  it('profiles 1000 parts (stress test)', () => {
-    const { parts, stock } = generateLargeFixture(1000);
-    const config = {
-      bladeWidth: '3.175mm',
-      margin: '0mm',
-      optimize: 'auto' as const,
-      precision: 1e-5,
-    };
-
-    const start = performance.now();
-    const result = generateBoardLayouts(parts, stock, config);
-    const elapsed = performance.now() - start;
-
-    console.log(
-      `[1000 parts] ${elapsed.toFixed(0)}ms | ${result.layouts.length} boards | ${result.leftovers.length} leftovers`,
-    );
-    expect(result.layouts.length).toBeGreaterThan(0);
-  });
-
-  it('profiles auto mode at 500 parts', () => {
-    const { parts, stock } = generateLargeFixture(500);
-    const config = {
-      bladeWidth: '3.175mm',
-      margin: '0mm',
-      optimize: 'auto' as const,
-      precision: 1e-5,
-    };
-
-    const start = performance.now();
-    const result = generateBoardLayouts(parts, stock, config);
-    const elapsed = performance.now() - start;
-
-    console.log(
-      `[500 parts auto] ${elapsed.toFixed(0)}ms | ${result.layouts.length} boards | ${result.leftovers.length} leftovers`,
-    );
-    expect(result.layouts.length).toBeGreaterThan(0);
-  });
-
-  it('profiles cnc mode at 500 parts', () => {
-    const { parts, stock } = generateLargeFixture(500);
-    const config = {
-      bladeWidth: '3.175mm',
-      margin: '0mm',
-      optimize: 'cnc' as const,
-      precision: 1e-5,
-    };
-
-    const start = performance.now();
-    const result = generateBoardLayouts(parts, stock, config);
-    const elapsed = performance.now() - start;
-
-    console.log(
-      `[500 parts cnc] ${elapsed.toFixed(0)}ms | ${result.layouts.length} boards | ${result.leftovers.length} leftovers`,
-    );
-    expect(result.layouts.length).toBeGreaterThan(0);
+    expectAllPartsAccountedFor(result, parts);
   });
 });

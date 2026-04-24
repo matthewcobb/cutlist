@@ -40,12 +40,12 @@ describe('reduceStockMatrix', () => {
     const result = reduceStockMatrix([
       {
         material: 'MDF',
-        unit: 'mm',
-
         sizes: [{ width: 1220, length: 2440, thickness: [18] }],
-      },
+      } as any,
     ]);
     expect(result[0].thickness).toBeCloseTo(0.018, 6);
+    expect(result[0].width).toBeCloseTo(1.22, 6);
+    expect(result[0].length).toBeCloseTo(2.44, 6);
   });
 
   it('returns one stock per size × thickness combination', () => {

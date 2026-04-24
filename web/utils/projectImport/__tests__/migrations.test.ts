@@ -15,12 +15,6 @@ describe('migrateRecord', () => {
     const result = migrateRecord('projects', record, SCHEMA_VERSION);
     expect(result).toEqual(record);
   });
-
-  it('returns record unchanged when already at current version', () => {
-    const record = { id: 'x', name: 'test' };
-    const result = migrateRecord('projects', record, SCHEMA_VERSION);
-    expect(result).toEqual(record);
-  });
 });
 
 // ─── Migration registry invariants ──────────────────────────────────────────

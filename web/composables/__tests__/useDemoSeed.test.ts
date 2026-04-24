@@ -4,7 +4,7 @@
  * The happy path (actual fetch + import of the demo .cutlist.gz) requires
  * a bundled asset served by the dev server, which is not available in unit
  * tests. We test the guard logic (shouldSeedDemoProject is already tested
- * in useProjects.demoSeed.test.ts) and verify graceful error handling when
+ * in utils/__tests__/demoSeed.test.ts) and verify graceful error handling when
  * fetch fails.
  *
  * NOTE: We deliberately avoid mock.module on ~/utils/projectImport because

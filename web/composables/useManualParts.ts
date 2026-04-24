@@ -191,13 +191,27 @@ export function useManualParts(ctx: ManualPartsContext) {
       };
       await idb.deleteModel(existing.id);
     } else {
+      const idbModel = (await idb.getProjectWithModels(projectId))?.models.find(
+        (m) => m.id === existing.id,
+      );
+      const updatedOverrides = { ...(idbModel?.partOverrides ?? {}) };
+      delete updatedOverrides[partNumber];
+
+      // Persist raw parts only. Grain locks live in partOverrides.
+      const cleanParts = remaining.map(({ grainLock: _, ...rest }) => rest);
+
       activeProjectData.value = {
         ...project,
         models: project.models.map((m) =>
-          m.id === existing.id ? { ...m, parts: remaining } : m,
+          m.id === existing.id
+            ? { ...m, parts: applyOverrides(cleanParts, updatedOverrides) }
+            : m,
         ),
       };
-      await idb.updateModel(existing.id, { parts: remaining });
+      await idb.updateModel(existing.id, {
+        parts: cleanParts,
+        partOverrides: updatedOverrides,
+      });
     }
   }
 

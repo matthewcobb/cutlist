@@ -76,6 +76,35 @@ describe('applyOverrides', () => {
     expect(parts[0]).toEqual(originals[0]);
     expect(parts[1]).toEqual(originals[1]);
   });
+
+  it('Should apply overrides to every instance with the same partNumber', () => {
+    const parts = [
+      makePart(1, { instanceNumber: 1 }),
+      makePart(1, { instanceNumber: 2 }),
+      makePart(2),
+    ];
+
+    const result = applyOverrides(parts, { 1: { grainLock: 'length' } });
+
+    expect(result[0].grainLock).toBe('length');
+    expect(result[1].grainLock).toBe('length');
+    expect(result[2].grainLock).toBeUndefined();
+  });
+
+  it('Should merge multiple override fields onto the same part', () => {
+    const parts = [makePart(1, { name: 'Original' })];
+
+    const result = applyOverrides(parts, {
+      1: { grainLock: 'width', name: 'Override' },
+    });
+
+    expect(result[0]).toMatchObject({
+      colorKey: '#aaa',
+      grainLock: 'width',
+      name: 'Override',
+      size: { width: 0.3, length: 0.5, thickness: 0.018 },
+    });
+  });
 });
 
 // ─── hydrateModel ──────────────────────────────────────────────────────────

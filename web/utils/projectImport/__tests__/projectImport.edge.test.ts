@@ -105,8 +105,9 @@ describe('parseProjectExport edge cases', () => {
   it('handles model with partOverrides preserved', () => {
     const payload = makePayload();
     const parsed = parseProjectExport(payload);
-    // Zod parses the key as string from JSON, which is correct for Record<string, PartOverride>
-    expect(parsed.models[0].partOverrides).toBeDefined();
+    expect(parsed.models[0].partOverrides).toMatchObject({
+      '1': { grainLock: 'length' },
+    });
   });
 
   it('handles payload with no buildSteps field', () => {
@@ -223,9 +224,10 @@ describe('round-trip fidelity', () => {
     const { db, calls } = makeIdbMock();
     await importProjectData(parsed, db as any);
 
-    // The model's partOverrides should be preserved
     const importedModel = calls.createModel[0];
-    expect(importedModel.partOverrides).toBeDefined();
+    expect(importedModel.partOverrides).toMatchObject({
+      '1': { grainLock: 'length' },
+    });
   });
 
   it('preserves stock and distanceUnit through import', async () => {

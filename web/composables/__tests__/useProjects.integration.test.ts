@@ -1,6 +1,5 @@
 /**
- * Integration tests for useProjects that exercise the full IDB round-trip
- * for manual part management and model hydration.
+ * Integration tests for the full IDB round-trip used by project hydration.
  *
  * These tests construct IDB records directly and verify that hydrateModel
  * produces the correct Model output. They do NOT use the composable's
@@ -9,19 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { useIdb, type IdbModel } from '../useIdb';
 import type { Part } from '~/utils/modelTypes';
-import type { PartOverride } from '../useIdb';
-
-/** Mirror of applyOverrides from useProjects.ts (can't import due to Nuxt auto-imports). */
-function applyOverrides(
-  parts: Part[],
-  overrides: Record<number, PartOverride>,
-): Part[] {
-  if (Object.keys(overrides).length === 0) return parts;
-  return parts.map((p) => {
-    const o = overrides[p.partNumber];
-    return o ? { ...p, ...o } : p;
-  });
-}
+import { applyOverrides } from '../useModelHydration';
 
 const idb = useIdb();
 

@@ -103,6 +103,15 @@ describe('parseProjectExport validation', () => {
     ).toThrow('Invalid project file');
   });
 
+  it('Should reject an empty project name with a human-readable message', () => {
+    const payload = makePayload();
+    payload.project.name = '';
+
+    expect(() => parseProjectExport(payload)).toThrow(
+      'Project name cannot be empty',
+    );
+  });
+
   it('rejects missing version field', () => {
     // migrateExport treats missing version as v0, which is fine,
     // but the export itself needs to be structurally valid.
