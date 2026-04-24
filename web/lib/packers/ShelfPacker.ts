@@ -77,10 +77,10 @@ interface Shelf {
   usedWidth: number;
 }
 
-function getNextShelfBottom(
+function getNextShelfBottom<T>(
   shelves: Shelf[],
   bin: Rectangle<unknown>,
-  options: PackOptions,
+  options: PackOptions<T>,
 ): number {
   if (shelves.length === 0) return bin.bottom;
   const last = shelves[shelves.length - 1];
@@ -94,7 +94,7 @@ function placeOnExistingShelf<T>(
   rect: Rectangle<T>,
   shelves: Shelf[],
   bin: Rectangle<unknown>,
-  options: PackOptions,
+  options: PackOptions<T>,
   res: PackResult<T>,
 ): boolean {
   // Try each shelf, prefer the one with least remaining width (best fit)
@@ -135,7 +135,7 @@ function fitOnShelf<T>(
   rect: Rectangle<T>,
   shelf: Shelf,
   bin: Rectangle<unknown>,
-  options: PackOptions,
+  options: PackOptions<T>,
 ): Rectangle<T> | undefined {
   const availableWidth = bin.width - shelf.usedWidth;
   const canRotate =
@@ -172,7 +172,7 @@ function chooseBestOrientation<T>(
   rect: Rectangle<T>,
   bin: Rectangle<unknown>,
   shelfBottom: number,
-  options: PackOptions,
+  options: PackOptions<T>,
 ): Rectangle<T> | undefined {
   const availableHeight = bin.bottom + bin.height - shelfBottom;
   const canRotate =
@@ -200,7 +200,7 @@ function fillShelf<T>(
   shelf: Shelf,
   remaining: Rectangle<T>[],
   bin: Rectangle<unknown>,
-  options: PackOptions,
+  options: PackOptions<T>,
   res: PackResult<T>,
 ): void {
   let i = 0;

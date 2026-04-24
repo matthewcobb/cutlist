@@ -372,7 +372,7 @@ function placeAllParts(
   options: {
     partSortMode: PartSortMode;
     randomSeed?: number;
-    packerOptions: PackOptions;
+    packerOptions: PackOptions<PartToCut>;
   },
 ): { layouts: PotentialBoardLayout[]; leftovers: PartToCut[] } {
   const margin = new Distance(config.margin).m;
@@ -534,7 +534,7 @@ function minimizeLayoutStock(
   originalLayout: PotentialBoardLayout,
   stock: Stock[],
   packer: Packer<PartToCut>,
-  packerOptions: PackOptions,
+  packerOptions: PackOptions<PartToCut>,
 ): PotentialBoardLayout {
   const margin = new Distance(config.margin).m;
 
@@ -620,15 +620,12 @@ function groupPartsByStock(
   return result;
 }
 
-function getPackerOptions(config: Config): PackOptions {
+function getPackerOptions(config: Config): PackOptions<PartToCut> {
   return {
     allowRotations: true,
     gap: new Distance(config.bladeWidth).m,
     precision: config.precision,
-    canRotateRect: (data: unknown) => {
-      const part = data as PartToCut;
-      return !part.grainLock;
-    },
+    canRotateRect: (data: PartToCut) => !data.grainLock,
   };
 }
 
