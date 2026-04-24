@@ -219,6 +219,9 @@ export default createSharedComposable(() => {
           activeProject.value?.id === projectId
         ) {
           error.value = e instanceof Error ? e.message : String(e);
+          // Clear stale data so the BOM falls back to showing raw model data
+          // instead of outdated packing results that may be missing parts.
+          data.value = undefined;
           isComputing.value = false;
         }
       }
