@@ -29,11 +29,8 @@ describe('maybeSeedDemo', () => {
 
   it('skips when projects already exist even if not seeded', async () => {
     await idb.setDemoSeeded(false);
-    // There are already projects from previous tests in the shared IDB
-    const list = await idb.getProjectList();
-    if (list.length === 0) {
-      await idb.createProject('Guard Test');
-    }
+    await idb.createProject('Guard Test');
+    expect((await idb.getProjectList()).length).toBe(1);
 
     const result = await maybeSeedDemo(idb);
     expect(result).toBe(false);

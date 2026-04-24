@@ -141,3 +141,21 @@ export function getDb(): Promise<CutlistDB> {
   }
   return dbPromise;
 }
+
+/**
+ * Test-only: close the Dexie singleton and clear cached open promise so the
+ * next `getDb()` opens against whatever `globalThis.indexedDB` is (e.g. a
+ * fresh `IDBFactory` from fake-indexeddb). Do not import from app code.
+ */
+export async function __resetDbForTests(): Promise<void> {
+  if (dbPromise) {
+    try {
+      const db = await dbPromise;
+      db.close();
+    } catch {
+      // ignore — db may have failed to open
+    }
+  }
+  dbPromise = null;
+  idbError.value = null;
+}

@@ -138,6 +138,8 @@ Tests use Bun's built-in test runner. Test files live alongside source in `__tes
 - `web/lib/utils/__tests__/` — utility tests
 - `web/utils/__tests__/` — web utility tests
 
+`bunfig.toml` preloads [web/test-setup.ts](web/test-setup.ts), which installs `fake-indexeddb` and runs a global `beforeEach` that calls `__resetDbForTests()` (dynamic import so Dexie does not load before `fake-indexeddb/auto`) then `indexedDB.deleteDatabase('cutlist-db')`. **Every test starts with an empty IndexedDB** — do not rely on data from other tests or on test order.
+
 ## Data Model (`web/composables/useIdb/`)
 
 All data lives in IndexedDB. The app is still in development — breaking schema changes are acceptable (users can reset their database).

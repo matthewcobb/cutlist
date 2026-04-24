@@ -60,6 +60,7 @@ describe('project CRUD', () => {
     const a = await idb.createProject('First');
     const b = await idb.createProject('Second');
     const list = await idb.getProjectList();
+    expect(list).toHaveLength(2);
     const ids = list.map((p) => p.id);
     expect(ids).toContain(a.id);
     expect(ids).toContain(b.id);

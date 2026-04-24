@@ -71,9 +71,7 @@ describe('addManualPart', () => {
 
   beforeEach(async () => {
     mockUpdateColorMap.mockClear();
-    const project = await idb.createProject(
-      'ManualPartTest-' + crypto.randomUUID().slice(0, 8),
-    );
+    const project = await idb.createProject('ManualPartTest');
     projectId = project.id;
     activeProjectData = ref(makeProject(projectId));
   });
@@ -225,9 +223,7 @@ describe('removeManualPart', () => {
 
   beforeEach(async () => {
     mockUpdateColorMap.mockClear();
-    const project = await idb.createProject(
-      'RemovePartTest-' + crypto.randomUUID().slice(0, 8),
-    );
+    const project = await idb.createProject('RemovePartTest');
     projectId = project.id;
     modelId = crypto.randomUUID();
 
@@ -274,9 +270,7 @@ describe('removeManualPart', () => {
   it('removes the manual model entirely when last part is removed', async () => {
     // Start with a single part
     const singlePartModelId = crypto.randomUUID();
-    const singleProject = await idb.createProject(
-      'SinglePartRemove-' + crypto.randomUUID().slice(0, 8),
-    );
+    const singleProject = await idb.createProject('SinglePartRemove');
     const singleParts = [makePart(1, { name: 'Only Part' })];
     const singleActiveData: Ref<Project | null> = ref(
       makeProject(singleProject.id, [
@@ -325,9 +319,7 @@ describe('updateManualPart', () => {
 
   beforeEach(async () => {
     mockUpdateColorMap.mockClear();
-    const project = await idb.createProject(
-      'UpdatePartTest-' + crypto.randomUUID().slice(0, 8),
-    );
+    const project = await idb.createProject('UpdatePartTest');
     projectId = project.id;
     modelId = crypto.randomUUID();
 
@@ -460,9 +452,7 @@ describe('updateManualPart', () => {
 
   it('does nothing if no manual model exists', async () => {
     // Set up a project with no manual model
-    const gltfProject = await idb.createProject(
-      'NoManual-' + crypto.randomUUID().slice(0, 8),
-    );
+    const gltfProject = await idb.createProject('NoManual');
     const gltfActiveData: Ref<Project | null> = ref(
       makeProject(gltfProject.id, [
         {
