@@ -16,6 +16,7 @@ export default defineNuxtConfig({
   alias: {
     cutlist: resolve(__dirname, 'lib'),
   },
+  runtimeConfig: {},
   sentry: {
     org: 'cutlist',
     project: 'cutlist',
