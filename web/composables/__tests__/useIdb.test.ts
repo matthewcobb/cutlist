@@ -116,7 +116,6 @@ describe('project CRUD', () => {
       stepNumber: 1,
       title: 'Step 1',
       description: 'Do something',
-      partRefs: [],
       createdAt: new Date().toISOString(),
     };
     await idb.createBuildStep(step);
@@ -330,7 +329,6 @@ describe('build steps', () => {
       stepNumber: 2,
       title: 'Attach sides',
       description: 'Glue side panels',
-      partRefs: [{ modelId: 'm1', partNumber: 1 }],
       createdAt: new Date().toISOString(),
     };
     const step1: IdbBuildStep = {
@@ -339,7 +337,6 @@ describe('build steps', () => {
       stepNumber: 1,
       title: 'Cut parts',
       description: 'Cut all parts to size',
-      partRefs: [],
       createdAt: new Date().toISOString(),
     };
     // Insert out of order
@@ -360,7 +357,6 @@ describe('build steps', () => {
       stepNumber: 1,
       title: 'Original',
       description: 'Original desc',
-      partRefs: [],
       createdAt: new Date().toISOString(),
     };
     await idb.createBuildStep(step);
@@ -388,7 +384,6 @@ describe('build steps', () => {
       stepNumber: 1,
       title: 'Gone',
       description: '',
-      partRefs: [],
       createdAt: new Date().toISOString(),
     };
     await idb.createBuildStep(step);

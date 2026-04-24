@@ -74,9 +74,8 @@ export interface IdbBuildStep {
   projectId: string;
   stepNumber: number;
   title: string;
+  /** HTML string — supports rich text with hyperlinks. */
   description: string;
-  /** Stable references using modelId + draft partNumber. */
-  partRefs: Array<{ modelId: string; partNumber: number }>;
   createdAt: string;
 }
 

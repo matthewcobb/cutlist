@@ -47,7 +47,6 @@ function makePayload() {
         stepNumber: 1,
         title: 'Step 1',
         description: 'Desc',
-        partRefs: [{ modelId: 'old-model-id', partNumber: 1 }],
         createdAt: now,
       },
     ],
@@ -134,11 +133,11 @@ describe('parseProjectExport validation', () => {
     expect(() => parseProjectExport(payload)).toThrow('Invalid project file');
   });
 
-  it('rejects build steps with missing partRefs', () => {
+  it('rejects build steps with missing title', () => {
     const payload = makePayload();
     payload.buildSteps![0] = {
       ...payload.buildSteps![0],
-      partRefs: undefined as any,
+      title: undefined as any,
     };
     expect(() => parseProjectExport(payload)).toThrow('Invalid project file');
   });
@@ -196,9 +195,7 @@ describe('importProjectData', () => {
 
     expect(calls.createBuildStep).toHaveLength(1);
     expect(calls.createBuildStep[0].projectId).toBe('new-project-id');
-    expect(calls.createBuildStep[0].partRefs[0].modelId).not.toBe(
-      'old-model-id',
-    );
+    expect(calls.createBuildStep[0].title).toBe('Step 1');
   });
 });
 

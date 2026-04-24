@@ -24,9 +24,7 @@ export async function createBuildStep(step: IdbBuildStep): Promise<void> {
 
 export async function updateBuildStep(
   id: string,
-  patch: Partial<
-    Pick<IdbBuildStep, 'title' | 'description' | 'partRefs' | 'stepNumber'>
-  >,
+  patch: Partial<Pick<IdbBuildStep, 'title' | 'description' | 'stepNumber'>>,
 ): Promise<void> {
   const db = await getDb();
   const existing = await db.buildSteps.get(id);

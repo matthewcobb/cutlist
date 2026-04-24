@@ -58,7 +58,6 @@ function makePayload(overrides?: any) {
         stepNumber: 1,
         title: 'Cut parts',
         description: 'Cut to size',
-        partRefs: [{ modelId: 'model-1', partNumber: 1 }],
         createdAt: now,
       },
     ],
@@ -175,26 +174,14 @@ describe('importProjectData remapping', () => {
     expect(modelIds[1]).not.toBe('model-2');
   });
 
-  it('remaps build step partRefs to new model IDs', async () => {
+  it('imports build steps with new project ID', async () => {
     const payload = makePayload();
     const { db, calls } = makeIdbMock();
     await importProjectData(payload as any, db as any);
 
-    const step = calls.createBuildStep[0];
-    const newModelId = calls.createModel[0].id;
-    expect(step.partRefs[0].modelId).toBe(newModelId);
-    expect(step.partRefs[0].partNumber).toBe(1);
-  });
-
-  it('drops build step partRefs referencing unknown model IDs', async () => {
-    const payload = makePayload();
-    payload.buildSteps![0].partRefs = [
-      { modelId: 'nonexistent-model', partNumber: 1 },
-    ];
-    const { db, calls } = makeIdbMock();
-    await importProjectData(payload as any, db as any);
-
-    expect(calls.createBuildStep[0].partRefs).toEqual([]);
+    expect(calls.createBuildStep).toHaveLength(1);
+    expect(calls.createBuildStep[0].projectId).toBe('new-proj');
+    expect(calls.createBuildStep[0].title).toBe('Cut parts');
   });
 });
 

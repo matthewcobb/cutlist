@@ -79,12 +79,6 @@ const BuildStepSchema = z.object({
   stepNumber: z.number().int().min(0),
   title: z.string(),
   description: z.string(),
-  partRefs: z.array(
-    z.object({
-      modelId: z.string(),
-      partNumber: z.number().int(),
-    }),
-  ),
   createdAt: z.string(),
 });
 
@@ -194,16 +188,11 @@ export async function importProjectData(
     excludedColors: data.project.excludedColors,
   });
 
-  // Build a map of old model IDs to new IDs for remapping build-step refs.
-  const modelIdMap = new Map<string, string>();
-  for (const model of data.models) {
-    modelIdMap.set(model.id, crypto.randomUUID());
-  }
   await Promise.all(
     data.models.map((model) =>
       idb.createModel({
         ...model,
-        id: modelIdMap.get(model.id)!,
+        id: crypto.randomUUID(),
         projectId: newProject.id,
       }),
     ),
@@ -215,13 +204,6 @@ export async function importProjectData(
         ...step,
         id: crypto.randomUUID(),
         projectId: newProject.id,
-        partRefs: step.partRefs.flatMap(
-          (ref: { modelId: string; partNumber: number }) => {
-            const newModelId = modelIdMap.get(ref.modelId);
-            if (!newModelId) return [];
-            return [{ modelId: newModelId, partNumber: ref.partNumber }];
-          },
-        ),
       }),
     ),
   );

@@ -40,7 +40,6 @@ export default function useBuildSteps() {
       stepNumber: nextStepNumber(buildSteps.value),
       title: '',
       description: '',
-      partRefs: [],
       createdAt: new Date().toISOString(),
     };
     buildSteps.value = [...buildSteps.value, step];
@@ -50,7 +49,7 @@ export default function useBuildSteps() {
 
   async function updateStep(
     id: string,
-    patch: Partial<Pick<IdbBuildStep, 'title' | 'description' | 'partRefs'>>,
+    patch: Partial<Pick<IdbBuildStep, 'title' | 'description'>>,
   ) {
     buildSteps.value = buildSteps.value.map((s) =>
       s.id === id ? { ...s, ...patch } : s,
