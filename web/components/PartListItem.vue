@@ -12,6 +12,15 @@ const hoveredIndex = inject<Ref<number | null>>(
 );
 const isHovered = computed(() => hoveredIndex.value === props.index);
 
+const toggleGrainLock = inject<(index: number) => void>(
+  'layoutToggleGrainLock',
+  () => {},
+);
+
+function onKeyActivate() {
+  toggleGrainLock(props.index);
+}
+
 const getPx = useGetPx();
 
 const width = computed(() => getPx(props.placement.widthM));
@@ -46,6 +55,8 @@ const { showPartNumbers } = useProjectSettings();
     role="button"
     tabindex="0"
     :aria-label="`Part ${placement.partNumber}: ${placement.name}`"
+    @keydown.enter.prevent="onKeyActivate"
+    @keydown.space.prevent="onKeyActivate"
   >
     <div
       class="overflow-hidden relative rounded-xs part-piece transition-colors"

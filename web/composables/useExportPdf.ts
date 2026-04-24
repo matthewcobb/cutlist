@@ -29,7 +29,10 @@ export default function () {
       });
       const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
-      const safeName = name.replace(/[^a-z0-9-_]+/gi, '_');
+      const safeName = (name || 'cutlist')
+        .replace(/[^a-z0-9-_]+/gi, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 64);
       const a = document.createElement('a');
       a.href = url;
       a.download = `${safeName}-cutlist.pdf`;

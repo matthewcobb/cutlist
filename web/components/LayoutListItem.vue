@@ -42,6 +42,18 @@ const board = ref<HTMLDivElement>();
 const hoveredIndex = ref<number | null>(null);
 provide('layoutHoveredIndex', hoveredIndex);
 
+function togglePartGrainLock(index: number) {
+  if (!activeId.value) return;
+  const placement = props.layout.placements[index];
+  if (!placement) return;
+  updatePartGrainLock(
+    activeId.value,
+    placement.partNumber,
+    cycleGrainLock(placement.grainLock),
+  );
+}
+provide('layoutToggleGrainLock', togglePartGrainLock);
+
 function hitTest(e: PointerEvent): number | null {
   const el = board.value;
   if (!el) return null;
@@ -137,7 +149,7 @@ const hoveredPlacement = computed<BoardLayoutPlacement | null>(() =>
       />
       <PartListItem
         v-for="(placement, i) of layout.placements"
-        :key="i"
+        :key="`${placement.partNumber}-${i}`"
         :placement="placement"
         :index="i"
       />

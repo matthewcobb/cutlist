@@ -168,7 +168,10 @@ function onKeydown(e: KeyboardEvent) {
           v-for="m in materials"
           :key="m"
           :value="m"
-          style="background: #161b1d; color: #e3e7e8"
+          style="
+            background: var(--color-mist-900);
+            color: var(--color-mist-200);
+          "
         >
           {{ m }}
         </option>
