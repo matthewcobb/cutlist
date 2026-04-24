@@ -83,33 +83,52 @@ const groups = computed<LayoutGroup[]>(() => {
   }));
 });
 
+interface GroupedLeftover {
+  part: BoardLayoutLeftover;
+  qty: number;
+}
+
 interface LeftoverStockGroup {
   key: string;
   material: string;
   thickness: string;
-  parts: BoardLayoutLeftover[];
+  groups: GroupedLeftover[];
 }
 
 const leftoversByStock = computed<LeftoverStockGroup[]>(() => {
   if (props.leftovers.length === 0) return [];
 
-  const map = new Map<string, BoardLayoutLeftover[]>();
+  const stockMap = new Map<string, BoardLayoutLeftover[]>();
   for (const part of props.leftovers) {
     const key = `${part.material}__${part.thicknessM}`;
-    let entry = map.get(key);
+    let entry = stockMap.get(key);
     if (!entry) {
       entry = [];
-      map.set(key, entry);
+      stockMap.set(key, entry);
     }
     entry.push(part);
   }
 
-  return [...map.entries()].map(([key, parts]) => ({
-    key,
-    material: parts[0].material,
-    thickness: formatDistance(parts[0].thicknessM) ?? '',
-    parts,
-  }));
+  return [...stockMap.entries()].map(([key, parts]) => {
+    // Group identical parts by partNumber + grainLock
+    const partMap = new Map<string, GroupedLeftover>();
+    for (const part of parts) {
+      const pk = `${part.partNumber}__${part.grainLock ?? 'none'}`;
+      const existing = partMap.get(pk);
+      if (existing) {
+        existing.qty++;
+      } else {
+        partMap.set(pk, { part, qty: 1 });
+      }
+    }
+
+    return {
+      key,
+      material: parts[0].material,
+      thickness: formatDistance(parts[0].thicknessM) ?? '',
+      groups: [...partMap.values()],
+    };
+  });
 });
 </script>
 
@@ -178,8 +197,8 @@ const leftoversByStock = computed<LeftoverStockGroup[]>(() => {
             </div>
             <ul class="flex flex-col" :style="`gap:${gap}`">
               <li
-                v-for="(part, i) of group.parts"
-                :key="`${part.partNumber}-${part.instanceNumber}-${i}`"
+                v-for="{ part, qty } of group.groups"
+                :key="`${part.partNumber}-${part.grainLock ?? 'none'}`"
                 class="flex items-center gap-3 shrink-0 cursor-pointer group"
                 @pointerdown="onLeftoverPointerDown($event, part)"
               >
@@ -227,7 +246,9 @@ const leftoversByStock = computed<LeftoverStockGroup[]>(() => {
                   </div>
                 </div>
                 <span class="text-sm text-amber-500/60 text-nowrap">
-                  {{
+                  <span v-if="qty > 1" class="text-amber-500/80 font-semibold"
+                    >&times;{{ qty }}&ensp;</span
+                  >{{
                     formatDistance(
                       part.grainLock === 'width' ? part.lengthM : part.widthM,
                     )
