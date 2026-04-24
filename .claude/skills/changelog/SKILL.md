@@ -38,7 +38,7 @@ Run these in parallel:
    git show <from> --format='%ai %s' --no-patch
    ```
 
-3. **Check for existing CHANGELOG.md** in the repo root via Glob.
+3. **Check the `changelog/` directory** at the repo root via Glob for existing version files (e.g. `changelog/v0.1.0.md`).
 
 4. **Check for merged PRs** (if `gh` is available):
    ```
@@ -73,35 +73,29 @@ Guidelines:
 
 ## Write the changelog
 
-### If CHANGELOG.md exists
+Write a new file at `changelog/<version>.md` in the repo root, where `<version>` is the `<to>` ref (e.g. `changelog/v0.2.0.md`). If `<to>` is `HEAD` or a branch, use `changelog/unreleased.md`.
 
-Read it first. Insert a new version section at the top (below the `# Changelog` heading), preserving all existing content. Use the same formatting conventions as existing entries.
-
-### If CHANGELOG.md doesn't exist
-
-Create a new `CHANGELOG.md` at the repo root.
+If the file already exists, overwrite it only after confirming with the user. Match the formatting conventions of any sibling files in `changelog/`.
 
 ### Format
 
 ```markdown
-# Changelog
-
-## [<to-ref or "Unreleased">] — <YYYY-MM-DD>
+# <to-ref or "Unreleased"> — <YYYY-MM-DD>
 
 _Since [<from-ref>] (<from-date>)._
 
-### Features
+## Features
 
 - **Short label** — description (#PR)
 
-### Performance
+## Performance
 
 - **Short label** — description
 
 ...additional sections as needed...
 ```
 
-Use `Unreleased` as the version if `<to>` is `HEAD` or a branch. Use the tag name if `<to>` is a tag.
+Each version file is self-contained — no top-level `# Changelog` heading, since the directory itself is the index.
 
 ## Output
 
