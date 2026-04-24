@@ -23,6 +23,10 @@ function makePayload(overrides?: any) {
       excludedColors: ['#bbb'],
       stock: 'stock yaml',
       distanceUnit: 'mm' as const,
+      bladeWidth: 3,
+      margin: 0,
+      optimize: 'Auto' as const,
+      showPartNumbers: true,
       createdAt: now,
       updatedAt: now,
     },
@@ -246,6 +250,34 @@ describe('round-trip fidelity', () => {
 
     expect(calls.createProject[0].opts.stock).toBe('custom stock yaml');
     expect(calls.createProject[0].opts.distanceUnit).toBe('in');
+  });
+
+  it('passes packing settings through to createProject', async () => {
+    const payload = makePayload();
+    payload.project.bladeWidth = 5;
+    payload.project.margin = 2;
+    payload.project.optimize = 'CNC';
+    payload.project.showPartNumbers = false;
+    const { db, calls } = makeIdbMock();
+    await importProjectData(payload as any, db as any);
+
+    expect(calls.createProject[0].opts.bladeWidth).toBe(5);
+    expect(calls.createProject[0].opts.margin).toBe(2);
+    expect(calls.createProject[0].opts.optimize).toBe('CNC');
+    expect(calls.createProject[0].opts.showPartNumbers).toBe(false);
+  });
+
+  it('fills defaults when legacy export omits packing settings', async () => {
+    const payload = makePayload();
+    delete (payload.project as any).bladeWidth;
+    delete (payload.project as any).margin;
+    delete (payload.project as any).optimize;
+    delete (payload.project as any).showPartNumbers;
+    const parsed = parseProjectExport(payload);
+    expect(parsed.project.bladeWidth).toBeDefined();
+    expect(parsed.project.margin).toBeDefined();
+    expect(parsed.project.optimize).toBeDefined();
+    expect(parsed.project.showPartNumbers).toBeDefined();
   });
 
   it('preserves derivedCache on models', () => {

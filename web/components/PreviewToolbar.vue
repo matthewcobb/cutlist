@@ -6,30 +6,9 @@ const {
   optimize,
   showPartNumbers,
   isLoading,
-  changes,
 } = useProjectSettings();
 
 useUnitConverter();
-
-const { saveSettings } = useGlobalSettings();
-
-// Auto-save when any setting changes (debounced)
-let saveTimeout: ReturnType<typeof setTimeout> | undefined;
-watch(
-  changes,
-  (val) => {
-    if (!val || Object.keys(val).length === 0) return;
-    if (saveTimeout) clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => {
-      saveSettings(toRaw(val));
-    }, 1000);
-  },
-  { deep: true },
-);
-
-onBeforeUnmount(() => {
-  if (saveTimeout) clearTimeout(saveTimeout);
-});
 </script>
 
 <template>

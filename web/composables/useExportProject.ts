@@ -12,6 +12,10 @@ export interface ProjectExport {
     excludedColors: string[];
     stock: string;
     distanceUnit: 'in' | 'mm';
+    bladeWidth: number;
+    margin: number;
+    optimize: 'Auto' | 'Cuts' | 'CNC';
+    showPartNumbers: boolean;
     createdAt: string;
     updatedAt: string;
   };
@@ -49,6 +53,10 @@ export default function useExportProject() {
         excludedColors: idbProject.excludedColors,
         stock: idbProject.stock,
         distanceUnit: idbProject.distanceUnit,
+        bladeWidth: idbProject.bladeWidth,
+        margin: idbProject.margin,
+        optimize: idbProject.optimize,
+        showPartNumbers: idbProject.showPartNumbers,
         createdAt: idbProject.createdAt,
         updatedAt: idbProject.updatedAt,
       },

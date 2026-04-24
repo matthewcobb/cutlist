@@ -3,7 +3,8 @@ import {
   type NodePartMapping,
   type Part,
 } from '~/utils/parseGltf';
-import type { PartOverride } from '~/composables/useIdb';
+import { DEFAULT_SETTINGS } from '~/utils/settings';
+import type { IdbProject, PartOverride } from '~/composables/useIdb';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
 import { loadProject } from '~/composables/useModelHydration';
 import { maybeSeedDemo } from '~/composables/useDemoSeed';
@@ -41,6 +42,14 @@ export interface Project {
   stock: string;
   /** Per-project distance unit. */
   distanceUnit: 'in' | 'mm';
+  /** Per-project saw blade width, in the project's distanceUnit. */
+  bladeWidth: number;
+  /** Per-project margin/offset for the packing algorithm. */
+  margin: number;
+  /** Per-project packing strategy hint. */
+  optimize: 'Auto' | 'Cuts' | 'CNC';
+  /** Whether to render part numbers in visualizations. */
+  showPartNumbers: boolean;
 }
 
 interface ProjectListItem {
@@ -123,7 +132,11 @@ export default function useProjects() {
           colorMap: {},
           excludedColors: [],
           stock: '',
-          distanceUnit: 'mm',
+          distanceUnit: DEFAULT_SETTINGS.distanceUnit,
+          bladeWidth: DEFAULT_SETTINGS.bladeWidth,
+          margin: DEFAULT_SETTINGS.margin,
+          optimize: DEFAULT_SETTINGS.optimize,
+          showPartNumbers: DEFAULT_SETTINGS.showPartNumbers,
         });
       }
     }
@@ -293,21 +306,15 @@ export default function useProjects() {
     await idb.updateProject(id, { excludedColors: newExcluded });
   }
 
-  async function updateStock(projectId: string, stock: string) {
+  /**
+   * Apply a partial patch to the active project's in-memory record.
+   * Used by useProjectSettings to update the reactive state immediately
+   * while a debounced IDB write is scheduled separately.
+   */
+  function patchActiveProject(patch: Partial<IdbProject>) {
     const project = activeProjectData.value;
-    if (!project || project.id !== projectId) return;
-    activeProjectData.value = { ...project, stock };
-    await idb.updateProject(projectId, { stock });
-  }
-
-  async function updateDistanceUnit(
-    projectId: string,
-    distanceUnit: 'in' | 'mm',
-  ) {
-    const project = activeProjectData.value;
-    if (!project || project.id !== projectId) return;
-    activeProjectData.value = { ...project, distanceUnit };
-    await idb.updateProject(projectId, { distanceUnit });
+    if (!project) return;
+    activeProjectData.value = { ...project, ...patch };
   }
 
   // Manual part operations (delegated to useManualParts)
@@ -428,8 +435,7 @@ export default function useProjects() {
     toggleModel,
     updateColorMap,
     toggleColorExcluded,
-    updateStock,
-    updateDistanceUnit,
+    patchActiveProject,
     addManualPart,
     updateManualPart,
     removeManualPart,

@@ -1,5 +1,5 @@
-import { describe, expect, it, beforeEach } from 'bun:test';
-import { useIdb, applyProjectDefaults, applyModelDefaults } from '../useIdb';
+import { describe, expect, it } from 'bun:test';
+import { useIdb, applyModelDefaults } from '../useIdb';
 import { DEFAULT_SETTINGS, DEFAULT_STOCK_YAML } from '../../utils/settings';
 import type { IdbModel, IdbBuildStep } from '../useIdb';
 
@@ -15,7 +15,11 @@ describe('project CRUD', () => {
     expect(project.colorMap).toEqual({});
     expect(project.excludedColors).toEqual([]);
     expect(project.stock).toBe(DEFAULT_STOCK_YAML);
-    expect(project.distanceUnit).toBe('mm');
+    expect(project.distanceUnit).toBe(DEFAULT_SETTINGS.distanceUnit);
+    expect(project.bladeWidth).toBe(DEFAULT_SETTINGS.bladeWidth);
+    expect(project.margin).toBe(DEFAULT_SETTINGS.margin);
+    expect(project.optimize).toBe(DEFAULT_SETTINGS.optimize);
+    expect(project.showPartNumbers).toBe(DEFAULT_SETTINGS.showPartNumbers);
     expect(project.createdAt).toBeDefined();
     expect(project.updatedAt).toBeDefined();
     expect(project.archivedAt).toBeUndefined();
@@ -25,9 +29,31 @@ describe('project CRUD', () => {
     const project = await idb.createProject('Imperial', {
       stock: 'custom yaml',
       distanceUnit: 'in',
+      bladeWidth: 7,
+      margin: 1,
+      optimize: 'CNC',
+      showPartNumbers: false,
     });
     expect(project.stock).toBe('custom yaml');
     expect(project.distanceUnit).toBe('in');
+    expect(project.bladeWidth).toBe(7);
+    expect(project.margin).toBe(1);
+    expect(project.optimize).toBe('CNC');
+    expect(project.showPartNumbers).toBe(false);
+  });
+
+  it('updateProject accepts packing settings fields', async () => {
+    const project = await idb.createProject('Packing patch');
+    const updated = await idb.updateProject(project.id, {
+      bladeWidth: 4,
+      margin: 2,
+      optimize: 'Cuts',
+      showPartNumbers: false,
+    });
+    expect(updated.bladeWidth).toBe(4);
+    expect(updated.margin).toBe(2);
+    expect(updated.optimize).toBe('Cuts');
+    expect(updated.showPartNumbers).toBe(false);
   });
 
   it('getProjectList includes created projects', async () => {
@@ -274,35 +300,7 @@ describe('model CRUD', () => {
   });
 });
 
-// ─── Settings ───────────────────────────────────────────────────────────────
-
-describe('settings', () => {
-  it('getSettings returns defaults when nothing saved', async () => {
-    // First call on fresh DB — no settings record exists yet
-    const settings = await idb.getSettings();
-    expect(settings).toEqual(DEFAULT_SETTINGS);
-  });
-
-  it('saveSettings merges partial changes', async () => {
-    const result = await idb.saveSettings({ bladeWidth: 5, optimize: 'CNC' });
-    expect(result.bladeWidth).toBe(5);
-    expect(result.optimize).toBe('CNC');
-    // Other fields preserved
-    expect(result.distanceUnit).toBe(DEFAULT_SETTINGS.distanceUnit);
-
-    const fetched = await idb.getSettings();
-    expect(fetched.bladeWidth).toBe(5);
-  });
-
-  it('resetSettings restores defaults', async () => {
-    await idb.saveSettings({ bladeWidth: 99 });
-    const result = await idb.resetSettings();
-    expect(result).toEqual(DEFAULT_SETTINGS);
-
-    const fetched = await idb.getSettings();
-    expect(fetched).toEqual(DEFAULT_SETTINGS);
-  });
-});
+// ─── Demo seed marker ───────────────────────────────────────────────────────
 
 describe('demo seed marker', () => {
   it('can be explicitly reset to false', async () => {

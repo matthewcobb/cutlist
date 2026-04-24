@@ -89,7 +89,7 @@ let dbPromise: Promise<IDBPDatabase<CutlistDb>> | null = null;
 
 export function getDb(): Promise<IDBPDatabase<CutlistDb>> {
   if (!dbPromise) {
-    dbPromise = openDB<CutlistDb>('cutlist-db', 3, {
+    dbPromise = openDB<CutlistDb>('cutlist-db', 4, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
           const projects = db.createObjectStore('projects', { keyPath: 'id' });
@@ -97,8 +97,6 @@ export function getDb(): Promise<IDBPDatabase<CutlistDb>> {
 
           const models = db.createObjectStore('models', { keyPath: 'id' });
           models.createIndex('projectId', 'projectId');
-
-          db.createObjectStore('settings', { keyPath: 'key' });
         }
         if (oldVersion < 2) {
           const buildSteps = db.createObjectStore('buildSteps', {
@@ -108,6 +106,17 @@ export function getDb(): Promise<IDBPDatabase<CutlistDb>> {
         }
         if (oldVersion < 3) {
           db.createObjectStore('layoutCache', { keyPath: 'projectId' });
+        }
+        if (oldVersion < 4) {
+          // Packing settings moved onto each project record; the shared
+          // settings store is gone. Schema-version + demo-seeded markers now
+          // live in a dedicated `meta` store. Existing v1–v3 DBs carried a
+          // `settings` store with the pre-refactor global-settings payload —
+          // drop it here. Fresh DBs never create it, so the guard is needed.
+          if (db.objectStoreNames.contains('settings' as never)) {
+            db.deleteObjectStore('settings' as never);
+          }
+          db.createObjectStore('meta', { keyPath: 'key' });
         }
       },
     })

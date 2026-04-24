@@ -45,7 +45,6 @@ import {
   updateBuildStep,
   deleteBuildStep,
 } from './buildSteps';
-import { getSettings, saveSettings, resetSettings } from './settings';
 import {
   getLayoutCache,
   putLayoutCache,
@@ -79,9 +78,6 @@ export function useIdb() {
     updateModel,
     deleteModel,
     getModelGltf,
-    getSettings,
-    saveSettings,
-    resetSettings,
     getDemoSeeded,
     setDemoSeeded,
     getBuildSteps,

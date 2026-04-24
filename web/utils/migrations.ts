@@ -27,15 +27,16 @@
  */
 
 import type { IDBPDatabase } from 'idb';
-import { DEFAULT_STOCK_YAML } from '~/utils/settings';
 
 /**
  * Schema version for record shapes (independent of IDB database version).
  * Bump when any record type's fields change. Never decrement.
  *
- * Starting at 1 as the production baseline (clean slate, April 2025).
+ * v2 (April 2026): packing settings (bladeWidth, margin, optimize,
+ * showPartNumbers) moved onto the project record. No explicit migration —
+ * applyProjectDefaults fills missing fields on read.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /**
  * Layout cache version. Baked into every cache fingerprint so that algorithm
@@ -45,7 +46,7 @@ export const SCHEMA_VERSION = 1;
  */
 export const LAYOUT_CACHE_VERSION = 2;
 
-type StoreName = 'projects' | 'models' | 'buildSteps' | 'settings';
+type StoreName = 'projects' | 'models' | 'buildSteps';
 
 /** A loosely-typed IDB record (string-keyed object with unknown values). */
 export type IdbRecord = Record<string, unknown>;
@@ -119,7 +120,7 @@ export class FutureSchemaError extends Error {
  */
 export async function runStartupSweep(db: IDBPDatabase<any>): Promise<void> {
   // Read the current schema version outside the migration transaction.
-  const versionRecord = await db.get('settings', SCHEMA_VERSION_KEY);
+  const versionRecord = await db.get('meta', SCHEMA_VERSION_KEY);
   const storedVersion: number = versionRecord?.version ?? 0;
 
   if (storedVersion > SCHEMA_VERSION) {
@@ -128,20 +129,9 @@ export async function runStartupSweep(db: IDBPDatabase<any>): Promise<void> {
 
   if (storedVersion >= SCHEMA_VERSION) return;
 
-  // Collect which stores need migration work.
-  const storesWithMigrations = new Set<StoreName>();
-  for (const m of migrations) {
-    if (m.version > storedVersion) {
-      storesWithMigrations.add(m.store);
-    }
-  }
-
-  // Always include 'settings' so we can stamp the version.
-  storesWithMigrations.add('settings');
-
-  // Open a single atomic transaction over ALL stores that need work.
+  // Open a single atomic transaction over ALL record stores plus `meta`.
   // This ensures either everything migrates or nothing does.
-  const allStores = ['projects', 'models', 'buildSteps', 'settings'] as const;
+  const allStores = ['projects', 'models', 'buildSteps', 'meta'] as const;
   const tx = db.transaction([...allStores], 'readwrite');
 
   try {
@@ -178,23 +168,8 @@ export async function runStartupSweep(db: IDBPDatabase<any>): Promise<void> {
       }
     }
 
-    // Settings store (global-settings record)
-    const settingsMigrations = migrations.filter(
-      (m) => m.store === 'settings' && m.version > storedVersion,
-    );
-    if (settingsMigrations.length > 0) {
-      const record = await tx.objectStore('settings').get('global-settings');
-      if (record) {
-        let patched = record;
-        for (const m of settingsMigrations) {
-          patched = m.migrate(patched);
-        }
-        await tx.objectStore('settings').put(patched);
-      }
-    }
-
     // Stamp new version inside the same transaction.
-    await tx.objectStore('settings').put({
+    await tx.objectStore('meta').put({
       key: SCHEMA_VERSION_KEY,
       version: SCHEMA_VERSION,
     });
@@ -217,7 +192,6 @@ interface RawExport {
   project?: IdbRecord;
   models?: IdbRecord[];
   buildSteps?: IdbRecord[];
-  settings?: IdbRecord;
   [key: string]: unknown;
 }
 

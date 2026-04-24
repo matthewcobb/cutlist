@@ -20,6 +20,10 @@ function makePayload() {
       stock:
         '- material: Plywood\n  unit: mm\n  thickness: [18]\n  sizes: [{ width: 1220, length: 2440 }]\n',
       distanceUnit: 'mm' as const,
+      bladeWidth: 3,
+      margin: 0,
+      optimize: 'Auto' as const,
+      showPartNumbers: true,
       createdAt: now,
       updatedAt: now,
     },

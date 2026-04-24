@@ -9,7 +9,6 @@
 import type { DBSchema } from 'idb';
 import type { BoardLayout, BoardLayoutLeftover } from 'cutlist';
 import type { ColorInfo, NodePartMapping, Part } from '~/utils/parseGltf';
-import type { CutlistSettings } from '~/utils/settings';
 
 export interface IdbProject {
   id: string;
@@ -21,6 +20,14 @@ export interface IdbProject {
   stock: string;
   /** Per-project distance unit. */
   distanceUnit: 'in' | 'mm';
+  /** Per-project saw blade width, in the project's distanceUnit. */
+  bladeWidth: number;
+  /** Per-project margin/offset for the packing algorithm. */
+  margin: number;
+  /** Per-project packing strategy hint. */
+  optimize: 'Auto' | 'Cuts' | 'CNC';
+  /** Whether to render part numbers in visualizations. */
+  showPartNumbers: boolean;
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;
@@ -90,11 +97,6 @@ export interface IdbBuildStep {
   createdAt: string;
 }
 
-export interface IdbSettingsRecord {
-  key: 'global-settings';
-  settings: CutlistSettings;
-}
-
 export interface IdbSchemaVersionRecord {
   key: 'schema-version';
   version: number;
@@ -118,9 +120,14 @@ export interface CutlistDb extends DBSchema {
     value: IdbModel;
     indexes: { projectId: string };
   };
-  settings: {
+  /**
+   * Small app-wide metadata (schema version stamp, demo-seed marker, etc.).
+   * Previously these lived alongside `global-settings` in a `settings` store
+   * — which was dropped when packing settings moved onto the project record.
+   */
+  meta: {
     key: string;
-    value: IdbSettingsRecord | IdbSchemaVersionRecord | IdbDemoSeedRecord;
+    value: IdbSchemaVersionRecord | IdbDemoSeedRecord;
   };
   buildSteps: {
     key: string;

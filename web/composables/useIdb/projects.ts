@@ -5,7 +5,7 @@
  * single transaction so partial failures don't leave orphans.
  */
 
-import { DEFAULT_STOCK_YAML } from '~/utils/settings';
+import { DEFAULT_SETTINGS, DEFAULT_STOCK_YAML } from '~/utils/settings';
 import { getDb, safeWrite, notifyOtherTabs } from './db';
 import { applyProjectDefaults, applyModelDefaults } from './defaults';
 import type { IdbProject, IdbModelMeta } from './types';
@@ -82,7 +82,14 @@ export async function getProjectWithModels(
 
 export async function createProject(
   name: string,
-  opts?: { stock?: string; distanceUnit?: 'in' | 'mm' },
+  opts?: {
+    stock?: string;
+    distanceUnit?: 'in' | 'mm';
+    bladeWidth?: number;
+    margin?: number;
+    optimize?: 'Auto' | 'Cuts' | 'CNC';
+    showPartNumbers?: boolean;
+  },
 ): Promise<IdbProject> {
   const db = await getDb();
   const now = new Date().toISOString();
@@ -92,7 +99,11 @@ export async function createProject(
     colorMap: {},
     excludedColors: [],
     stock: opts?.stock ?? DEFAULT_STOCK_YAML,
-    distanceUnit: opts?.distanceUnit ?? 'mm',
+    distanceUnit: opts?.distanceUnit ?? DEFAULT_SETTINGS.distanceUnit,
+    bladeWidth: opts?.bladeWidth ?? DEFAULT_SETTINGS.bladeWidth,
+    margin: opts?.margin ?? DEFAULT_SETTINGS.margin,
+    optimize: opts?.optimize ?? DEFAULT_SETTINGS.optimize,
+    showPartNumbers: opts?.showPartNumbers ?? DEFAULT_SETTINGS.showPartNumbers,
     createdAt: now,
     updatedAt: now,
   };
@@ -111,6 +122,10 @@ export async function updateProject(
       | 'excludedColors'
       | 'stock'
       | 'distanceUnit'
+      | 'bladeWidth'
+      | 'margin'
+      | 'optimize'
+      | 'showPartNumbers'
       | 'updatedAt'
     >
   >,

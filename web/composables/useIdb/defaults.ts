@@ -3,7 +3,7 @@
  * versions (which may be missing fields added later) still hydrate cleanly.
  */
 
-import { DEFAULT_STOCK_YAML } from '~/utils/settings';
+import { DEFAULT_SETTINGS, DEFAULT_STOCK_YAML } from '~/utils/settings';
 import type { IdbProject, IdbModelMeta } from './types';
 
 export function applyProjectDefaults(
@@ -14,7 +14,11 @@ export function applyProjectDefaults(
     stock: p.stock ?? DEFAULT_STOCK_YAML,
     colorMap: p.colorMap ?? {},
     excludedColors: p.excludedColors ?? [],
-    distanceUnit: p.distanceUnit ?? 'mm',
+    distanceUnit: p.distanceUnit ?? DEFAULT_SETTINGS.distanceUnit,
+    bladeWidth: p.bladeWidth ?? DEFAULT_SETTINGS.bladeWidth,
+    margin: p.margin ?? DEFAULT_SETTINGS.margin,
+    optimize: p.optimize ?? DEFAULT_SETTINGS.optimize,
+    showPartNumbers: p.showPartNumbers ?? DEFAULT_SETTINGS.showPartNumbers,
   } as IdbProject;
 }
 

@@ -10,6 +10,7 @@ import { useIdb, type IdbModel } from '../useIdb';
 import type { Part } from '~/utils/parseGltf';
 import type { Project, ManualPartInput } from '../useProjects';
 import { useManualParts } from '../useManualParts';
+import { DEFAULT_SETTINGS } from '../../utils/settings';
 
 const idb = useIdb();
 const mockUpdateColorMap = mock(async () => {});
@@ -22,7 +23,11 @@ function makeProject(id: string, models: Project['models'] = []): Project {
     colorMap: {},
     excludedColors: [],
     stock: '',
-    distanceUnit: 'mm',
+    distanceUnit: DEFAULT_SETTINGS.distanceUnit,
+    bladeWidth: DEFAULT_SETTINGS.bladeWidth,
+    margin: DEFAULT_SETTINGS.margin,
+    optimize: DEFAULT_SETTINGS.optimize,
+    showPartNumbers: DEFAULT_SETTINGS.showPartNumbers,
   };
 }
 
