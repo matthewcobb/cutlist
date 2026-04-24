@@ -51,7 +51,7 @@ export default createSharedComposable(() => {
     },
   });
 
-  const { data: settings, isLoading } = useSettingsQuery();
+  const { settings, isLoading } = useGlobalSettings();
 
   const resetSettings = () => {
     bladeWidth.value = settings.value?.bladeWidth;

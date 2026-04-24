@@ -583,6 +583,7 @@ export function useIdb() {
     await safeWrite(() =>
       db.put('settings', { key: 'global-settings', settings: updated }),
     );
+    notifyOtherTabs('settings-changed');
     return updated;
   }
 
@@ -592,6 +593,7 @@ export function useIdb() {
       key: 'global-settings',
       settings: { ...DEFAULT_SETTINGS },
     });
+    notifyOtherTabs('settings-changed');
     return { ...DEFAULT_SETTINGS };
   }
 

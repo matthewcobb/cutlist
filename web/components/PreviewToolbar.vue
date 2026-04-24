@@ -11,7 +11,7 @@ const {
 
 useUnitConverter();
 
-const { mutate: save } = useSetSettingsMutation();
+const { saveSettings } = useGlobalSettings();
 
 // Auto-save when any setting changes (debounced)
 let saveTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -21,7 +21,7 @@ watch(
     if (!val || Object.keys(val).length === 0) return;
     if (saveTimeout) clearTimeout(saveTimeout);
     saveTimeout = setTimeout(() => {
-      save({ changes: toRaw(val) });
+      saveSettings(toRaw(val));
     }, 1000);
   },
   { deep: true },
