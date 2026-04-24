@@ -29,8 +29,8 @@ mock.module('../useComputationWorker', () => ({
   deriveModel: mockDeriveModel,
   computeLayouts: mock(async () => ({ layouts: [], leftovers: [] })),
   cancelLayouts: mock(() => {}),
-  PART_COUNT_SOFT_LIMIT: 500,
-  PART_COUNT_HARD_LIMIT: 2000,
+  PART_COUNT_SOFT_LIMIT: 2000,
+  PART_COUNT_HARD_LIMIT: 50_000,
   PartCountExceededError: class extends Error {
     constructor(count: number) {
       super(`Too many parts (${count}).`);
