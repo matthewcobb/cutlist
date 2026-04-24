@@ -137,6 +137,15 @@ describe('parseProjectExport edge cases', () => {
     payload.models[0].parts[0].size.width = NaN;
     expect(() => parseProjectExport(payload)).toThrow('Invalid project file');
   });
+
+  it('coerces string-encoded numeric settings to numbers', () => {
+    const payload = makePayload({
+      settings: { margin: '3.5', bladeWidth: '2' },
+    });
+    const parsed = parseProjectExport(payload);
+    expect(parsed.settings!.margin).toBe(3.5);
+    expect(parsed.settings!.bladeWidth).toBe(2);
+  });
 });
 
 describe('importProjectData remapping', () => {
@@ -175,7 +184,7 @@ describe('importProjectData remapping', () => {
     expect(step.partRefs[0].partNumber).toBe(1);
   });
 
-  it('handles build steps referencing unknown model IDs', async () => {
+  it('drops build step partRefs referencing unknown model IDs', async () => {
     const payload = makePayload();
     payload.buildSteps![0].partRefs = [
       { modelId: 'nonexistent-model', partNumber: 1 },
@@ -183,10 +192,7 @@ describe('importProjectData remapping', () => {
     const { db, calls } = makeIdbMock();
     await importProjectData(payload as any, db as any);
 
-    // Falls back to the original modelId when not in the map
-    expect(calls.createBuildStep[0].partRefs[0].modelId).toBe(
-      'nonexistent-model',
-    );
+    expect(calls.createBuildStep[0].partRefs).toEqual([]);
   });
 });
 

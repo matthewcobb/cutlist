@@ -33,12 +33,10 @@ const PartSchema = z.object({
   grainLock: z.enum(['length', 'width']).optional(),
 });
 
-const PartOverrideSchema = z
-  .object({
-    grainLock: z.enum(['length', 'width']).optional(),
-    name: z.string().optional(),
-  })
-  .passthrough();
+const PartOverrideSchema = z.object({
+  grainLock: z.enum(['length', 'width']).optional(),
+  name: z.string().optional(),
+});
 
 const DerivedCacheSchema = z
   .object({
@@ -68,7 +66,7 @@ const ModelSchema = z.object({
   source: z.enum(['gltf', 'manual']),
   parts: z.array(PartSchema).default([]),
   enabled: z.boolean(),
-  gltfJson: z.union([z.object({}).passthrough(), z.null()]),
+  gltfJson: z.union([z.record(z.string(), z.unknown()), z.null()]),
   partOverrides: z.record(z.string(), PartOverrideSchema).default({}),
   derivedCache: DerivedCacheSchema,
   createdAt: z.string(),
@@ -91,21 +89,20 @@ const BuildStepSchema = z.object({
 
 const SettingsSchema = z
   .object({
-    bladeWidth: z.number().optional(),
+    bladeWidth: z.coerce.number().optional(),
     distanceUnit: z.enum(['in', 'mm']).optional(),
-    margin: z.number().optional(),
+    margin: z.coerce.number().optional(),
     optimize: z.enum(['Auto', 'Cuts', 'CNC']).optional(),
     showPartNumbers: z.boolean().optional(),
     stock: z.string().optional(),
   })
-  .passthrough()
   .optional();
 
 const ProjectExportSchema = z.object({
   version: z.number(),
   project: z.object({
     id: z.string(),
-    name: z.string(),
+    name: z.string().min(1, 'Project name cannot be empty'),
     colorMap: z.record(z.string(), z.string()),
     excludedColors: z.array(z.string()).default([]),
     stock: z.string(),
@@ -168,7 +165,7 @@ export function parseProjectExport(raw: unknown): ProjectExport {
           : ''),
     );
   }
-  return migrated as unknown as ProjectExport;
+  return result.data as unknown as ProjectExport;
 }
 
 /**
@@ -210,11 +207,12 @@ export async function importProjectData(
         ...step,
         id: crypto.randomUUID(),
         projectId: newProject.id,
-        partRefs: step.partRefs.map(
-          (ref: { modelId: string; partNumber: number }) => ({
-            modelId: modelIdMap.get(ref.modelId) ?? ref.modelId,
-            partNumber: ref.partNumber,
-          }),
+        partRefs: step.partRefs.flatMap(
+          (ref: { modelId: string; partNumber: number }) => {
+            const newModelId = modelIdMap.get(ref.modelId);
+            if (!newModelId) return [];
+            return [{ modelId: newModelId, partNumber: ref.partNumber }];
+          },
         ),
       }),
     ),
