@@ -6,7 +6,6 @@
  * which spawns a Web Worker unavailable in Bun tests. We mock that module
  * and exercise the hydration logic with real IDB via fake-indexeddb.
  */
-import 'fake-indexeddb/auto';
 import { describe, expect, it, mock, beforeEach } from 'bun:test';
 import type { Part, ColorInfo, NodePartMapping } from '~/utils/parseGltf';
 import { DERIVE_VERSION } from '~/utils/parseGltf';

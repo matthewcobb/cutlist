@@ -1,6 +1,5 @@
-import type { CutlistSettings } from '~/utils/settings';
 import type { IdbBuildStep, IdbModel } from '~/composables/useIdb';
-import { SCHEMA_VERSION } from '~/utils/migrations';
+import { SCHEMA_VERSION } from '~/utils/versions';
 import { gzipCompress } from '~/utils/compress';
 
 export interface ProjectExport {
@@ -13,12 +12,15 @@ export interface ProjectExport {
     excludedColors: string[];
     stock: string;
     distanceUnit: 'in' | 'mm';
+    bladeWidth: number;
+    margin: number;
+    optimize: 'Auto' | 'CNC';
+    showPartNumbers: boolean;
     createdAt: string;
     updatedAt: string;
   };
   models: IdbModel[];
   buildSteps?: IdbBuildStep[];
-  settings: CutlistSettings;
 }
 
 export default function useExportProject() {
@@ -40,7 +42,6 @@ export default function useExportProject() {
     );
 
     const buildSteps = await idb.getBuildSteps(activeId.value);
-    const settings = await idb.getSettings();
 
     const data: ProjectExport = {
       version: SCHEMA_VERSION,
@@ -52,12 +53,15 @@ export default function useExportProject() {
         excludedColors: idbProject.excludedColors,
         stock: idbProject.stock,
         distanceUnit: idbProject.distanceUnit,
+        bladeWidth: idbProject.bladeWidth,
+        margin: idbProject.margin,
+        optimize: idbProject.optimize,
+        showPartNumbers: idbProject.showPartNumbers,
         createdAt: idbProject.createdAt,
         updatedAt: idbProject.updatedAt,
       },
       models: fullModels,
       buildSteps,
-      settings,
     };
 
     const blob = await gzipCompress(JSON.stringify(data));

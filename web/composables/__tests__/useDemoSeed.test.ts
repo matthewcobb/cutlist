@@ -9,9 +9,8 @@
  *
  * NOTE: We deliberately avoid mock.module on ~/utils/projectImport because
  * Bun's module mocks are global and would break projectImport's own tests
- * when run in the same process.
+ * when run in the same process. IDB is reset per test via `web/test-setup.ts`.
  */
-import 'fake-indexeddb/auto';
 import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import { useIdb } from '../useIdb';
 import { maybeSeedDemo, seedDemoProject } from '../useDemoSeed';
@@ -30,11 +29,8 @@ describe('maybeSeedDemo', () => {
 
   it('skips when projects already exist even if not seeded', async () => {
     await idb.setDemoSeeded(false);
-    // There are already projects from previous tests in the shared IDB
-    const list = await idb.getProjectList();
-    if (list.length === 0) {
-      await idb.createProject('Guard Test');
-    }
+    await idb.createProject('Guard Test');
+    expect((await idb.getProjectList()).length).toBe(1);
 
     const result = await maybeSeedDemo(idb);
     expect(result).toBe(false);

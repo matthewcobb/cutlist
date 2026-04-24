@@ -6,30 +6,9 @@ const {
   optimize,
   showPartNumbers,
   isLoading,
-  changes,
 } = useProjectSettings();
 
 useUnitConverter();
-
-const { mutate: save } = useSetSettingsMutation();
-
-// Auto-save when any setting changes (debounced)
-let saveTimeout: ReturnType<typeof setTimeout> | undefined;
-watch(
-  changes,
-  (val) => {
-    if (!val || Object.keys(val).length === 0) return;
-    if (saveTimeout) clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => {
-      save({ changes: toRaw(val) });
-    }, 1000);
-  },
-  { deep: true },
-);
-
-onBeforeUnmount(() => {
-  if (saveTimeout) clearTimeout(saveTimeout);
-});
 </script>
 
 <template>
@@ -38,7 +17,7 @@ onBeforeUnmount(() => {
       <label class="text-xs text-muted whitespace-nowrap">Optimize</label>
       <USelect
         v-model="optimize"
-        :items="['Auto', 'Cuts', 'CNC']"
+        :items="['Auto', 'CNC']"
         size="xs"
         class="w-20"
       />

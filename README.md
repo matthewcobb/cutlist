@@ -1,4 +1,4 @@
-# @matthewcobb/cutlist
+# cutlist
 
 Browser-only SPA for generating optimized wood cutting plans. Import GLTF assemblies or enter parts manually, assign stock materials, and generate board layouts with PDF export.
 
@@ -45,9 +45,10 @@ This app can be deployed to GitHub Pages as a static SPA.
 Basic CI is configured in `.github/workflows/ci.yml` and runs:
 
 - `bun run lint`
+- `bun run check`
 - `bun run test`
 
 GitHub Pages deployment is configured in `.github/workflows/pages-deploy.yml` and runs when:
 
 - A release is published
-- A git tag is pushed
+- The workflow is dispatched manually

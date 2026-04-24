@@ -2,3 +2,4 @@ node_modules
 web/.nuxt
 web/.output
 web/dist
+bun.lock

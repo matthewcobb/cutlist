@@ -19,19 +19,23 @@ import {
   compareLayoutScores,
   createGuillotinePacker,
   createShelfPacker,
+  createStripPacker,
   createTightPacker,
   scoreLayouts,
   type GuillotineFitMode,
   type LayoutScore,
   type PackOptions,
   type Packer,
+  type StripGroupingTolerance,
+  type StripOrientation,
 } from './packers';
 
 export * from './types';
 export * from './utils/units';
 
-type OptimizeMode = Exclude<Config['optimize'], 'auto'>;
-type PackerKind = 'shelf' | 'guillotine' | 'tight';
+/** Internal pass category — 'cuts' for guillotine-safe, 'cnc' for unconstrained. */
+type PassCategory = 'cuts' | 'cnc';
+type PackerKind = 'shelf' | 'guillotine' | 'tight' | 'strip';
 type PartSortMode =
   | 'area-desc'
   | 'long-side-desc'
@@ -41,11 +45,13 @@ type PartSortMode =
 
 interface SearchPassDefinition {
   id: SearchPass;
-  optimize: OptimizeMode;
+  optimize: PassCategory;
   packerKind: PackerKind;
   partSortMode: PartSortMode;
   guillotineFitMode?: GuillotineFitMode;
   randomSeed?: number;
+  stripOrientation?: StripOrientation;
+  stripGroupingTolerance?: StripGroupingTolerance;
 }
 
 interface SearchPassResult {
@@ -55,6 +61,39 @@ interface SearchPassResult {
 }
 
 const SEARCH_PASS_DEFINITIONS: Record<SearchPass, SearchPassDefinition> = {
+  // Strip passes — group parts by dimension, fill strips, stack on sheets
+  'cuts-strip-h-exact': {
+    id: 'cuts-strip-h-exact',
+    optimize: 'cuts',
+    packerKind: 'strip',
+    partSortMode: 'area-desc',
+    stripOrientation: 'horizontal',
+    stripGroupingTolerance: 'exact',
+  },
+  'cuts-strip-h-tolerant': {
+    id: 'cuts-strip-h-tolerant',
+    optimize: 'cuts',
+    packerKind: 'strip',
+    partSortMode: 'area-desc',
+    stripOrientation: 'horizontal',
+    stripGroupingTolerance: 'kerf',
+  },
+  'cuts-strip-v-exact': {
+    id: 'cuts-strip-v-exact',
+    optimize: 'cuts',
+    packerKind: 'strip',
+    partSortMode: 'area-desc',
+    stripOrientation: 'vertical',
+    stripGroupingTolerance: 'exact',
+  },
+  'cuts-strip-v-tolerant': {
+    id: 'cuts-strip-v-tolerant',
+    optimize: 'cuts',
+    packerKind: 'strip',
+    partSortMode: 'area-desc',
+    stripOrientation: 'vertical',
+    stripGroupingTolerance: 'kerf',
+  },
   // Shelf passes — simple horizontal rows, easiest to hand-cut
   'cuts-shelf-area': {
     id: 'cuts-shelf-area',
@@ -87,13 +126,6 @@ const SEARCH_PASS_DEFINITIONS: Record<SearchPass, SearchPassDefinition> = {
     optimize: 'cuts',
     packerKind: 'guillotine',
     partSortMode: 'long-side-desc',
-    guillotineFitMode: 'bssf',
-  },
-  'cuts-guillotine-bssf-short-side': {
-    id: 'cuts-guillotine-bssf-short-side',
-    optimize: 'cuts',
-    packerKind: 'guillotine',
-    partSortMode: 'short-side-desc',
     guillotineFitMode: 'bssf',
   },
   'cuts-guillotine-baf-area': {
@@ -154,17 +186,20 @@ const SEARCH_PASS_DEFINITIONS: Record<SearchPass, SearchPassDefinition> = {
 };
 
 const DEFAULT_SEARCH_PASSES: SearchPass[] = [
-  // Shelf passes first — best for hand-cutting
-  'cuts-shelf-long-side',
-  'cuts-shelf-area',
-  'cuts-shelf-short-side',
-  // Guillotine passes — may win on waste
+  // Strip passes — group parts by dimension, best cut sequence
+  'cuts-strip-h-exact',
+  'cuts-strip-h-tolerant',
+  'cuts-strip-v-exact',
+  'cuts-strip-v-tolerant',
+  // Guillotine passes — fallback, may win on waste for irregular mixes
   'cuts-guillotine-bssf-long-side',
   'cuts-guillotine-bssf-area',
   'cuts-guillotine-baf-area',
   'cuts-guillotine-baf-long-side',
   'cuts-guillotine-blsf-long-side',
-  // CNC passes
+];
+
+const CNC_SEARCH_PASSES: SearchPass[] = [
   'cnc-area',
   'cnc-perimeter',
   'cnc-random-a',
@@ -208,15 +243,12 @@ export function generateBoardLayouts(
   );
   if (boards.length === 0) throw Error('You must include at least 1 stock.');
 
-  const searchResult =
-    normalizedConfig.optimize === 'auto'
-      ? runMultiPassSearch(normalizedConfig, parts, boards)
-      : runSearchPass(
-          normalizedConfig,
-          parts,
-          boards,
-          getSingleModePass(normalizedConfig.optimize),
-        );
+  const searchResult = runMultiPassSearch(
+    normalizedConfig,
+    parts,
+    boards,
+    getPassesForMode(normalizedConfig.optimize),
+  );
 
   const marginM = new Distance(normalizedConfig.margin).m;
   return {
@@ -257,6 +289,11 @@ export const PACKERS: Record<
   PackerKind,
   (pass?: SearchPassDefinition) => Packer<PartToCut>
 > = {
+  strip: (pass?: SearchPassDefinition) =>
+    createStripPacker<PartToCut>({
+      orientation: pass?.stripOrientation ?? 'horizontal',
+      groupingTolerance: pass?.stripGroupingTolerance ?? 'exact',
+    }),
   shelf: () => createShelfPacker<PartToCut>(),
   guillotine: (pass?: SearchPassDefinition) =>
     createGuillotinePacker<PartToCut>({
@@ -267,14 +304,20 @@ export const PACKERS: Record<
   tight: () => createTightPacker<PartToCut>(),
 };
 
+function getPassesForMode(optimize: Config['optimize']): SearchPass[] {
+  if (optimize === 'cnc') return CNC_SEARCH_PASSES;
+  return DEFAULT_SEARCH_PASSES;
+}
+
 function runMultiPassSearch(
   config: Config,
   parts: PartToCut[],
   stock: Stock[],
+  defaultPasses?: SearchPass[],
 ): SearchPassResult {
   const passOrder =
     config.searchPasses == null || config.searchPasses.length === 0
-      ? DEFAULT_SEARCH_PASSES
+      ? (defaultPasses ?? DEFAULT_SEARCH_PASSES)
       : config.searchPasses;
 
   // Run the tournament per stock group (material + thickness) so that changing
@@ -286,11 +329,12 @@ function runMultiPassSearch(
 
   for (const group of groups) {
     let best: SearchPassResult | undefined;
-    const startedAt = Date.now();
 
-    for (let i = 0; i < passOrder.length; i++) {
-      if (i > 0 && Date.now() - startedAt >= config.maxSearchMs) break;
-
+    const passLimit =
+      config.maxSearchPasses != null
+        ? Math.min(passOrder.length, config.maxSearchPasses)
+        : passOrder.length;
+    for (let i = 0; i < passLimit; i++) {
       const pass = SEARCH_PASS_DEFINITIONS[passOrder[i]];
       const candidate = runSearchPass(config, group.parts, group.stock, pass);
 
@@ -340,24 +384,6 @@ function runSearchPass(
   };
 }
 
-function getSingleModePass(optimize: OptimizeMode): SearchPassDefinition {
-  if (optimize === 'cnc') {
-    return {
-      id: 'cnc-area',
-      optimize: 'cnc',
-      packerKind: 'tight',
-      partSortMode: 'area-desc',
-    };
-  }
-
-  return {
-    id: 'cuts-shelf-long-side',
-    optimize: 'cuts',
-    packerKind: 'shelf',
-    partSortMode: 'long-side-desc',
-  };
-}
-
 function isBetterSearchResult(
   candidate: SearchPassResult,
   best: SearchPassResult,
@@ -378,7 +404,7 @@ function placeAllParts(
   options: {
     partSortMode: PartSortMode;
     randomSeed?: number;
-    packerOptions: PackOptions;
+    packerOptions: PackOptions<PartToCut>;
   },
 ): { layouts: PotentialBoardLayout[]; leftovers: PartToCut[] } {
   const margin = new Distance(config.margin).m;
@@ -540,7 +566,7 @@ function minimizeLayoutStock(
   originalLayout: PotentialBoardLayout,
   stock: Stock[],
   packer: Packer<PartToCut>,
-  packerOptions: PackOptions,
+  packerOptions: PackOptions<PartToCut>,
 ): PotentialBoardLayout {
   const margin = new Distance(config.margin).m;
 
@@ -626,15 +652,12 @@ function groupPartsByStock(
   return result;
 }
 
-function getPackerOptions(config: Config): PackOptions {
+function getPackerOptions(config: Config): PackOptions<PartToCut> {
   return {
     allowRotations: true,
     gap: new Distance(config.bladeWidth).m,
     precision: config.precision,
-    canRotateRect: (data: unknown) => {
-      const part = data as PartToCut;
-      return !part.grainLock;
-    },
+    canRotateRect: (data: PartToCut) => !data.grainLock,
   };
 }
 

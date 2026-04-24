@@ -13,7 +13,8 @@
 
 import type { ProjectExport } from '~/composables/useExportProject';
 import { gzipDecompress } from '~/utils/compress';
-import { migrateExport } from '~/utils/migrations';
+import { migrateExport } from './migrations';
+import { DEFAULT_SETTINGS } from '~/utils/settings';
 import { z } from 'zod';
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
@@ -87,17 +88,10 @@ const BuildStepSchema = z.object({
   createdAt: z.string(),
 });
 
-const SettingsSchema = z
-  .object({
-    bladeWidth: z.coerce.number().optional(),
-    distanceUnit: z.enum(['in', 'mm']).optional(),
-    margin: z.coerce.number().optional(),
-    optimize: z.enum(['Auto', 'Cuts', 'CNC']).optional(),
-    showPartNumbers: z.boolean().optional(),
-    stock: z.string().optional(),
-  })
-  .optional();
-
+// Packing settings (bladeWidth, margin, optimize, showPartNumbers) now live on
+// the project record, so they travel with the export automatically. A
+// top-level `settings` field left over from the pre-v2 global-settings export
+// format is silently stripped by Zod's default object behaviour.
 const ProjectExportSchema = z.object({
   version: z.number(),
   project: z.object({
@@ -106,13 +100,16 @@ const ProjectExportSchema = z.object({
     colorMap: z.record(z.string(), z.string()),
     excludedColors: z.array(z.string()).default([]),
     stock: z.string(),
-    distanceUnit: z.enum(['in', 'mm']).default('mm'),
+    distanceUnit: z.enum(['in', 'mm']).default(DEFAULT_SETTINGS.distanceUnit),
+    bladeWidth: z.number().finite().default(DEFAULT_SETTINGS.bladeWidth),
+    margin: z.number().finite().default(DEFAULT_SETTINGS.margin),
+    optimize: z.enum(['Auto', 'CNC']).default(DEFAULT_SETTINGS.optimize),
+    showPartNumbers: z.boolean().default(DEFAULT_SETTINGS.showPartNumbers),
     createdAt: z.string(),
     updatedAt: z.string(),
   }),
   models: z.array(ModelSchema),
   buildSteps: z.array(BuildStepSchema).optional(),
-  settings: SettingsSchema,
 });
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
@@ -129,7 +126,14 @@ const ProjectExportSchema = z.object({
 export interface ProjectImportDb {
   createProject: (
     name: string,
-    opts?: { stock?: string; distanceUnit?: 'in' | 'mm' },
+    opts?: {
+      stock?: string;
+      distanceUnit?: 'in' | 'mm';
+      bladeWidth?: number;
+      margin?: number;
+      optimize?: 'Auto' | 'CNC';
+      showPartNumbers?: boolean;
+    },
   ) => Promise<{ id: string }>;
   updateProject: (
     id: string,
@@ -180,6 +184,10 @@ export async function importProjectData(
   const newProject = await idb.createProject(data.project.name, {
     stock: data.project.stock,
     distanceUnit: data.project.distanceUnit,
+    bladeWidth: data.project.bladeWidth,
+    margin: data.project.margin,
+    optimize: data.project.optimize,
+    showPartNumbers: data.project.showPartNumbers,
   });
   await idb.updateProject(newProject.id, {
     colorMap: data.project.colorMap,

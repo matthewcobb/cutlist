@@ -44,7 +44,7 @@ On project load (useProjects → hydrateModel)
   → Both: applies partOverrides (user edits like grainLock)
   → user assigns colorMap (material per color)
   → useBoardLayoutsQuery resolves Part → PartToCut (adds material)
-  → fingerprint(parts + stock + config) — match against IDB layoutCache
+  → fingerprint(parts + stock + config) — match against in-memory layout cache
   → on cache hit: skip worker; on miss: generateBoardLayouts in worker
   → BomTab / board preview display
   → exportPdf (web/utils/exportPdf.ts) or useExportProject (.cutlist.gz)
@@ -62,7 +62,7 @@ Three packers:
 
 Search passes include shelf variants, guillotine variants (with/without rotation, CNC vs manual cuts), and randomized permutations. The packer returning the fewest boards / least waste wins.
 
-Types: `Part` (web/utils/parseGltf.ts) is the storage/UI type (no material). `PartToCut` (web/lib/types.ts) is the packing engine input (has material). `PartOverride` (web/composables/useIdb.ts) holds per-part user edits (grainLock, extensible). Other packing types: `Stock`, `BoardLayout`, `SearchPass` in `web/lib/types.ts`.
+Types: `Part` (web/utils/parseGltf.ts) is the storage/UI type (no material). `PartToCut` (web/lib/types.ts) is the packing engine input (has material). `PartOverride` (web/composables/useIdb/types.ts) holds per-part user edits (grainLock, extensible). Other packing types: `Stock`, `BoardLayout`, `SearchPass` in `web/lib/types.ts`.
 
 ### Composables (`web/composables/`)
 
@@ -138,7 +138,9 @@ Tests use Bun's built-in test runner. Test files live alongside source in `__tes
 - `web/lib/utils/__tests__/` — utility tests
 - `web/utils/__tests__/` — web utility tests
 
-## Data Model (`web/composables/useIdb.ts`)
+`bunfig.toml` preloads [web/test-setup.ts](web/test-setup.ts), which installs `fake-indexeddb` and runs a global `beforeEach` that calls `__resetDbForTests()` (dynamic import so Dexie does not load before `fake-indexeddb/auto`) then `indexedDB.deleteDatabase('cutlist-db')`. **Every test starts with an empty IndexedDB** — do not rely on data from other tests or on test order.
+
+## Data Model (`web/composables/useIdb/`)
 
 All data lives in IndexedDB. The app is still in development — breaking schema changes are acceptable (users can reset their database).
 
@@ -154,40 +156,55 @@ Both model types use `partOverrides: Record<number, PartOverride>` for user edit
 
 ### Layout cache
 
-Board layouts are cached per-project in the `layoutCache` IDB store, keyed by `projectId`. Each entry stores a versioned fingerprint over `{parts, stock, config}` (FNV-1a hash via [web/utils/fingerprint.ts](web/utils/fingerprint.ts)) plus a `cacheVersion` field matching `LAYOUT_CACHE_VERSION`. On read, entries with a mismatched `cacheVersion` are treated as cache misses. Exact fingerprint match skips the worker entirely; mismatch triggers a recompute (with the stale result shown SWR-style during compute).
+Board layouts are cached per tab in a module-level `Map` inside [web/composables/useBoardLayoutsQuery.ts](web/composables/useBoardLayoutsQuery.ts), keyed by `projectId`. Each entry stores layouts plus a fingerprint over `{parts, stock, config}` (FNV-1a via [web/utils/fingerprint.ts](web/utils/fingerprint.ts)). Exact fingerprint match skips the worker; mismatch recomputes (stale result shown SWR-style when available). The cache is not persisted — a full page reload always recomputes.
 
-### Versioning policy (three independent version numbers)
+### Versioning policy (two independent version numbers)
 
-| Version constant       | File            | Bump when                                                       |
-| ---------------------- | --------------- | --------------------------------------------------------------- |
-| `SCHEMA_VERSION`       | `migrations.ts` | Any IDB record type's fields change                             |
-| `LAYOUT_CACHE_VERSION` | `migrations.ts` | Packing algorithm output, scoring, or ConfigInput shape changes |
-| `DERIVE_VERSION`       | `parseGltf.ts`  | `deriveFromGltf` output shape or semantics change               |
+| Version constant | File                                             | Bump when                                         |
+| ---------------- | ------------------------------------------------ | ------------------------------------------------- |
+| `SCHEMA_VERSION` | [web/utils/versions.ts](web/utils/versions.ts)   | Any IDB record type's fields change               |
+| `DERIVE_VERSION` | [web/utils/parseGltf.ts](web/utils/parseGltf.ts) | `deriveFromGltf` output shape or semantics change |
 
-### Migrations (`web/utils/migrations.ts`)
+`FutureSchemaError` also lives in `versions.ts` — it's the shared error raised when the stored DB or imported export file was written by a newer Cutlist than the one running.
 
-Currently at `SCHEMA_VERSION = 1` (production baseline, clean slate). The infrastructure:
+### Migrations
 
-- **`SCHEMA_VERSION`** — bump when any record type's fields change.
-- **Atomic startup sweep** — on app init, migrates all stores in a single IDB transaction. If any migration throws, the entire transaction rolls back.
-- **Forward-version detection** — if the stored schema version is higher than the running code, the app throws `FutureSchemaError` instead of silently corrupting data.
-- **`applyDefaults`** in `useIdb.ts` — safety net on read paths.
-- **`migrateExport`** — applies same migrations to imported `.cutlist.gz` files.
+**IDB schema** is owned by the `CutlistDB` class in [web/composables/useIdb/db.ts](web/composables/useIdb/db.ts), which uses [Dexie](https://dexie.org). Each schema version is declared with a chained `this.version(N).stores({...}).upgrade(tx => ...)` call. Dexie opens the DB and runs any pending `.upgrade()` callbacks atomically; a mid-upgrade failure rolls the whole transaction back.
+
+**Export-file compatibility** is a separate concern, handled by [web/utils/projectImport/migrations.ts](web/utils/projectImport/migrations.ts). A `.cutlist.gz` emitted at schema v(N-1) still needs its record shapes brought up to vN when imported by a newer client — Dexie can't help with that since the file isn't in IDB yet. That module keeps:
+
+- **`migrations[]`** — pure, append-only entries applied to raw export records. Mirrors any Dexie `.upgrade()` record transformation.
+- **`migrateExport()`** — runs the above over an imported payload.
+
+**Read-path safety net**: `applyDefaults` helpers in [web/composables/useIdb/defaults.ts](web/composables/useIdb/defaults.ts) fill missing fields on every record read, so partial records from older writes still hydrate cleanly.
 
 ### When adding a new field to a record type
 
-1. Update the TypeScript interface in `useIdb.ts`
-2. Bump `SCHEMA_VERSION` in `migrations.ts`
-3. Add a migration entry with a sensible default
-4. Update the matching `applyDefaults` function in `useIdb.ts`
-5. Update `createX` to set the field for new records
-6. Add a test in `utils/__tests__/migrations.test.ts`
+1. Update the TypeScript interface in `useIdb/types.ts`.
+2. Add a new Dexie version block in `db.ts`:
+   ```ts
+   this.version(N)
+     .stores({
+       /* only stores whose indexes changed */
+     })
+     .upgrade(async (tx) => {
+       await tx
+         .table('projects')
+         .toCollection()
+         .modify((p) => {
+           p.newField = defaultValue;
+         });
+     });
+   ```
+3. Bump `SCHEMA_VERSION` in `versions.ts` and add the matching pure-function entry to `migrations[]` in `projectImport/migrations.ts` for the import path.
+4. Update the relevant `applyDefaults` helper.
+5. Update `createX` to set the field for new records.
+6. Add a test in `utils/projectImport/__tests__/migrations.test.ts`.
 
 ### IDB error handling
 
-- **QuotaExceededError**: all writes go through `safeWrite()` which catches quota errors and sets `useIdbErrors().error` so the UI can show a toast.
-- **Multi-tab**: a `BroadcastChannel('cutlist-idb')` notifies other tabs of data changes. Last-write-wins semantics.
-- **Import validation**: all `.cutlist.gz` imports are validated against strict Zod schemas in `projectImport.ts` before touching IDB.
+- **QuotaExceededError**: all mutations (create/update/delete) go through `safeWrite()` which catches quota errors and sets `useIdbErrors().error` so the UI can show a toast.
+- **Import validation**: all `.cutlist.gz` imports are validated against strict Zod schemas in `projectImport/index.ts` before touching IDB.
 
 ## Key Config Files
 

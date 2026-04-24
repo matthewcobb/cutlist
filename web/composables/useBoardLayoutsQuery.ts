@@ -11,28 +11,19 @@ import {
   computeLayouts,
   PART_COUNT_SOFT_LIMIT,
 } from '~/composables/useComputationWorker';
-import { versionedFingerprint } from '~/utils/fingerprint';
-import { LAYOUT_CACHE_VERSION } from '~/utils/migrations';
+import { fingerprint } from '~/utils/fingerprint';
+import * as layoutCache from '~/composables/boardLayoutsCache';
 
 type LayoutResult = {
   layouts: BoardLayout[];
   leftovers: BoardLayoutLeftover[];
 };
 
-interface CacheEntry extends LayoutResult {
-  fingerprint: string;
-}
-
-// Module-level in-memory mirror of the IDB layout cache. Populated lazily on
-// first read per project, written on every successful compute.
-const layoutCache = new Map<string, CacheEntry>();
-
 export default createSharedComposable(() => {
   const { activeProject, activeId, enabledModels, projectLoading } =
     useProjects();
   const { bladeWidth, optimize, margin, distanceUnit, stock } =
     useProjectSettings();
-  const idb = useIdb();
 
   const parts = computed<PartToCut[] | undefined>(() => {
     const project = activeProject.value;
@@ -132,39 +123,22 @@ export default createSharedComposable(() => {
       const config: ConfigInput = {
         bladeWidth: new Distance(bw + du).m,
         margin: new Distance(mg + du).m,
-        optimize: opt === 'Auto' ? 'auto' : opt === 'Cuts' ? 'cuts' : 'cnc',
+        optimize: opt === 'Auto' ? 'auto' : 'cnc',
         precision: 1e-5,
       };
 
-      const inputFp = versionedFingerprint({
+      const inputFp = fingerprint({
         parts: partsVal,
         stock: st,
         config,
       });
       const version = ++requestVersion;
 
-      // Cache lookup: mem first, then IDB (populating mem on the way).
-      let cached = layoutCache.get(projectId);
-      if (!cached) {
-        try {
-          const stored = await idb.getLayoutCache(projectId);
-          if (version !== requestVersion) return;
-          if (activeProject.value?.id !== projectId) return;
-          if (stored) {
-            cached = {
-              layouts: stored.layouts,
-              leftovers: stored.leftovers,
-              fingerprint: stored.fingerprint,
-            };
-            layoutCache.set(projectId, cached);
-          }
-        } catch {
-          // Cache read is advisory — fall through to compute.
-        }
-      }
+      const cached = layoutCache.get(projectId);
+      const status = layoutCache.classify(cached, inputFp);
 
       // Exact fingerprint match → skip the worker entirely.
-      if (cached && cached.fingerprint === inputFp) {
+      if (status === 'hit' && cached) {
         data.value = { layouts: cached.layouts, leftovers: cached.leftovers };
         isComputing.value = false;
         error.value = null;
@@ -184,7 +158,7 @@ export default createSharedComposable(() => {
       }
 
       // Show stale cache during recompute if nothing else is visible yet.
-      if (cached && !data.value) {
+      if (status === 'stale' && cached && !data.value) {
         data.value = { layouts: cached.layouts, leftovers: cached.leftovers };
       }
 
@@ -196,22 +170,11 @@ export default createSharedComposable(() => {
         if (activeProject.value?.id !== projectId) return;
 
         data.value = result;
-        const entry: CacheEntry = {
+        layoutCache.set(projectId, {
           layouts: result.layouts,
           leftovers: result.leftovers,
           fingerprint: inputFp,
-        };
-        layoutCache.set(projectId, entry);
-        idb
-          .putLayoutCache({
-            projectId,
-            fingerprint: inputFp,
-            cacheVersion: LAYOUT_CACHE_VERSION,
-            layouts: result.layouts,
-            leftovers: result.leftovers,
-            savedAt: new Date().toISOString(),
-          })
-          .catch(() => {});
+        });
         isComputing.value = false;
       } catch (e) {
         if (

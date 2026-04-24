@@ -4,13 +4,13 @@
  * These functions take a context object with a real IDB (fake-indexeddb) and
  * a ref-like activeProjectData. We use Vue's ref() for the reactive wrapper.
  */
-import 'fake-indexeddb/auto';
 import { describe, expect, it, beforeEach, mock } from 'bun:test';
 import { ref, type Ref } from 'vue';
 import { useIdb, type IdbModel } from '../useIdb';
 import type { Part } from '~/utils/parseGltf';
 import type { Project, ManualPartInput } from '../useProjects';
 import { useManualParts } from '../useManualParts';
+import { DEFAULT_SETTINGS } from '../../utils/settings';
 
 const idb = useIdb();
 const mockUpdateColorMap = mock(async () => {});
@@ -23,7 +23,11 @@ function makeProject(id: string, models: Project['models'] = []): Project {
     colorMap: {},
     excludedColors: [],
     stock: '',
-    distanceUnit: 'mm',
+    distanceUnit: DEFAULT_SETTINGS.distanceUnit,
+    bladeWidth: DEFAULT_SETTINGS.bladeWidth,
+    margin: DEFAULT_SETTINGS.margin,
+    optimize: DEFAULT_SETTINGS.optimize,
+    showPartNumbers: DEFAULT_SETTINGS.showPartNumbers,
   };
 }
 
@@ -67,9 +71,7 @@ describe('addManualPart', () => {
 
   beforeEach(async () => {
     mockUpdateColorMap.mockClear();
-    const project = await idb.createProject(
-      'ManualPartTest-' + crypto.randomUUID().slice(0, 8),
-    );
+    const project = await idb.createProject('ManualPartTest');
     projectId = project.id;
     activeProjectData = ref(makeProject(projectId));
   });
@@ -221,9 +223,7 @@ describe('removeManualPart', () => {
 
   beforeEach(async () => {
     mockUpdateColorMap.mockClear();
-    const project = await idb.createProject(
-      'RemovePartTest-' + crypto.randomUUID().slice(0, 8),
-    );
+    const project = await idb.createProject('RemovePartTest');
     projectId = project.id;
     modelId = crypto.randomUUID();
 
@@ -270,9 +270,7 @@ describe('removeManualPart', () => {
   it('removes the manual model entirely when last part is removed', async () => {
     // Start with a single part
     const singlePartModelId = crypto.randomUUID();
-    const singleProject = await idb.createProject(
-      'SinglePartRemove-' + crypto.randomUUID().slice(0, 8),
-    );
+    const singleProject = await idb.createProject('SinglePartRemove');
     const singleParts = [makePart(1, { name: 'Only Part' })];
     const singleActiveData: Ref<Project | null> = ref(
       makeProject(singleProject.id, [
@@ -321,9 +319,7 @@ describe('updateManualPart', () => {
 
   beforeEach(async () => {
     mockUpdateColorMap.mockClear();
-    const project = await idb.createProject(
-      'UpdatePartTest-' + crypto.randomUUID().slice(0, 8),
-    );
+    const project = await idb.createProject('UpdatePartTest');
     projectId = project.id;
     modelId = crypto.randomUUID();
 
@@ -456,9 +452,7 @@ describe('updateManualPart', () => {
 
   it('does nothing if no manual model exists', async () => {
     // Set up a project with no manual model
-    const gltfProject = await idb.createProject(
-      'NoManual-' + crypto.randomUUID().slice(0, 8),
-    );
+    const gltfProject = await idb.createProject('NoManual');
     const gltfActiveData: Ref<Project | null> = ref(
       makeProject(gltfProject.id, [
         {

@@ -9,7 +9,6 @@ function makeOptions(overrides?: Partial<ExportPdfOptions>): ExportPdfOptions {
     layouts: [],
     leftovers: [],
     formatSize: (m: number) => `${Math.round(m * 1000)}mm`,
-    distanceUnit: 'mm',
     showPartNumbers: true,
     ...overrides,
   };

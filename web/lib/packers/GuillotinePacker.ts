@@ -106,7 +106,7 @@ export function createGuillotinePacker<T>(
 function pickBestPlacement<T>(
   rect: Rectangle<T>,
   freeRects: FreeRect[],
-  options: PackOptions,
+  options: PackOptions<T>,
   fitMode: GuillotineFitMode,
 ): FitCandidate<T> | undefined {
   let best: FitCandidate<T> | undefined;
@@ -165,7 +165,7 @@ function scoreFit<T>(
 function splitFreeRect<T>(
   free: FreeRect,
   placement: Rectangle<T>,
-  options: PackOptions,
+  options: PackOptions<T>,
   splitMode: GuillotineSplitMode,
 ): FreeRect[] {
   const leftoverW = free.width - placement.width;

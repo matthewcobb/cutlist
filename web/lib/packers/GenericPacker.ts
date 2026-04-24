@@ -6,7 +6,7 @@ export function createGenericPacker<T>({
   sortPlacements,
   getPossiblePlacements,
 }: {
-  sortPlacements?: (a: Point, b: Point, options: PackOptions) => number;
+  sortPlacements?: (a: Point, b: Point, options: PackOptions<T>) => number;
   getPossiblePlacements: (
     bin: Rectangle<unknown>,
     placements: Rectangle<T>[],

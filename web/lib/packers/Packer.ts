@@ -7,23 +7,23 @@ export interface Packer<T> {
   pack(
     bin: Rectangle<unknown>,
     rects: Rectangle<T>[],
-    options: PackOptions,
+    options: PackOptions<T>,
   ): PackResult<T>;
   addToPack(
     res: PackResult<T>,
     bin: Rectangle<unknown>,
     rects: Rectangle<T>[],
-    options: PackOptions,
+    options: PackOptions<T>,
   ): void;
 }
 
-export interface PackOptions {
+export interface PackOptions<T = unknown> {
   gap: number;
   precision: number;
   allowRotations: boolean;
   /** Optional per-rect override. When provided, a rect can only be rotated if both
    * `allowRotations` is true AND this function returns true for that rect's data. */
-  canRotateRect?: (data: unknown) => boolean;
+  canRotateRect?: (data: T) => boolean;
 }
 
 export interface PackResult<T> {
