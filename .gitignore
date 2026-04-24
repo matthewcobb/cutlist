@@ -6,3 +6,7 @@ package-lock.json
 web/.nuxt
 web/.output
 web/dist
+
+# Sentry Config File
+.env.sentry-build-plugin
+/.claude/worktrees
