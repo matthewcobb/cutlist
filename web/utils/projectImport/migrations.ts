@@ -19,7 +19,7 @@
  *  - New required fields must have a sensible default.
  */
 
-import { SCHEMA_VERSION } from './versions';
+import { SCHEMA_VERSION } from '../versions';
 
 type StoreName = 'projects' | 'models' | 'buildSteps';
 

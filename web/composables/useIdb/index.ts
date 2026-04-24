@@ -45,11 +45,6 @@ import {
   updateBuildStep,
   deleteBuildStep,
 } from './buildSteps';
-import {
-  getLayoutCache,
-  putLayoutCache,
-  deleteLayoutCache,
-} from './layoutCache';
 import { getDemoSeeded, setDemoSeeded } from './demoSeed';
 
 export { useIdbErrors } from './db';
@@ -60,7 +55,6 @@ export type {
   DerivedCache,
   IdbModel,
   IdbModelMeta,
-  IdbLayoutCache,
   IdbBuildStep,
 } from './types';
 
@@ -84,9 +78,6 @@ export function useIdb() {
     createBuildStep,
     updateBuildStep,
     deleteBuildStep,
-    getLayoutCache,
-    putLayoutCache,
-    deleteLayoutCache,
     flushPendingModelWrites,
   };
 }

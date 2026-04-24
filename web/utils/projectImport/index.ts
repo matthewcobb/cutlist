@@ -13,7 +13,7 @@
 
 import type { ProjectExport } from '~/composables/useExportProject';
 import { gzipDecompress } from '~/utils/compress';
-import { migrateExport } from '~/utils/migrations';
+import { migrateExport } from './migrations';
 import { DEFAULT_SETTINGS } from '~/utils/settings';
 import { z } from 'zod';
 

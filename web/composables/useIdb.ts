@@ -19,6 +19,5 @@ export type {
   DerivedCache,
   IdbModel,
   IdbModelMeta,
-  IdbLayoutCache,
   IdbBuildStep,
 } from './useIdb/index';

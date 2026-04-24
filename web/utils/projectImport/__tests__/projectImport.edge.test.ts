@@ -4,12 +4,12 @@
  */
 import { describe, expect, it } from 'bun:test';
 import { gzipSync } from 'node:zlib';
-import { SCHEMA_VERSION } from '../versions';
+import { SCHEMA_VERSION } from '../../versions';
 import {
   importProjectData,
   importProjectFromFile,
   parseProjectExport,
-} from '../projectImport';
+} from '..';
 
 function makePayload(overrides?: any) {
   const now = new Date().toISOString();

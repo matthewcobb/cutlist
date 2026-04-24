@@ -8,7 +8,6 @@
  * declared there via `this.version(N).stores({...})`.
  */
 
-import type { BoardLayout, BoardLayoutLeftover } from 'cutlist';
 import type { ColorInfo, NodePartMapping, Part } from '~/utils/parseGltf';
 
 export interface IdbProject {
@@ -69,23 +68,6 @@ export interface IdbModel {
 
 /** Model record without gltfJson — what we keep in the reactive store. */
 export type IdbModelMeta = Omit<IdbModel, 'gltfJson'>;
-
-/**
- * Persisted layout result for a project. Keyed by projectId; `fingerprint`
- * hashes the packing inputs (parts + stock + config) so a mismatch triggers
- * recompute. Written by the layout worker path, read on project switch.
- *
- * The `cacheVersion` field records which LAYOUT_CACHE_VERSION produced this
- * entry. On read, entries with a mismatched version are treated as cache misses.
- */
-export interface IdbLayoutCache {
-  projectId: string;
-  fingerprint: string;
-  /** The LAYOUT_CACHE_VERSION that produced this cache entry. */
-  cacheVersion: number;
-  layouts: BoardLayout[];
-  leftovers: BoardLayoutLeftover[];
-}
 
 export interface IdbBuildStep {
   id: string;

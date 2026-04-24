@@ -19,7 +19,6 @@ import type {
   IdbProject,
   IdbModel,
   IdbBuildStep,
-  IdbLayoutCache,
   IdbMetaRecord,
 } from './types';
 
@@ -29,7 +28,6 @@ export class CutlistDB extends Dexie {
   projects!: Table<IdbProject, string>;
   models!: Table<IdbModel, string>;
   buildSteps!: Table<IdbBuildStep, string>;
-  layoutCache!: Table<IdbLayoutCache, string>;
   meta!: Table<IdbMetaRecord, string>;
 
   constructor() {
@@ -47,7 +45,6 @@ export class CutlistDB extends Dexie {
       projects: 'id, updatedAt',
       models: 'id, projectId',
       buildSteps: 'id, projectId',
-      layoutCache: 'projectId',
       meta: 'key',
     });
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { fingerprint, versionedFingerprint } from '../fingerprint';
+import { fingerprint } from '../fingerprint';
 
 describe('fingerprint', () => {
   it('produces the same hash for structurally equal inputs', () => {
@@ -28,38 +28,6 @@ describe('fingerprint', () => {
   it('is sensitive to nested structure', () => {
     const a = fingerprint({ x: { y: 1 } });
     const b = fingerprint({ x: { y: 2 } });
-    expect(a).not.toBe(b);
-  });
-});
-
-describe('versionedFingerprint', () => {
-  it('returns format v{N}:{hash}', () => {
-    const fp = versionedFingerprint({ test: 1 });
-    expect(fp).toMatch(/^v\d+:[0-9a-f]{8}$/);
-  });
-
-  it('produces same result for same input', () => {
-    const input = { parts: [1, 2], stock: 'wood', config: { bladeWidth: 3 } };
-    const a = versionedFingerprint(input);
-    const b = versionedFingerprint(input);
-    expect(a).toBe(b);
-  });
-
-  it('differs from raw fingerprint (includes version tag)', () => {
-    const input = { test: 1 };
-    const raw = fingerprint(input);
-    const versioned = versionedFingerprint(input);
-    // The raw hash is 8 hex chars, versioned includes version prefix
-    expect(versioned).not.toBe(raw);
-    // Extract the hash portion
-    const hashPart = versioned.split(':')[1];
-    // The hash should differ because the version prefix changes the input
-    expect(hashPart).not.toBe(raw);
-  });
-
-  it('changes when input changes', () => {
-    const a = versionedFingerprint({ x: 1 });
-    const b = versionedFingerprint({ x: 2 });
     expect(a).not.toBe(b);
   });
 });

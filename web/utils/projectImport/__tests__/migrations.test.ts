@@ -1,15 +1,11 @@
 import { describe, expect, it } from 'bun:test';
-import {
-  SCHEMA_VERSION,
-  LAYOUT_CACHE_VERSION,
-  FutureSchemaError,
-} from '../versions';
+import { SCHEMA_VERSION, FutureSchemaError } from '../../versions';
 import { migrations, migrateRecord, migrateExport } from '../migrations';
-import { DEFAULT_SETTINGS, DEFAULT_STOCK_YAML } from '../settings';
+import { DEFAULT_SETTINGS, DEFAULT_STOCK_YAML } from '../../settings';
 import {
   applyProjectDefaults,
   applyModelDefaults,
-} from '../../composables/useIdb';
+} from '../../../composables/useIdb';
 
 // ─── migrateRecord ─────────────────────────────────────────────────────────
 
@@ -64,11 +60,6 @@ describe('version constants', () => {
   it('SCHEMA_VERSION is a positive integer', () => {
     expect(SCHEMA_VERSION).toBeGreaterThan(0);
     expect(Number.isInteger(SCHEMA_VERSION)).toBe(true);
-  });
-
-  it('LAYOUT_CACHE_VERSION is a positive integer', () => {
-    expect(LAYOUT_CACHE_VERSION).toBeGreaterThan(0);
-    expect(Number.isInteger(LAYOUT_CACHE_VERSION)).toBe(true);
   });
 });
 

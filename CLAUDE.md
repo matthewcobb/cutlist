@@ -44,7 +44,7 @@ On project load (useProjects → hydrateModel)
   → Both: applies partOverrides (user edits like grainLock)
   → user assigns colorMap (material per color)
   → useBoardLayoutsQuery resolves Part → PartToCut (adds material)
-  → fingerprint(parts + stock + config) — match against IDB layoutCache
+  → fingerprint(parts + stock + config) — match against in-memory layout cache
   → on cache hit: skip worker; on miss: generateBoardLayouts in worker
   → BomTab / board preview display
   → exportPdf (web/utils/exportPdf.ts) or useExportProject (.cutlist.gz)
@@ -154,15 +154,14 @@ Both model types use `partOverrides: Record<number, PartOverride>` for user edit
 
 ### Layout cache
 
-Board layouts are cached per-project in the `layoutCache` IDB store, keyed by `projectId`. Each entry stores a versioned fingerprint over `{parts, stock, config}` (FNV-1a hash via [web/utils/fingerprint.ts](web/utils/fingerprint.ts)) plus a `cacheVersion` field matching `LAYOUT_CACHE_VERSION`. On read, entries with a mismatched `cacheVersion` are treated as cache misses. Exact fingerprint match skips the worker entirely; mismatch triggers a recompute (with the stale result shown SWR-style during compute).
+Board layouts are cached per tab in a module-level `Map` inside [web/composables/useBoardLayoutsQuery.ts](web/composables/useBoardLayoutsQuery.ts), keyed by `projectId`. Each entry stores layouts plus a fingerprint over `{parts, stock, config}` (FNV-1a via [web/utils/fingerprint.ts](web/utils/fingerprint.ts)). Exact fingerprint match skips the worker; mismatch recomputes (stale result shown SWR-style when available). The cache is not persisted — a full page reload always recomputes.
 
-### Versioning policy (three independent version numbers)
+### Versioning policy (two independent version numbers)
 
-| Version constant       | File                                             | Bump when                                                       |
-| ---------------------- | ------------------------------------------------ | --------------------------------------------------------------- |
-| `SCHEMA_VERSION`       | [web/utils/versions.ts](web/utils/versions.ts)   | Any IDB record type's fields change                             |
-| `LAYOUT_CACHE_VERSION` | [web/utils/versions.ts](web/utils/versions.ts)   | Packing algorithm output, scoring, or ConfigInput shape changes |
-| `DERIVE_VERSION`       | [web/utils/parseGltf.ts](web/utils/parseGltf.ts) | `deriveFromGltf` output shape or semantics change               |
+| Version constant | File                                             | Bump when                                         |
+| ---------------- | ------------------------------------------------ | ------------------------------------------------- |
+| `SCHEMA_VERSION` | [web/utils/versions.ts](web/utils/versions.ts)   | Any IDB record type's fields change               |
+| `DERIVE_VERSION` | [web/utils/parseGltf.ts](web/utils/parseGltf.ts) | `deriveFromGltf` output shape or semantics change |
 
 `FutureSchemaError` also lives in `versions.ts` — it's the shared error raised when the stored DB or imported export file was written by a newer Cutlist than the one running.
 
@@ -170,7 +169,7 @@ Board layouts are cached per-project in the `layoutCache` IDB store, keyed by `p
 
 **IDB schema** is owned by the `CutlistDB` class in [web/composables/useIdb/db.ts](web/composables/useIdb/db.ts), which uses [Dexie](https://dexie.org). Each schema version is declared with a chained `this.version(N).stores({...}).upgrade(tx => ...)` call. Dexie opens the DB and runs any pending `.upgrade()` callbacks atomically; a mid-upgrade failure rolls the whole transaction back.
 
-**Export-file compatibility** is a separate concern, handled by [web/utils/migrations.ts](web/utils/migrations.ts). A `.cutlist.gz` emitted at schema v(N-1) still needs its record shapes brought up to vN when imported by a newer client — Dexie can't help with that since the file isn't in IDB yet. That module keeps:
+**Export-file compatibility** is a separate concern, handled by [web/utils/projectImport/migrations.ts](web/utils/projectImport/migrations.ts). A `.cutlist.gz` emitted at schema v(N-1) still needs its record shapes brought up to vN when imported by a newer client — Dexie can't help with that since the file isn't in IDB yet. That module keeps:
 
 - **`migrations[]`** — pure, append-only entries applied to raw export records. Mirrors any Dexie `.upgrade()` record transformation.
 - **`migrateExport()`** — runs the above over an imported payload.
@@ -195,10 +194,10 @@ Board layouts are cached per-project in the `layoutCache` IDB store, keyed by `p
          });
      });
    ```
-3. Bump `SCHEMA_VERSION` in `versions.ts` and add the matching pure-function entry to `migrations[]` in `migrations.ts` for the export path.
+3. Bump `SCHEMA_VERSION` in `versions.ts` and add the matching pure-function entry to `migrations[]` in `projectImport/migrations.ts` for the import path.
 4. Update the relevant `applyDefaults` helper.
 5. Update `createX` to set the field for new records.
-6. Add a test in `utils/__tests__/migrations.test.ts`.
+6. Add a test in `utils/projectImport/__tests__/migrations.test.ts`.
 
 ### IDB error handling
 

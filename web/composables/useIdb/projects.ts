@@ -1,7 +1,7 @@
 /**
  * Project CRUD: create/read/update/archive/unarchive/delete.
  *
- * Project deletion cascades to models, buildSteps, and layoutCache in a
+ * Project deletion cascades to models and buildSteps in a
  * single Dexie transaction so partial failures don't leave orphans.
  */
 
@@ -146,11 +146,10 @@ export async function deleteProject(id: string): Promise<void> {
   const db = await getDb();
   await db.transaction(
     'rw',
-    [db.projects, db.models, db.buildSteps, db.layoutCache],
+    [db.projects, db.models, db.buildSteps],
     async () => {
       await db.models.where('projectId').equals(id).delete();
       await db.buildSteps.where('projectId').equals(id).delete();
-      await db.layoutCache.delete(id);
       await db.projects.delete(id);
     },
   );
