@@ -33,6 +33,7 @@ const modelViewer = useModelViewerStore();
 
 const {
   allRows,
+  isComputing,
   totalParts,
   materialNames,
   warningCount,
@@ -564,6 +565,15 @@ onUnmounted(() => {
             </ol>
           </div>
 
+          <!-- ─── First-load computing spinner ────────────────────────────── -->
+          <div
+            v-else-if="isComputing && allRows.length === 0"
+            class="m-auto flex items-center gap-2 text-muted"
+          >
+            <UIcon name="i-lucide-loader-2" class="w-5 h-5 animate-spin" />
+            <span class="text-sm">Computing cut list&hellip;</span>
+          </div>
+
           <!-- ─── Main BOM content ──────────────────────────────────────────── -->
           <template v-else>
             <!-- Summary bar -->
@@ -587,6 +597,16 @@ onUnmounted(() => {
                     warningCount === 1 ? '' : 's'
                   }}</span
                 >
+              </template>
+              <template v-if="isComputing">
+                <span class="text-dim">&middot;</span>
+                <span class="flex items-center gap-1 text-muted">
+                  <UIcon
+                    name="i-lucide-loader-2"
+                    class="w-3 h-3 animate-spin"
+                  />
+                  Updating&hellip;
+                </span>
               </template>
             </div>
 

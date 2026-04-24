@@ -8,7 +8,7 @@ import { describe, expect, it, mock, beforeEach } from 'bun:test';
 
 // ── Mock useToast ───────────────────────────────────────────────────────────
 // Nuxt auto-imports useToast — we provide a minimal mock.
-const addMock = mock(() => {});
+const addMock = mock((_opts: Record<string, unknown>) => {});
 const toastMock = { add: addMock };
 
 // @ts-expect-error — globalThis mock for Nuxt auto-import

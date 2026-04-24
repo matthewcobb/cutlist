@@ -34,7 +34,7 @@ function modelDisplayName(model: {
 }
 
 export default function useBomRows() {
-  const { data } = useBoardLayoutsQuery();
+  const { data, isComputing } = useBoardLayoutsQuery();
   const { activeProject, enabledModels } = useProjects();
 
   const manualPartNumbers = computed(() => {
@@ -165,6 +165,7 @@ export default function useBomRows() {
 
   return {
     allRows,
+    isComputing,
     totalParts,
     materialNames,
     warningCount,
