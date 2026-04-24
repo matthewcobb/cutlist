@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import type { BoardLayout, BoardLayoutPlacement } from 'cutlist';
-import { cycleGrainLock } from '~/utils/grain';
 
 const props = defineProps<{
   layout: BoardLayout;
@@ -9,7 +8,8 @@ const props = defineProps<{
 
 const getPx = useGetPx();
 const formatDistance = useFormatDistance();
-const { activeId, updatePartGrainLock } = useProjects();
+const { requestGrainLockChange } = useGrainLockConfirm();
+const { isRulerActive } = useRulerStore();
 
 const widthPx = computed(() => getPx(props.layout.stock.widthM));
 const heightPx = computed(() => getPx(props.layout.stock.lengthM));
@@ -43,14 +43,9 @@ const hoveredIndex = ref<number | null>(null);
 provide('layoutHoveredIndex', hoveredIndex);
 
 function togglePartGrainLock(index: number) {
-  if (!activeId.value) return;
   const placement = props.layout.placements[index];
   if (!placement) return;
-  updatePartGrainLock(
-    activeId.value,
-    placement.partNumber,
-    cycleGrainLock(placement.grainLock),
-  );
+  requestGrainLockChange(placement.partNumber, placement.grainLock, placement);
 }
 provide('layoutToggleGrainLock', togglePartGrainLock);
 
@@ -81,7 +76,7 @@ function hitTest(e: PointerEvent): number | null {
 }
 
 function onPointerMove(e: PointerEvent) {
-  hoveredIndex.value = hitTest(e);
+  hoveredIndex.value = isRulerActive.value ? null : hitTest(e);
 }
 
 function onPointerLeave() {
@@ -91,6 +86,7 @@ function onPointerLeave() {
 const CLICK_THRESHOLD = 5;
 
 function onPointerDown(e: PointerEvent) {
+  if (isRulerActive.value) return;
   const hit = hitTest(e);
   if (hit == null) return;
   const placement = props.layout.placements[hit];
@@ -102,11 +98,10 @@ function onPointerDown(e: PointerEvent) {
       const dx = e2.clientX - startX;
       const dy = e2.clientY - startY;
       if (Math.hypot(dx, dy) >= CLICK_THRESHOLD) return;
-      if (!activeId.value) return;
-      updatePartGrainLock(
-        activeId.value,
+      requestGrainLockChange(
         placement.partNumber,
-        cycleGrainLock(placement.grainLock),
+        placement.grainLock,
+        placement,
       );
     },
     { once: true },

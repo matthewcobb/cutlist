@@ -72,12 +72,17 @@ const filteredLeftovers = computed(() => {
 
       <template v-else-if="data">
         <p
-          v-if="filteredLayouts.length === 0"
+          v-if="filteredLayouts.length === 0 && filteredLeftovers.length === 0"
           class="m-auto bg-base border border-default rounded p-4 text-muted"
         >
           No board layouts found
         </p>
-        <div v-else ref="container" class="canvas-plane">
+        <div
+          v-else
+          ref="container"
+          class="canvas-plane"
+          :style="`--zoom:${scale ?? 1}`"
+        >
           <div class="canvas-grid" />
           <LayoutList
             :layouts="filteredLayouts"

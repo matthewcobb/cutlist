@@ -1,4 +1,7 @@
 <script lang="ts" setup>
+const { showConfirm, pendingGrainLock, confirmChange, cancelChange } =
+  useGrainLockConfirm();
+
 const items = computed(() => [
   {
     label: 'BOM',
@@ -98,5 +101,12 @@ const { isComputing } = useBoardLayoutsQuery();
         />
       </template>
     </div>
+
+    <GrainLockConfirmModal
+      :open="showConfirm"
+      :grain-lock="pendingGrainLock"
+      @confirm="confirmChange"
+      @cancel="cancelChange"
+    />
   </div>
 </template>

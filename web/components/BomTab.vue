@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { parseGltf } from '~/utils/parseGltf';
 import { parseStock } from '~/utils/parseStock';
-import { cycleGrainLock } from '~/utils/grain';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
 import { STORAGE_KEYS } from '~/utils/localStorage';
 import type { ManualPartInput } from '~/composables/useProjects';
@@ -19,9 +18,10 @@ const {
   addManualPart,
   updateManualPart,
   removeManualPart,
-  updatePartGrainLock,
   updatePartNameOverride,
 } = useProjects();
+
+const { requestGrainLockChange } = useGrainLockConfirm();
 const { distanceUnit, stock } = useProjectSettings();
 const formatDistance = useFormatDistance();
 const toast = useToast();
@@ -969,11 +969,12 @@ onUnmounted(() => {
                               : 'text-dim hover:text-muted',
                           ]"
                           @click="
-                            updatePartGrainLock(
-                              activeId!,
-                              row.number,
-                              cycleGrainLock(row.grainLock),
-                            )
+                            requestGrainLockChange(row.number, row.grainLock, {
+                              material: row.material,
+                              thicknessM: row.thicknessM,
+                              widthM: row.widthM,
+                              lengthM: row.lengthM,
+                            })
                           "
                         >
                           <UIcon

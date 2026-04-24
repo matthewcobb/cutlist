@@ -54,3 +54,14 @@
 @utility bg-overlay {
   background-color: rgb(0 0 0 / 0.8);
 }
+
+/* ── Zoom-stable labels ─────────────────────────────────────────────────── */
+
+/* Counter-scales text so it stays a consistent size as the canvas zooms.
+   Requires --zoom to be set on an ancestor (e.g. the panzoom container).
+   Clamped so the label never shrinks below 0.5× or grows above 2× its
+   natural size (i.e. zoom range ~0.5–2 looks normal, outside that it caps). */
+@utility zoom-stable {
+  --_inv: calc(1 / var(--zoom, 1));
+  scale: clamp(0.5, var(--_inv), 2);
+}

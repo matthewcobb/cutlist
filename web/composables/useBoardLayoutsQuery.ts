@@ -61,8 +61,8 @@ export default createSharedComposable(() => {
 
   // Restore in-memory cache on project switch. Bumps requestVersion so any
   // in-flight compute from the previous project is discarded when it lands.
-  // Does NOT wipe `data` on a miss — we leave the previous layout visible
-  // (with an "Updating…" overlay) until the new one is ready.
+  // On a cache miss we clear data so the previous project's layouts don't
+  // bleed through while the new project computes.
   watch(activeId, (id) => {
     requestVersion++;
     cancelLayouts();
@@ -73,9 +73,9 @@ export default createSharedComposable(() => {
       return;
     }
     const mem = layoutCache.get(id);
-    if (mem) {
-      data.value = { layouts: mem.layouts, leftovers: mem.leftovers };
-    }
+    data.value = mem
+      ? { layouts: mem.layouts, leftovers: mem.leftovers }
+      : undefined;
     isComputing.value = true;
     error.value = null;
   });
