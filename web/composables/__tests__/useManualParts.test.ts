@@ -4,7 +4,6 @@
  * These functions take a context object with a real IDB (fake-indexeddb) and
  * a ref-like activeProjectData. We use Vue's ref() for the reactive wrapper.
  */
-import 'fake-indexeddb/auto';
 import { describe, expect, it, beforeEach, mock } from 'bun:test';
 import { ref, type Ref } from 'vue';
 import { useIdb, type IdbModel } from '../useIdb';

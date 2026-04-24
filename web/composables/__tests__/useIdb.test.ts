@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { describe, expect, it, beforeEach } from 'bun:test';
 import { useIdb, applyProjectDefaults, applyModelDefaults } from '../useIdb';
 import { DEFAULT_SETTINGS, DEFAULT_STOCK_YAML } from '../../utils/settings';

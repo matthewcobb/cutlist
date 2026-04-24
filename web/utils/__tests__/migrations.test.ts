@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { describe, expect, it, beforeEach } from 'bun:test';
 import { openDB, type IDBPDatabase } from 'idb';
 import {

@@ -6,7 +6,6 @@
  * produces the correct Model output. They do NOT use the composable's
  * module-level reactive state (which requires Vue runtime).
  */
-import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'bun:test';
 import { useIdb, type IdbModel } from '../useIdb';
 import type { Part } from '~/utils/parseGltf';

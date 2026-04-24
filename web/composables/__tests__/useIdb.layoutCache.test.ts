@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'bun:test';
 import { useIdb } from '../useIdb';
 import type { IdbLayoutCache } from '../useIdb';
