@@ -199,12 +199,12 @@ describe('performance: generateBoardLayouts', () => {
     expect(result.layouts.length).toBeGreaterThan(0);
   });
 
-  it('profiles cuts-only mode at 500 parts', () => {
+  it('profiles auto mode at 500 parts', () => {
     const { parts, stock } = generateLargeFixture(500);
     const config = {
       bladeWidth: '3.175mm',
       margin: '0mm',
-      optimize: 'cuts' as const,
+      optimize: 'auto' as const,
       precision: 1e-5,
     };
 
@@ -213,7 +213,7 @@ describe('performance: generateBoardLayouts', () => {
     const elapsed = performance.now() - start;
 
     console.log(
-      `[500 parts cuts-only] ${elapsed.toFixed(0)}ms | ${result.layouts.length} boards | ${result.leftovers.length} leftovers`,
+      `[500 parts auto] ${elapsed.toFixed(0)}ms | ${result.layouts.length} boards | ${result.leftovers.length} leftovers`,
     );
     expect(result.layouts.length).toBeGreaterThan(0);
   });

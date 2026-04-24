@@ -103,9 +103,7 @@ const ProjectExportSchema = z.object({
     distanceUnit: z.enum(['in', 'mm']).default(DEFAULT_SETTINGS.distanceUnit),
     bladeWidth: z.number().finite().default(DEFAULT_SETTINGS.bladeWidth),
     margin: z.number().finite().default(DEFAULT_SETTINGS.margin),
-    optimize: z
-      .enum(['Auto', 'Cuts', 'CNC'])
-      .default(DEFAULT_SETTINGS.optimize),
+    optimize: z.enum(['Auto', 'CNC']).default(DEFAULT_SETTINGS.optimize),
     showPartNumbers: z.boolean().default(DEFAULT_SETTINGS.showPartNumbers),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -133,7 +131,7 @@ export interface ProjectImportDb {
       distanceUnit?: 'in' | 'mm';
       bladeWidth?: number;
       margin?: number;
-      optimize?: 'Auto' | 'Cuts' | 'CNC';
+      optimize?: 'Auto' | 'CNC';
       showPartNumbers?: boolean;
     },
   ) => Promise<{ id: string }>;

@@ -28,11 +28,11 @@ const stock = [
 ];
 
 describe('generateBoardLayouts', () => {
-  it('rotates parts in cuts mode when needed to fit', () => {
+  it('rotates parts in auto mode when needed to fit', () => {
     const config: Config = {
       bladeWidth: 0,
       margin: 0,
-      optimize: 'cuts',
+      optimize: 'auto',
       precision: 1e-5,
     };
     const result = generateBoardLayouts([createPart(1, 2, 1)], stock, config);

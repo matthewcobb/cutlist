@@ -5,7 +5,7 @@ export interface CutlistSettings {
   bladeWidth: number;
   distanceUnit: 'in' | 'mm';
   margin: number;
-  optimize: 'Auto' | 'Cuts' | 'CNC';
+  optimize: 'Auto' | 'CNC';
   showPartNumbers: boolean;
   stock: string;
 }

@@ -17,7 +17,7 @@ useUnitConverter();
       <label class="text-xs text-muted whitespace-nowrap">Optimize</label>
       <USelect
         v-model="optimize"
-        :items="['Auto', 'Cuts', 'CNC']"
+        :items="['Auto', 'CNC']"
         size="xs"
         class="w-20"
       />

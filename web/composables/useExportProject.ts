@@ -14,7 +14,7 @@ export interface ProjectExport {
     distanceUnit: 'in' | 'mm';
     bladeWidth: number;
     margin: number;
-    optimize: 'Auto' | 'Cuts' | 'CNC';
+    optimize: 'Auto' | 'CNC';
     showPartNumbers: boolean;
     createdAt: string;
     updatedAt: string;

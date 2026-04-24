@@ -25,7 +25,7 @@ export interface IdbProject {
   /** Per-project margin/offset for the packing algorithm. */
   margin: number;
   /** Per-project packing strategy hint. */
-  optimize: 'Auto' | 'Cuts' | 'CNC';
+  optimize: 'Auto' | 'CNC';
   /** Whether to render part numbers in visualizations. */
   showPartNumbers: boolean;
   createdAt: string;

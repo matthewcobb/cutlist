@@ -123,7 +123,7 @@ export default createSharedComposable(() => {
       const config: ConfigInput = {
         bladeWidth: new Distance(bw + du).m,
         margin: new Distance(mg + du).m,
-        optimize: opt === 'Auto' ? 'auto' : opt === 'Cuts' ? 'cuts' : 'cnc',
+        optimize: opt === 'Auto' ? 'auto' : 'cnc',
         precision: 1e-5,
       };
 

@@ -47,12 +47,12 @@ describe('project CRUD', () => {
     const updated = await idb.updateProject(project.id, {
       bladeWidth: 4,
       margin: 2,
-      optimize: 'Cuts',
+      optimize: 'CNC',
       showPartNumbers: false,
     });
     expect(updated.bladeWidth).toBe(4);
     expect(updated.margin).toBe(2);
-    expect(updated.optimize).toBe('Cuts');
+    expect(updated.optimize).toBe('CNC');
     expect(updated.showPartNumbers).toBe(false);
   });
 

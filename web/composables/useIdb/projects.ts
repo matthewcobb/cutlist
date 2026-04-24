@@ -84,7 +84,7 @@ export async function createProject(
     distanceUnit?: 'in' | 'mm';
     bladeWidth?: number;
     margin?: number;
-    optimize?: 'Auto' | 'Cuts' | 'CNC';
+    optimize?: 'Auto' | 'CNC';
     showPartNumbers?: boolean;
   },
 ): Promise<IdbProject> {

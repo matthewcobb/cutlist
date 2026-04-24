@@ -9,7 +9,7 @@
  *
  * NOTE: We deliberately avoid mock.module on ~/utils/projectImport because
  * Bun's module mocks are global and would break projectImport's own tests
- * when run in the same process.
+ * when run in the same process. IDB is reset per test via `web/test-setup.ts`.
  */
 import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import { useIdb } from '../useIdb';

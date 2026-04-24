@@ -8,6 +8,10 @@ const Distance = z.union([z.number(), z.string()]);
 type Distance = z.infer<typeof Distance>;
 
 export const SearchPass = z.union([
+  z.literal('cuts-strip-h-exact'),
+  z.literal('cuts-strip-h-tolerant'),
+  z.literal('cuts-strip-v-exact'),
+  z.literal('cuts-strip-v-tolerant'),
   z.literal('cuts-shelf-area'),
   z.literal('cuts-shelf-long-side'),
   z.literal('cuts-shelf-short-side'),
@@ -123,17 +127,14 @@ export const Config = z.object({
   bladeWidth: Distance.default('0.125in'),
   /**
    * The optimization method when laying out the parts on the stock.
-   * - `"auto"`: Run multiple deterministic passes and keep the best layout
-   *   based on board count, waste, then cut complexity.
-   * - `"cnc"`: Pack as many parts onto each peice of stock as possible.
+   * - `"auto"`: Run multiple deterministic passes (strip + guillotine) and
+   *   keep the best guillotine-cuttable layout by board count, waste, then
+   *   cut complexity. Best for table/circular/track saws.
+   * - `"cnc"`: Pack as many parts onto each piece of stock as possible.
    *   Layouts may require non-guillotine cuts (plunge/jigsaw), so this is best
    *   for CNC routers and other tools that can cut anywhere on a sheet.
-   * - `"cuts"`: Generate strictly guillotine (edge-to-edge) board layouts that
-   *   are easy to cut out with a table/circular/track saw.
    */
-  optimize: z
-    .union([z.literal('auto'), z.literal('cnc'), z.literal('cuts')])
-    .default('auto'),
+  optimize: z.union([z.literal('auto'), z.literal('cnc')]).default('auto'),
   /**
    * Board margin — inset from all edges where parts will not be placed.
    * Useful for clamping area, trimming damaged edges, or out-of-square stock.

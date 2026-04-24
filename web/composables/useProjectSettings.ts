@@ -82,7 +82,7 @@ export default createSharedComposable(() => {
     },
   });
 
-  const optimize = computed<'Auto' | 'Cuts' | 'CNC' | undefined>({
+  const optimize = computed<'Auto' | 'CNC' | undefined>({
     get: () => activeProject.value?.optimize,
     set: (value) => {
       if (value == null) return;
