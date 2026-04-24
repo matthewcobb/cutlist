@@ -1,5 +1,9 @@
 import type { CutlistSettings } from '~/utils';
 
+const useProjectSettingsStore = createGlobalState(() =>
+  ref<Record<string, Partial<CutlistSettings>>>({}),
+);
+
 export default createSharedComposable(() => {
   const store = useProjectSettingsStore();
   const {
