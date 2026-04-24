@@ -47,7 +47,6 @@ function makePayload() {
         createdAt: now,
       },
     ],
-    settings: {},
   };
 }
 

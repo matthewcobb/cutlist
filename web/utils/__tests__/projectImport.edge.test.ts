@@ -58,7 +58,6 @@ function makePayload(overrides?: any) {
         createdAt: now,
       },
     ],
-    settings: { bladeWidth: 3 },
     ...overrides,
   };
 }
@@ -138,13 +137,12 @@ describe('parseProjectExport edge cases', () => {
     expect(() => parseProjectExport(payload)).toThrow('Invalid project file');
   });
 
-  it('coerces string-encoded numeric settings to numbers', () => {
-    const payload = makePayload({
-      settings: { margin: '3.5', bladeWidth: '2' },
-    });
+  it('silently strips a legacy settings field if present', () => {
+    const payload = makePayload({ settings: { bladeWidth: '2' } });
     const parsed = parseProjectExport(payload);
-    expect(parsed.settings!.margin).toBe(3.5);
-    expect(parsed.settings!.bladeWidth).toBe(2);
+    expect(
+      (parsed as unknown as { settings?: unknown }).settings,
+    ).toBeUndefined();
   });
 });
 

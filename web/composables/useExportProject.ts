@@ -1,4 +1,3 @@
-import type { CutlistSettings } from '~/utils/settings';
 import type { IdbBuildStep, IdbModel } from '~/composables/useIdb';
 import { SCHEMA_VERSION } from '~/utils/migrations';
 import { gzipCompress } from '~/utils/compress';
@@ -18,7 +17,6 @@ export interface ProjectExport {
   };
   models: IdbModel[];
   buildSteps?: IdbBuildStep[];
-  settings: CutlistSettings;
 }
 
 export default function useExportProject() {
@@ -40,7 +38,6 @@ export default function useExportProject() {
     );
 
     const buildSteps = await idb.getBuildSteps(activeId.value);
-    const settings = await idb.getSettings();
 
     const data: ProjectExport = {
       version: SCHEMA_VERSION,
@@ -57,7 +54,6 @@ export default function useExportProject() {
       },
       models: fullModels,
       buildSteps,
-      settings,
     };
 
     const blob = await gzipCompress(JSON.stringify(data));

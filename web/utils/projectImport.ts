@@ -87,17 +87,10 @@ const BuildStepSchema = z.object({
   createdAt: z.string(),
 });
 
-const SettingsSchema = z
-  .object({
-    bladeWidth: z.coerce.number().optional(),
-    distanceUnit: z.enum(['in', 'mm']).optional(),
-    margin: z.coerce.number().optional(),
-    optimize: z.enum(['Auto', 'Cuts', 'CNC']).optional(),
-    showPartNumbers: z.boolean().optional(),
-    stock: z.string().optional(),
-  })
-  .optional();
-
+// Global settings (bladeWidth, margin, optimize, etc.) are intentionally NOT
+// part of the project export: they are user-level preferences shared across
+// all projects, not per-project state. An extra `settings` field on an old
+// export file is silently stripped by Zod's default object behaviour.
 const ProjectExportSchema = z.object({
   version: z.number(),
   project: z.object({
@@ -112,7 +105,6 @@ const ProjectExportSchema = z.object({
   }),
   models: z.array(ModelSchema),
   buildSteps: z.array(BuildStepSchema).optional(),
-  settings: SettingsSchema,
 });
 
 // ─── Parsing ────────────────────────────────────────────────────────────────
