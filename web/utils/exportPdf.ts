@@ -18,7 +18,6 @@ export interface ExportPdfOptions {
   layouts: BoardLayout[];
   leftovers: BoardLayoutLeftover[];
   formatSize: (m: number) => string | undefined;
-  distanceUnit: string;
   showPartNumbers: boolean;
   measurements?: RulerMeasurement[];
 }

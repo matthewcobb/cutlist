@@ -70,11 +70,10 @@ export interface DeriveResult {
   nodePartMap: NodePartMapping[];
 }
 
-export interface ParseResult extends DeriveResult {
+interface ParseResult extends DeriveResult {
   gltfJson: object;
 }
 
-const PRECISION = 1e-6;
 /** Coarser tolerance for grouping — parts within 0.1mm are the same cut. */
 const GROUP_PRECISION = 1e-4;
 
@@ -323,10 +322,6 @@ function rgbToHex(rgb: [number, number, number]): string {
   const g = clamp(rgb[1]);
   const b = clamp(rgb[2]);
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-}
-
-function round(n: number): number {
-  return Math.round(n / PRECISION) * PRECISION;
 }
 
 // --- Minimal 4x4 column-major matrix helpers (matching GLTF spec) ---

@@ -10,7 +10,7 @@ export interface CutlistSettings {
   stock: string;
 }
 
-export interface StockPreset {
+interface StockPreset {
   /** Display label in the preset dropdown. */
   label: string;
   /** If true, this preset is auto-added to new projects. */
@@ -133,9 +133,9 @@ export const STOCK_PRESETS: StockPreset[] = [
   },
 ];
 
-export const DEFAULT_STOCK: StockMatrix[] = STOCK_PRESETS.filter(
-  (p) => p.default,
-).map((p) => p.stock);
+const DEFAULT_STOCK: StockMatrix[] = STOCK_PRESETS.filter((p) => p.default).map(
+  (p) => p.stock,
+);
 
 export const DEFAULT_STOCK_YAML = YAML.dump(DEFAULT_STOCK, {
   indent: 2,

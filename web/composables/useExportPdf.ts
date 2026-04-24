@@ -4,7 +4,7 @@ export default function () {
   const { data: layouts } = useBoardLayoutsQuery();
   const { activeProject } = useProjects();
   const formatDistance = useFormatDistance();
-  const { distanceUnit, showPartNumbers } = useProjectSettings();
+  const { showPartNumbers } = useProjectSettings();
   const { measurements } = useRulerStore();
 
   const isExporting = ref(false);
@@ -23,7 +23,6 @@ export default function () {
         layouts: layouts.value.layouts,
         leftovers: layouts.value.leftovers,
         formatSize: formatDistance,
-        distanceUnit: String(distanceUnit.value ?? ''),
         showPartNumbers: !!showPartNumbers.value,
         measurements: measurements.value,
       });

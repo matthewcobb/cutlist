@@ -18,19 +18,23 @@
 
 import { LAYOUT_CACHE_VERSION } from '~/utils/migrations';
 
-/**
- * Raw FNV-1a hash of JSON-serializable input. Returns an 8-char hex string.
- *
- * Prefer `versionedFingerprint` for cache keys — it includes version tagging.
- */
-export function fingerprint(value: unknown): string {
-  const str = JSON.stringify(value);
+/** FNV-1a (32-bit) over a string. Returns an 8-char hex digest. */
+function fnv1aHex(str: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) {
     h ^= str.charCodeAt(i);
     h = Math.imul(h, 0x01000193);
   }
   return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+/**
+ * Raw FNV-1a hash of JSON-serializable input. Returns an 8-char hex string.
+ *
+ * Prefer `versionedFingerprint` for cache keys — it includes version tagging.
+ */
+export function fingerprint(value: unknown): string {
+  return fnv1aHex(JSON.stringify(value));
 }
 
 /**
@@ -41,12 +45,6 @@ export function fingerprint(value: unknown): string {
  * Returns a string in the format "v{version}:{hash}" for debuggability.
  */
 export function versionedFingerprint(value: unknown): string {
-  const str = `__v${LAYOUT_CACHE_VERSION}__` + JSON.stringify(value);
-  let h = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  const hash = (h >>> 0).toString(16).padStart(8, '0');
+  const hash = fnv1aHex(`__v${LAYOUT_CACHE_VERSION}__` + JSON.stringify(value));
   return `v${LAYOUT_CACHE_VERSION}:${hash}`;
 }

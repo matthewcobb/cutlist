@@ -27,7 +27,7 @@
  */
 
 import type { IDBPDatabase } from 'idb';
-import { DEFAULT_STOCK_YAML, DEFAULT_SETTINGS } from '~/utils/settings';
+import { DEFAULT_STOCK_YAML } from '~/utils/settings';
 
 /**
  * Schema version for record shapes (independent of IDB database version).
