@@ -8,5 +8,5 @@ web/.output
 web/dist
 
 # Sentry Config File
-.env.sentry-build-plugin
+.env
 /.claude/worktrees
