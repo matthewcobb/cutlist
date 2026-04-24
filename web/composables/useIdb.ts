@@ -358,10 +358,15 @@ export function useIdb() {
     ]);
     if (!project) return undefined;
 
-    const models: IdbModelMeta[] = allModels.map(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      ({ gltfJson: _g, ...meta }) => applyModelDefaults(meta),
-    );
+    const models: IdbModelMeta[] = allModels
+      .map(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        ({ gltfJson: _g, ...meta }) => applyModelDefaults(meta),
+      )
+      // Sort by createdAt to ensure stable model ordering across loads.
+      // Without this, IDB returns models in UUID (primary key) order, which
+      // is random — causing part number offsets to shift between sessions.
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     return { ...applyProjectDefaults(project), models };
   }
 
