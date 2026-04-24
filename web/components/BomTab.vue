@@ -55,8 +55,11 @@ const partNameDraft = ref('');
 const partNameInput = ref<HTMLInputElement | null>(null);
 function onPartNameInputMounted(el: unknown) {
   const input = el as HTMLInputElement | null;
-  partNameInput.value = input;
-  input?.select();
+  if (input && input !== partNameInput.value) {
+    partNameInput.value = input;
+    input.focus();
+    input.select();
+  }
 }
 const pendingRemoveModelId = ref<string | null>(null);
 const splitContainer = ref<HTMLDivElement | null>(null);
@@ -261,6 +264,7 @@ function startRenamePart(row: BomRow) {
   renamingPartNumber.value = row.number;
   partNameDraft.value = row.name;
   editingPartNumber.value = null;
+  partNameInput.value = null;
 }
 
 function cancelRenamePart() {
