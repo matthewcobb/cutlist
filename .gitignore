@@ -2,8 +2,7 @@ node_modules
 .DS_Store
 web/lib/packers/__tests__/dist/
 package-lock.json
-/.nuxt/dist
-web/.nuxt
+.nuxt
 web/.output
 web/dist
 
