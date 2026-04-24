@@ -1,54 +1,29 @@
 /**
- * Schema migration framework for Cutlist's IndexedDB persistence layer.
+ * Export/import format migration pipeline for `.cutlist.gz` files.
  *
- * Design principles:
- * - Startup sweep is atomic: all stores are migrated in a single IDB
- *   transaction. A failure mid-sweep rolls back everything, so the database
- *   is never left in a partially-migrated state.
- * - Migrations are pure functions (no side effects, no async).
- * - The migration list is append-only and never edited after shipping.
- * - Forward-version detection: if the stored schema version is higher than
- *   the running code's SCHEMA_VERSION, the app refuses to start rather than
- *   silently corrupt data.
+ * Scope of this module: transforming record shapes inside imported export
+ * files from the version they were written at up to the current
+ * `SCHEMA_VERSION`. Does NOT touch IndexedDB — that's Dexie's job, handled
+ * by the `.version(N).stores(...).upgrade(...)` chain on `CutlistDB` in
+ * `~/composables/useIdb/db`.
  *
- * Versioning policy:
- * - Bump SCHEMA_VERSION when any IDB record type's fields change.
- * - Bump LAYOUT_CACHE_VERSION when the packing algorithm or ConfigInput shape
- *   changes. This invalidates all cached board layouts without requiring a
- *   schema migration.
- * - Bump DERIVE_VERSION (in parseGltf.ts) when deriveFromGltf output changes.
+ * When adding a schema migration, the same logical transform should be
+ * expressed twice:
+ *   1. Inside Dexie's `.upgrade(tx => ...)` callback — runs on local IDB.
+ *   2. As a pure entry in the `migrations` array below — runs on incoming
+ *      `.cutlist.gz` payloads in `migrateExport`.
  *
- * Adding a new migration:
- * 1. Bump SCHEMA_VERSION.
- * 2. Append to the `migrations` array. Never reorder or edit existing entries.
- * 3. The migrate function must be pure: old record in, new record out.
- * 4. Update the matching applyDefaults function in useIdb.ts.
- * 5. Add a test in utils/__tests__/migrations.test.ts.
+ * Rules for the `migrations` array:
+ *  - Append only; never edit or delete a shipped entry.
+ *  - Pure functions (no side effects, no async).
+ *  - New required fields must have a sensible default.
  */
 
-import type { IDBPDatabase } from 'idb';
-
-/**
- * Schema version for record shapes (independent of IDB database version).
- * Bump when any record type's fields change. Never decrement.
- *
- * v2 (April 2026): packing settings (bladeWidth, margin, optimize,
- * showPartNumbers) moved onto the project record. No explicit migration —
- * applyProjectDefaults fills missing fields on read.
- */
-export const SCHEMA_VERSION = 2;
-
-/**
- * Layout cache version. Baked into every cache fingerprint so that algorithm
- * or ConfigInput shape changes automatically invalidate stale layouts.
- * Bump whenever the packing engine output shape, scoring, or ConfigInput
- * fields change.
- */
-export const LAYOUT_CACHE_VERSION = 2;
+import { SCHEMA_VERSION } from './versions';
 
 type StoreName = 'projects' | 'models' | 'buildSteps';
 
-/** A loosely-typed IDB record (string-keyed object with unknown values). */
+/** A loosely-typed export record (string-keyed object with unknown values). */
 export type IdbRecord = Record<string, unknown>;
 
 export interface RecordMigration {
@@ -59,20 +34,11 @@ export interface RecordMigration {
   migrate: (record: IdbRecord) => IdbRecord;
 }
 
-/**
- * Ordered, append-only migration list.
- * Rules:
- *  - Never edit or delete a shipped migration.
- *  - Each migration must be a pure function (no side effects, no async).
- *  - New required fields must have a sensible default.
- */
+/** Ordered, append-only record migration list. */
 export const migrations: RecordMigration[] = [
-  // Baseline version 1: no migrations needed (clean slate).
-  // Future migrations go here, e.g.:
-  // { version: 2, store: 'projects', migrate: (r) => ({ ...r, newField: 'default' }) },
+  // v1 baseline: nothing to migrate.
+  // Future: { version: 2, store: 'projects', migrate: (r) => ({ ...r, tags: r.tags ?? [] }) },
 ];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Apply all migrations for a store from `fromVersion` to SCHEMA_VERSION. */
 export function migrateRecord(
@@ -89,102 +55,6 @@ export function migrateRecord(
   return result;
 }
 
-// ─── Startup sweep ────────────────────────────────────────────────────────────
-
-const SCHEMA_VERSION_KEY = 'schema-version';
-
-/**
- * Error thrown when the stored schema version is higher than the running code.
- * This means the user opened the app with an older version after upgrading.
- */
-export class FutureSchemaError extends Error {
-  constructor(storedVersion: number) {
-    super(
-      `Database was created by a newer version of Cutlist (schema v${storedVersion}, ` +
-        `but this version only supports up to v${SCHEMA_VERSION}). ` +
-        `Please update the app or clear your browser data.`,
-    );
-    this.name = 'FutureSchemaError';
-  }
-}
-
-/**
- * Run once on app startup (called from getDb).
- *
- * Checks stored schema version; if behind, migrates all stores atomically
- * in a single transaction. If ahead, throws FutureSchemaError.
- *
- * Atomicity guarantee: all store mutations plus the version stamp happen in
- * one readwrite transaction. If any migration throws, IDB auto-aborts the
- * entire transaction and the database is left at its previous version.
- */
-export async function runStartupSweep(db: IDBPDatabase<any>): Promise<void> {
-  // Read the current schema version outside the migration transaction.
-  const versionRecord = await db.get('meta', SCHEMA_VERSION_KEY);
-  const storedVersion: number = versionRecord?.version ?? 0;
-
-  if (storedVersion > SCHEMA_VERSION) {
-    throw new FutureSchemaError(storedVersion);
-  }
-
-  if (storedVersion >= SCHEMA_VERSION) return;
-
-  // Open a single atomic transaction over ALL record stores plus `meta`.
-  // This ensures either everything migrates or nothing does.
-  const allStores = ['projects', 'models', 'buildSteps', 'meta'] as const;
-  const tx = db.transaction([...allStores], 'readwrite');
-
-  try {
-    // Small stores: getAll -> migrate -> put
-    for (const store of ['projects', 'buildSteps'] as const) {
-      const pending = migrations.filter(
-        (m) => m.store === store && m.version > storedVersion,
-      );
-      if (pending.length === 0) continue;
-
-      const all = await tx.objectStore(store).getAll();
-      for (const record of all) {
-        let patched = record;
-        for (const m of pending) {
-          patched = m.migrate(patched);
-        }
-        await tx.objectStore(store).put(patched);
-      }
-    }
-
-    // Models store: cursor-based to avoid loading all gltfJson blobs at once
-    const modelMigrations = migrations.filter(
-      (m) => m.store === 'models' && m.version > storedVersion,
-    );
-    if (modelMigrations.length > 0) {
-      let cursor = await tx.objectStore('models').openCursor();
-      while (cursor) {
-        let record = cursor.value;
-        for (const m of modelMigrations) {
-          record = m.migrate(record);
-        }
-        await cursor.update(record);
-        cursor = await cursor.continue();
-      }
-    }
-
-    // Stamp new version inside the same transaction.
-    await tx.objectStore('meta').put({
-      key: SCHEMA_VERSION_KEY,
-      version: SCHEMA_VERSION,
-    });
-
-    await tx.done;
-  } catch (err) {
-    // Transaction auto-aborts on error — no partial state.
-    console.error(
-      `[migrations] Startup sweep failed migrating from v${storedVersion} to v${SCHEMA_VERSION}:`,
-      err,
-    );
-    throw err;
-  }
-}
-
 // ─── Export migration ─────────────────────────────────────────────────────────
 
 interface RawExport {
@@ -196,8 +66,9 @@ interface RawExport {
 }
 
 /**
- * Migrate an imported .cutlist.gz from its version to SCHEMA_VERSION.
- * Reuses the same migration functions as the IDB sweep.
+ * Migrate an imported `.cutlist.gz` from its version to `SCHEMA_VERSION`.
+ * Throws a plain `Error` (not `FutureSchemaError`) for forward-version
+ * exports — the import-time UX reads the message directly.
  */
 export function migrateExport(raw: RawExport): RawExport {
   const fromVersion = raw.version ?? 0;

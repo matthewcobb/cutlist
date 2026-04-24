@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { useIdb } from '../useIdb';
 import type { IdbLayoutCache } from '../useIdb';
-import { LAYOUT_CACHE_VERSION } from '../../utils/migrations';
+import { LAYOUT_CACHE_VERSION } from '../../utils/versions';
 
 const idb = useIdb();
 

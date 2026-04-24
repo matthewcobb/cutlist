@@ -17,7 +17,7 @@ import type { IdbModel } from './types';
 
 export async function createModel(model: IdbModel): Promise<void> {
   const db = await getDb();
-  await safeWrite(() => db.put('models', model));
+  await safeWrite(() => db.models.put(model));
   notifyOtherTabs('model-created');
 }
 
@@ -42,10 +42,10 @@ async function flushModelWrite(id: string): Promise<void> {
   clearTimeout(entry.timer);
 
   const db = await getDb();
-  const existing = await db.get('models', id);
+  const existing = await db.models.get(id);
   if (!existing) throw new Error(`Model ${id} not found`);
   const rawPatch = JSON.parse(JSON.stringify(entry.patch));
-  await safeWrite(() => db.put('models', { ...existing, ...rawPatch }));
+  await safeWrite(() => db.models.put({ ...existing, ...rawPatch }));
 }
 
 export async function updateModel(
@@ -58,10 +58,10 @@ export async function updateModel(
   // infrequent and callers expect immediate persistence.
   if (patch.parts != null || patch.derivedCache != null) {
     const db = await getDb();
-    const existing = await db.get('models', id);
+    const existing = await db.models.get(id);
     if (!existing) throw new Error(`Model ${id} not found`);
     const rawPatch = JSON.parse(JSON.stringify(patch));
-    await safeWrite(() => db.put('models', { ...existing, ...rawPatch }));
+    await safeWrite(() => db.models.put({ ...existing, ...rawPatch }));
     return;
   }
 
@@ -83,11 +83,11 @@ export async function flushPendingModelWrites(): Promise<void> {
 
 export async function deleteModel(id: string): Promise<void> {
   const db = await getDb();
-  await db.delete('models', id);
+  await db.models.delete(id);
 }
 
 export async function getModelGltf(id: string): Promise<object | null> {
   const db = await getDb();
-  const model = await db.get('models', id);
+  const model = await db.models.get(id);
   return model?.gltfJson ?? null;
 }

@@ -123,7 +123,7 @@ const deps = [
   { name: 'VueUse', version: '14', license: 'MIT' },
   { name: 'Three.js', version: '0.184', license: 'MIT' },
   { name: 'pdf-lib', version: '1.17', license: 'MIT' },
-  { name: 'idb', version: '8', license: 'ISC' },
+  { name: 'Dexie', version: '4', license: 'Apache-2.0' },
   { name: 'js-yaml', version: '4', license: 'MIT' },
   { name: 'Zod', version: '4', license: 'MIT' },
   { name: 'Tailwind CSS', version: '4', license: 'MIT' },

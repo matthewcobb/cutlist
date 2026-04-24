@@ -158,30 +158,47 @@ Board layouts are cached per-project in the `layoutCache` IDB store, keyed by `p
 
 ### Versioning policy (three independent version numbers)
 
-| Version constant       | File            | Bump when                                                       |
-| ---------------------- | --------------- | --------------------------------------------------------------- |
-| `SCHEMA_VERSION`       | `migrations.ts` | Any IDB record type's fields change                             |
-| `LAYOUT_CACHE_VERSION` | `migrations.ts` | Packing algorithm output, scoring, or ConfigInput shape changes |
-| `DERIVE_VERSION`       | `parseGltf.ts`  | `deriveFromGltf` output shape or semantics change               |
+| Version constant       | File                                             | Bump when                                                       |
+| ---------------------- | ------------------------------------------------ | --------------------------------------------------------------- |
+| `SCHEMA_VERSION`       | [web/utils/versions.ts](web/utils/versions.ts)   | Any IDB record type's fields change                             |
+| `LAYOUT_CACHE_VERSION` | [web/utils/versions.ts](web/utils/versions.ts)   | Packing algorithm output, scoring, or ConfigInput shape changes |
+| `DERIVE_VERSION`       | [web/utils/parseGltf.ts](web/utils/parseGltf.ts) | `deriveFromGltf` output shape or semantics change               |
 
-### Migrations (`web/utils/migrations.ts`)
+`FutureSchemaError` also lives in `versions.ts` — it's the shared error raised when the stored DB or imported export file was written by a newer Cutlist than the one running.
 
-Currently at `SCHEMA_VERSION = 1` (production baseline, clean slate). The infrastructure:
+### Migrations
 
-- **`SCHEMA_VERSION`** — bump when any record type's fields change.
-- **Atomic startup sweep** — on app init, migrates all stores in a single IDB transaction. If any migration throws, the entire transaction rolls back.
-- **Forward-version detection** — if the stored schema version is higher than the running code, the app throws `FutureSchemaError` instead of silently corrupting data.
-- **`applyDefaults`** in `useIdb.ts` — safety net on read paths.
-- **`migrateExport`** — applies same migrations to imported `.cutlist.gz` files.
+**IDB schema** is owned by the `CutlistDB` class in [web/composables/useIdb/db.ts](web/composables/useIdb/db.ts), which uses [Dexie](https://dexie.org). Each schema version is declared with a chained `this.version(N).stores({...}).upgrade(tx => ...)` call. Dexie opens the DB and runs any pending `.upgrade()` callbacks atomically; a mid-upgrade failure rolls the whole transaction back.
+
+**Export-file compatibility** is a separate concern, handled by [web/utils/migrations.ts](web/utils/migrations.ts). A `.cutlist.gz` emitted at schema v(N-1) still needs its record shapes brought up to vN when imported by a newer client — Dexie can't help with that since the file isn't in IDB yet. That module keeps:
+
+- **`migrations[]`** — pure, append-only entries applied to raw export records. Mirrors any Dexie `.upgrade()` record transformation.
+- **`migrateExport()`** — runs the above over an imported payload.
+
+**Read-path safety net**: `applyDefaults` helpers in [web/composables/useIdb/defaults.ts](web/composables/useIdb/defaults.ts) fill missing fields on every record read, so partial records from older writes still hydrate cleanly.
 
 ### When adding a new field to a record type
 
-1. Update the TypeScript interface in `useIdb.ts`
-2. Bump `SCHEMA_VERSION` in `migrations.ts`
-3. Add a migration entry with a sensible default
-4. Update the matching `applyDefaults` function in `useIdb.ts`
-5. Update `createX` to set the field for new records
-6. Add a test in `utils/__tests__/migrations.test.ts`
+1. Update the TypeScript interface in `useIdb/types.ts`.
+2. Add a new Dexie version block in `db.ts`:
+   ```ts
+   this.version(N)
+     .stores({
+       /* only stores whose indexes changed */
+     })
+     .upgrade(async (tx) => {
+       await tx
+         .table('projects')
+         .toCollection()
+         .modify((p) => {
+           p.newField = defaultValue;
+         });
+     });
+   ```
+3. Bump `SCHEMA_VERSION` in `versions.ts` and add the matching pure-function entry to `migrations[]` in `migrations.ts` for the export path.
+4. Update the relevant `applyDefaults` helper.
+5. Update `createX` to set the field for new records.
+6. Add a test in `utils/__tests__/migrations.test.ts`.
 
 ### IDB error handling
 

@@ -1,14 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import { openDB, type IDBPDatabase } from 'idb';
 import {
   SCHEMA_VERSION,
   LAYOUT_CACHE_VERSION,
-  migrations,
-  migrateRecord,
-  migrateExport,
-  runStartupSweep,
   FutureSchemaError,
-} from '../migrations';
+} from '../versions';
+import { migrations, migrateRecord, migrateExport } from '../migrations';
 import { DEFAULT_SETTINGS, DEFAULT_STOCK_YAML } from '../settings';
 import {
   applyProjectDefaults,
@@ -201,125 +197,5 @@ describe('applyModelDefaults', () => {
     expect(result.source).toBe('manual');
     expect(result.enabled).toBe(false);
     expect(result.partOverrides).toEqual({ 1: { grainLock: 'length' } });
-  });
-});
-
-// ─── runStartupSweep (integration tests with fake-indexeddb) ────────────────
-
-let dbCounter = 0;
-async function openTestDb(): Promise<IDBPDatabase<any>> {
-  const name = `test-sweep-${++dbCounter}-${Date.now()}`;
-  return openDB(name, 1, {
-    upgrade(db) {
-      const projects = db.createObjectStore('projects', { keyPath: 'id' });
-      projects.createIndex('updatedAt', 'updatedAt');
-      const models = db.createObjectStore('models', { keyPath: 'id' });
-      models.createIndex('projectId', 'projectId');
-      const buildSteps = db.createObjectStore('buildSteps', {
-        keyPath: 'id',
-      });
-      buildSteps.createIndex('projectId', 'projectId');
-      db.createObjectStore('meta', { keyPath: 'key' });
-    },
-  });
-}
-
-describe('runStartupSweep', () => {
-  it('stamps schema-version on first run', async () => {
-    const db = await openTestDb();
-    await runStartupSweep(db);
-
-    const versionRecord = await db.get('meta', 'schema-version');
-    expect(versionRecord).toBeDefined();
-    expect(versionRecord.version).toBe(SCHEMA_VERSION);
-    db.close();
-  });
-
-  it('skips sweep when already at current version', async () => {
-    const db = await openTestDb();
-    await db.put('meta', {
-      key: 'schema-version',
-      version: SCHEMA_VERSION,
-    });
-    const project = { id: 'p1', name: 'Test', createdAt: '', updatedAt: '' };
-    await db.put('projects', project);
-
-    await runStartupSweep(db);
-
-    // Project should be untouched (no migrations to apply)
-    const result = await db.get('projects', 'p1');
-    expect(result).toEqual(project);
-    db.close();
-  });
-
-  it('handles empty database gracefully', async () => {
-    const db = await openTestDb();
-    await runStartupSweep(db);
-
-    const versionRecord = await db.get('meta', 'schema-version');
-    expect(versionRecord.version).toBe(SCHEMA_VERSION);
-    db.close();
-  });
-
-  it('rejects future schema version with FutureSchemaError', async () => {
-    const db = await openTestDb();
-    await db.put('meta', {
-      key: 'schema-version',
-      version: SCHEMA_VERSION + 10,
-    });
-
-    let caught: Error | null = null;
-    try {
-      await runStartupSweep(db);
-    } catch (e) {
-      caught = e as Error;
-    }
-
-    expect(caught).not.toBeNull();
-    expect(caught!.name).toBe('FutureSchemaError');
-    expect(caught!.message).toContain(String(SCHEMA_VERSION + 10));
-    db.close();
-  });
-
-  it('atomically rolls back on migration failure', async () => {
-    // This test verifies atomicity by temporarily injecting a migration
-    // that throws mid-sweep. The database should remain at version 0.
-    //
-    // We can't easily inject into the real migration list, so we test
-    // the transaction behavior directly: start a transaction, do a write,
-    // then abort it, and verify nothing persisted.
-    const db = await openTestDb();
-    const project = {
-      id: 'p1',
-      name: 'Original',
-      createdAt: '',
-      updatedAt: '',
-    };
-    await db.put('projects', project);
-
-    // Simulate: open a transaction, mutate, then abort
-    const tx = db.transaction(['projects', 'meta'], 'readwrite');
-    await tx.objectStore('projects').put({
-      ...project,
-      name: 'Mutated',
-    });
-    // Abort simulates a migration failure. Awaiting tx.done will throw
-    // AbortError, which is expected.
-    tx.abort();
-    try {
-      await tx.done;
-    } catch {
-      // AbortError is expected — the transaction was intentionally aborted.
-    }
-
-    // Verify the original data is intact (rollback happened)
-    const result = await db.get('projects', 'p1');
-    expect(result.name).toBe('Original');
-
-    // Schema version should not have been stamped
-    const versionRecord = await db.get('meta', 'schema-version');
-    expect(versionRecord).toBeUndefined();
-
-    db.close();
   });
 });

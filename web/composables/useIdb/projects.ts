@@ -2,7 +2,7 @@
  * Project CRUD: create/read/update/archive/unarchive/delete.
  *
  * Project deletion cascades to models, buildSteps, and layoutCache in a
- * single transaction so partial failures don't leave orphans.
+ * single Dexie transaction so partial failures don't leave orphans.
  */
 
 import { DEFAULT_SETTINGS, DEFAULT_STOCK_YAML } from '~/utils/settings';
@@ -14,9 +14,8 @@ export async function getProjectList(): Promise<
   Pick<IdbProject, 'id' | 'name' | 'updatedAt'>[]
 > {
   const db = await getDb();
-  const all = await db.getAllFromIndex('projects', 'updatedAt');
+  const all = await db.projects.orderBy('updatedAt').reverse().toArray();
   return all
-    .reverse()
     .filter((p) => !p.archivedAt)
     .map(({ id, name, updatedAt }) => ({ id, name, updatedAt }));
 }
@@ -25,7 +24,7 @@ export async function getArchivedList(): Promise<
   Required<Pick<IdbProject, 'id' | 'name' | 'archivedAt'>>[]
 > {
   const db = await getDb();
-  const all = await db.getAllFromIndex('projects', 'updatedAt');
+  const all = await db.projects.toArray();
   return all
     .filter((p) => !!p.archivedAt)
     .sort((a, b) => (b.archivedAt! > a.archivedAt! ? 1 : -1))
@@ -38,10 +37,10 @@ export async function getArchivedList(): Promise<
 
 export async function archiveProject(id: string): Promise<void> {
   const db = await getDb();
-  const existing = await db.get('projects', id);
+  const existing = await db.projects.get(id);
   if (!existing) throw new Error(`Project ${id} not found`);
   await safeWrite(() =>
-    db.put('projects', {
+    db.projects.put({
       ...existing,
       archivedAt: new Date().toISOString(),
     }),
@@ -51,10 +50,10 @@ export async function archiveProject(id: string): Promise<void> {
 
 export async function unarchiveProject(id: string): Promise<void> {
   const db = await getDb();
-  const existing = await db.get('projects', id);
+  const existing = await db.projects.get(id);
   if (!existing) throw new Error(`Project ${id} not found`);
   const { archivedAt: _, ...rest } = existing;
-  await safeWrite(() => db.put('projects', rest));
+  await safeWrite(() => db.projects.put(rest as IdbProject));
   notifyOtherTabs('project-updated');
 }
 
@@ -63,8 +62,8 @@ export async function getProjectWithModels(
 ): Promise<(IdbProject & { models: IdbModelMeta[] }) | undefined> {
   const db = await getDb();
   const [project, allModels] = await Promise.all([
-    db.get('projects', id),
-    db.getAllFromIndex('models', 'projectId', id),
+    db.projects.get(id),
+    db.models.where('projectId').equals(id).toArray(),
   ]);
   if (!project) return undefined;
 
@@ -107,7 +106,7 @@ export async function createProject(
     createdAt: now,
     updatedAt: now,
   };
-  await safeWrite(() => db.put('projects', project));
+  await safeWrite(() => db.projects.put(project));
   notifyOtherTabs('project-created');
   return project;
 }
@@ -131,40 +130,29 @@ export async function updateProject(
   >,
 ): Promise<IdbProject> {
   const db = await getDb();
-  const existing = await db.get('projects', id);
+  const existing = await db.projects.get(id);
   if (!existing) throw new Error(`Project ${id} not found`);
   const updated: IdbProject = {
     ...existing,
     ...patch,
     updatedAt: new Date().toISOString(),
   };
-  await safeWrite(() => db.put('projects', updated));
+  await safeWrite(() => db.projects.put(updated));
   notifyOtherTabs('project-updated');
   return updated;
 }
 
 export async function deleteProject(id: string): Promise<void> {
   const db = await getDb();
-  const tx = db.transaction(
-    ['projects', 'models', 'buildSteps', 'layoutCache'],
-    'readwrite',
+  await db.transaction(
+    'rw',
+    [db.projects, db.models, db.buildSteps, db.layoutCache],
+    async () => {
+      await db.models.where('projectId').equals(id).delete();
+      await db.buildSteps.where('projectId').equals(id).delete();
+      await db.layoutCache.delete(id);
+      await db.projects.delete(id);
+    },
   );
-  const modelKeys = await tx
-    .objectStore('models')
-    .index('projectId')
-    .getAllKeys(id);
-  for (const key of modelKeys) {
-    tx.objectStore('models').delete(key);
-  }
-  const stepKeys = await tx
-    .objectStore('buildSteps')
-    .index('projectId')
-    .getAllKeys(id);
-  for (const key of stepKeys) {
-    tx.objectStore('buildSteps').delete(key);
-  }
-  tx.objectStore('layoutCache').delete(id);
-  tx.objectStore('projects').delete(id);
-  await tx.done;
   notifyOtherTabs('project-deleted');
 }

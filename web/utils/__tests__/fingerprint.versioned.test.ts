@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import { fingerprint, versionedFingerprint } from '../fingerprint';
-import { LAYOUT_CACHE_VERSION } from '../migrations';
+import { LAYOUT_CACHE_VERSION } from '../versions';
 
 describe('versionedFingerprint', () => {
   it('includes version prefix in output', () => {

@@ -16,7 +16,7 @@
  *   cache via an explicit version field.
  */
 
-import { LAYOUT_CACHE_VERSION } from '~/utils/migrations';
+import { LAYOUT_CACHE_VERSION } from '~/utils/versions';
 
 /** FNV-1a (32-bit) over a string. Returns an 8-char hex digest. */
 function fnv1aHex(str: string): string {

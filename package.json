@@ -19,7 +19,7 @@
     "@iconify-json/lucide": "^1.2.102",
     "@iconify-json/ri": "^1.2.10",
     "@sentry/nuxt": "^10",
-    "idb": "^8.0.3",
+    "dexie": "^4.4.2",
     "js-yaml": "^4.1.0",
     "panzoom": "^9.4.4",
     "pdf-lib": "^1.17.1",

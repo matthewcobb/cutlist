@@ -12,7 +12,7 @@ import {
   PART_COUNT_SOFT_LIMIT,
 } from '~/composables/useComputationWorker';
 import { versionedFingerprint } from '~/utils/fingerprint';
-import { LAYOUT_CACHE_VERSION } from '~/utils/migrations';
+import { LAYOUT_CACHE_VERSION } from '~/utils/versions';
 
 type LayoutResult = {
   layouts: BoardLayout[];

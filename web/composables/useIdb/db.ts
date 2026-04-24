@@ -1,15 +1,57 @@
 /**
- * DB infrastructure: lazy singleton, schema upgrade path, error channel,
- * quota-aware write wrapper, and the multi-tab BroadcastChannel.
+ * DB infrastructure: Dexie class singleton, error channel, quota-aware
+ * write wrapper, and the multi-tab BroadcastChannel.
  *
  * Everything here is module-level state — one instance per process — so
  * every domain module shares the same DB handle, error ref, and channel.
+ *
+ * Versioning: the canonical schema version lives in `SCHEMA_VERSION` in
+ * `~/utils/versions`. When bumping, add a new `.version(N).stores(...)`
+ * call in `CutlistDB` below AND bump `SCHEMA_VERSION` so the export file
+ * format stays in sync. See `web/utils/migrations.ts` for the export-side
+ * record migrations.
  */
 
 import { ref, readonly } from 'vue';
-import { openDB, type IDBPDatabase } from 'idb';
-import { runStartupSweep } from '~/utils/migrations';
-import type { CutlistDb } from './types';
+import Dexie, { type Table } from 'dexie';
+import { FutureSchemaError, SCHEMA_VERSION } from '~/utils/versions';
+import type {
+  IdbProject,
+  IdbModel,
+  IdbBuildStep,
+  IdbLayoutCache,
+  IdbMetaRecord,
+} from './types';
+
+// ─── Dexie class ────────────────────────────────────────────────────────────
+
+export class CutlistDB extends Dexie {
+  projects!: Table<IdbProject, string>;
+  models!: Table<IdbModel, string>;
+  buildSteps!: Table<IdbBuildStep, string>;
+  layoutCache!: Table<IdbLayoutCache, string>;
+  meta!: Table<IdbMetaRecord, string>;
+
+  constructor() {
+    super('cutlist-db');
+
+    // v1 — clean-slate baseline.
+    //
+    // Schema string format (Dexie): 'primaryKey, index1, index2, ...'.
+    // Fields that aren't indexed don't need to be listed — Dexie stores the
+    // full record regardless.
+    //
+    // When adding v2+, append another `this.version(N).stores({...}).upgrade(...)`
+    // call below. Do NOT edit this v1 call.
+    this.version(1).stores({
+      projects: 'id, updatedAt',
+      models: 'id, projectId',
+      buildSteps: 'id, projectId',
+      layoutCache: 'projectId',
+      meta: 'key',
+    });
+  }
+}
 
 // ─── IDB error handling ─────────────────────────────────────────────────────
 
@@ -33,12 +75,15 @@ export function useIdbErrors() {
 
 function isQuotaExceeded(err: unknown): boolean {
   if (err instanceof DOMException) {
-    // Chromium, Safari, Firefox all use slightly different names/codes.
     return (
       err.name === 'QuotaExceededError' ||
-      err.code === 22 || // legacy code
+      err.code === 22 ||
       err.name === ('NS_ERROR_DOM_QUOTA_REACHED' as string)
     );
+  }
+  // Dexie wraps quota errors in its own class with .inner or .name.
+  if (err instanceof Dexie.DexieError) {
+    return err.name === 'QuotaExceededError';
   }
   return false;
 }
@@ -85,53 +130,40 @@ export function notifyOtherTabs(event: string) {
 
 // ─── DB singleton ─────────────────────────────────────────────────────────────
 
-let dbPromise: Promise<IDBPDatabase<CutlistDb>> | null = null;
+let dbPromise: Promise<CutlistDB> | null = null;
 
-export function getDb(): Promise<IDBPDatabase<CutlistDb>> {
+/**
+ * Lazy singleton accessor. First call triggers `db.open()` which runs any
+ * pending Dexie `.upgrade()` callbacks atomically; subsequent calls return
+ * the same handle.
+ *
+ * A future-version database (user opened the app with older code after
+ * upgrading) is translated into our `FutureSchemaError` so the UI layer can
+ * surface a consistent message.
+ */
+export function getDb(): Promise<CutlistDB> {
   if (!dbPromise) {
-    dbPromise = openDB<CutlistDb>('cutlist-db', 4, {
-      upgrade(db, oldVersion) {
-        if (oldVersion < 1) {
-          const projects = db.createObjectStore('projects', { keyPath: 'id' });
-          projects.createIndex('updatedAt', 'updatedAt');
-
-          const models = db.createObjectStore('models', { keyPath: 'id' });
-          models.createIndex('projectId', 'projectId');
-        }
-        if (oldVersion < 2) {
-          const buildSteps = db.createObjectStore('buildSteps', {
-            keyPath: 'id',
-          });
-          buildSteps.createIndex('projectId', 'projectId');
-        }
-        if (oldVersion < 3) {
-          db.createObjectStore('layoutCache', { keyPath: 'projectId' });
-        }
-        if (oldVersion < 4) {
-          // Packing settings moved onto each project record; the shared
-          // settings store is gone. Schema-version + demo-seeded markers now
-          // live in a dedicated `meta` store. Existing v1–v3 DBs carried a
-          // `settings` store with the pre-refactor global-settings payload —
-          // drop it here. Fresh DBs never create it, so the guard is needed.
-          if (db.objectStoreNames.contains('settings' as never)) {
-            db.deleteObjectStore('settings' as never);
-          }
-          db.createObjectStore('meta', { keyPath: 'key' });
-        }
-      },
-    })
-      .then(async (db) => {
-        await runStartupSweep(db);
-        return db;
-      })
-      .catch((err) => {
+    const db = new CutlistDB();
+    dbPromise = db
+      .open()
+      .then(() => db)
+      .catch((err: unknown) => {
         dbPromise = null;
-        const message =
-          err?.name === 'FutureSchemaError'
+        // Dexie's VersionError means the stored DB is newer than this code.
+        if (err instanceof Dexie.DexieError && err.name === 'VersionError') {
+          const future = new FutureSchemaError(db.verno || SCHEMA_VERSION + 1);
+          idbError.value = future.message;
+          throw future;
+        }
+        const msg =
+          err instanceof Error
             ? err.message
-            : `Browser storage unavailable (private browsing may prevent saving projects): ${err.message}`;
-        idbError.value = message;
-        throw new Error(message);
+            : typeof err === 'string'
+              ? err
+              : 'Unknown error';
+        const wrapped = `Browser storage unavailable (private browsing may prevent saving projects): ${msg}`;
+        idbError.value = wrapped;
+        throw new Error(wrapped);
       });
   }
   return dbPromise;

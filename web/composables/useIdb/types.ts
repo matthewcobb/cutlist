@@ -1,12 +1,13 @@
 /**
  * Type definitions for the IndexedDB persistence layer.
  *
- * Schema shape is consumed by `db.ts` (upgrade path + typed idb handle) and
- * by every domain module. Kept separate so types can be imported without
- * pulling in runtime side effects.
+ * Record shapes consumed by every domain module. Kept separate so types can
+ * be imported without pulling in the Dexie runtime.
+ *
+ * The Dexie `CutlistDB` class itself lives in `./db`; schema indexes are
+ * declared there via `this.version(N).stores({...})`.
  */
 
-import type { DBSchema } from 'idb';
 import type { BoardLayout, BoardLayoutLeftover } from 'cutlist';
 import type { ColorInfo, NodePartMapping, Part } from '~/utils/parseGltf';
 
@@ -97,11 +98,6 @@ export interface IdbBuildStep {
   createdAt: string;
 }
 
-export interface IdbSchemaVersionRecord {
-  key: 'schema-version';
-  version: number;
-}
-
 export const DEMO_SEEDED_KEY = 'demo-seeded-v1' as const;
 
 export interface IdbDemoSeedRecord {
@@ -109,33 +105,8 @@ export interface IdbDemoSeedRecord {
   seeded: boolean;
 }
 
-export interface CutlistDb extends DBSchema {
-  projects: {
-    key: string;
-    value: IdbProject;
-    indexes: { updatedAt: string };
-  };
-  models: {
-    key: string;
-    value: IdbModel;
-    indexes: { projectId: string };
-  };
-  /**
-   * Small app-wide metadata (schema version stamp, demo-seed marker, etc.).
-   * Previously these lived alongside `global-settings` in a `settings` store
-   * — which was dropped when packing settings moved onto the project record.
-   */
-  meta: {
-    key: string;
-    value: IdbSchemaVersionRecord | IdbDemoSeedRecord;
-  };
-  buildSteps: {
-    key: string;
-    value: IdbBuildStep;
-    indexes: { projectId: string };
-  };
-  layoutCache: {
-    key: string;
-    value: IdbLayoutCache;
-  };
-}
+/**
+ * Union of all record shapes kept in the `meta` store. Discriminated by the
+ * `key` field. Extend with additional one-off markers as needed.
+ */
+export type IdbMetaRecord = IdbDemoSeedRecord;

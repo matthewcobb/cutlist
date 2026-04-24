@@ -1,5 +1,5 @@
 import type { IdbBuildStep, IdbModel } from '~/composables/useIdb';
-import { SCHEMA_VERSION } from '~/utils/migrations';
+import { SCHEMA_VERSION } from '~/utils/versions';
 import { gzipCompress } from '~/utils/compress';
 
 export interface ProjectExport {
