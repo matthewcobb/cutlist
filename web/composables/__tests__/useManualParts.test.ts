@@ -7,7 +7,7 @@
 import { describe, expect, it, beforeEach, mock } from 'bun:test';
 import { ref, type Ref } from 'vue';
 import { useIdb, type IdbModel } from '../useIdb';
-import type { Part } from '~/utils/parseGltf';
+import type { Part } from '~/utils/modelTypes';
 import type { Project, ManualPartInput } from '../useProjects';
 import { useManualParts } from '../useManualParts';
 import { DEFAULT_SETTINGS } from '../../utils/settings';
@@ -128,8 +128,10 @@ describe('addManualPart', () => {
       filename: 'Manual Parts',
       source: 'manual',
       parts: existingParts,
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     });
@@ -243,8 +245,10 @@ describe('removeManualPart', () => {
       filename: 'Manual Parts',
       source: 'manual',
       parts,
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     });
@@ -284,8 +288,10 @@ describe('removeManualPart', () => {
       filename: 'Manual Parts',
       source: 'manual',
       parts: singleParts,
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     });
@@ -338,8 +344,10 @@ describe('updateManualPart', () => {
       filename: 'Manual Parts',
       source: 'manual',
       parts,
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     });

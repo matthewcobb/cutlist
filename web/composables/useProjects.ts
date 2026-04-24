@@ -1,8 +1,4 @@
-import {
-  type ColorInfo,
-  type NodePartMapping,
-  type Part,
-} from '~/utils/parseGltf';
+import type { ColorInfo, NodePartMapping, Part } from '~/utils/modelTypes';
 import { DEFAULT_SETTINGS } from '~/utils/settings';
 import type { IdbProject, PartOverride } from '~/composables/useIdb';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
@@ -13,11 +9,11 @@ import { useManualParts } from '~/composables/useManualParts';
 export interface Model {
   id: string;
   filename: string;
-  source: 'gltf' | 'manual';
+  source: 'gltf' | 'collada' | 'manual';
   parts: Part[];
   colors: ColorInfo[];
   enabled: boolean;
-  gltfJson?: object;
+  rawSource?: object | string;
   nodePartMap?: NodePartMapping[];
 }
 
@@ -234,23 +230,25 @@ export default function useProjects() {
   }
 
   async function addModel(projectId: string, model: Model) {
-    // Optimistic: add to reactive store without gltfJson
+    // Optimistic: add to reactive store without rawSource
     if (activeProjectData.value?.id === projectId) {
-      const { gltfJson: _g, ...meta } = model;
+      const { rawSource: _r, ...meta } = model;
       activeProjectData.value = {
         ...activeProjectData.value,
         models: [...activeProjectData.value.models, meta],
       };
     }
-    // Write to IDB (gltfJson stored for GLTF, parts stored for manual)
+    // Write to IDB — both GLTF and manual models store their parts at import time
     await idb.createModel({
       id: model.id,
       projectId,
       filename: model.filename,
       source: model.source,
-      parts: model.source === 'manual' ? model.parts : [],
+      parts: model.parts,
+      colors: model.colors ?? [],
+      nodePartMap: model.nodePartMap ?? [],
       enabled: model.enabled,
-      gltfJson: model.gltfJson ?? null,
+      rawSource: model.rawSource ?? null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     });

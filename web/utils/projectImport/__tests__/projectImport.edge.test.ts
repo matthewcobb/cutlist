@@ -46,7 +46,7 @@ function makePayload(overrides?: any) {
           },
         ],
         enabled: true,
-        gltfJson: { asset: { version: '2.0' } },
+        rawSource: { asset: { version: '2.0' } },
         partOverrides: { '1': { grainLock: 'length' } },
         createdAt: now,
       },
@@ -267,16 +267,16 @@ describe('round-trip fidelity', () => {
     expect(parsed.project.showPartNumbers).toBeDefined();
   });
 
-  it('preserves derivedCache on models', () => {
+  it('preserves colors and nodePartMap on models', () => {
     const payload = makePayload();
-    payload.models[0].derivedCache = {
-      version: 1,
-      parts: payload.models[0].parts,
-      colors: [{ key: '#aaa', rgb: [0.5, 0.5, 0.5], count: 1 }],
-      nodePartMap: [{ nodeIndex: 0, partNumber: 1, colorHex: '#aaa' }],
-    };
+    payload.models[0].colors = [
+      { key: '#aaa', rgb: [0.5, 0.5, 0.5], count: 1 },
+    ];
+    payload.models[0].nodePartMap = [
+      { nodeIndex: 0, partNumber: 1, colorHex: '#aaa' },
+    ];
     const parsed = parseProjectExport(payload);
-    expect(parsed.models[0].derivedCache).toBeDefined();
-    expect(parsed.models[0].derivedCache!.version).toBe(1);
+    expect(parsed.models[0].colors).toHaveLength(1);
+    expect(parsed.models[0].nodePartMap).toHaveLength(1);
   });
 });

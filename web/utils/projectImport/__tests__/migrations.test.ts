@@ -12,7 +12,7 @@ import {
 describe('migrateRecord', () => {
   it('returns record unchanged when no migrations apply', () => {
     const record = { id: 'x', name: 'test' };
-    const result = migrateRecord('projects', record, 0);
+    const result = migrateRecord('projects', record, SCHEMA_VERSION);
     expect(result).toEqual(record);
   });
 
@@ -182,11 +182,17 @@ describe('applyModelDefaults', () => {
       source: 'manual' as const,
       enabled: false,
       partOverrides: { 1: { grainLock: 'length' as const } },
+      colors: [
+        { key: '#fff', rgb: [1, 1, 1] as [number, number, number], count: 1 },
+      ],
+      nodePartMap: [{ nodeIndex: 0, partNumber: 1, colorHex: '#fff' }],
       createdAt: '',
     };
     const result = applyModelDefaults(full);
     expect(result.source).toBe('manual');
     expect(result.enabled).toBe(false);
     expect(result.partOverrides).toEqual({ 1: { grainLock: 'length' } });
+    expect(result.colors).toHaveLength(1);
+    expect(result.nodePartMap).toHaveLength(1);
   });
 });

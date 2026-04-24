@@ -5,7 +5,7 @@
  * state and CRUD. These functions mutate activeProjectData and persist to IDB.
  */
 
-import type { Part } from '~/utils/parseGltf';
+import type { Part } from '~/utils/modelTypes';
 import type { PartOverride } from '~/composables/useIdb';
 import { applyOverrides } from '~/composables/useModelHydration';
 import type { ManualPartInput, Project } from '~/composables/useProjects';
@@ -93,8 +93,10 @@ export function useManualParts(ctx: ManualPartsContext) {
         filename: model.filename,
         source: 'manual',
         parts: newParts,
+        colors: [],
+        nodePartMap: [],
         enabled: true,
-        gltfJson: null,
+        rawSource: null,
         partOverrides: newOverrides,
         createdAt: new Date().toISOString(),
       });

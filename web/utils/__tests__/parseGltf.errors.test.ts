@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { deriveFromGltf, DERIVE_VERSION } from '../parseGltf';
+import { deriveFromGltf } from '../parseGltf';
 
 describe('deriveFromGltf error handling', () => {
   it('throws when nodes are missing', () => {
@@ -269,12 +269,5 @@ describe('deriveFromGltf nodePartMap', () => {
     );
     expect(byNode.get(0)).toBe(byNode.get(2)); // same group
     expect(byNode.get(1)).not.toBe(byNode.get(0)); // different
-  });
-});
-
-describe('DERIVE_VERSION', () => {
-  it('is a positive integer', () => {
-    expect(DERIVE_VERSION).toBeGreaterThan(0);
-    expect(Number.isInteger(DERIVE_VERSION)).toBe(true);
   });
 });

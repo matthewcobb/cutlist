@@ -65,11 +65,10 @@ export function useAppErrors(): void {
   });
 
   // ── Layout computation errors (worker crash, part count exceeded) ─────────
+  // The query composable already filters AbortError, so anything arriving
+  // here is a user-facing failure.
   watch(layoutError, (msg) => {
     if (!msg) return;
-    // AbortError means the user switched projects or inputs changed — not a
-    // real failure. Page-unload rejections are also AbortError.
-    if (msg === 'Cancelled' || msg === 'Page unloading') return;
     reportError({
       title: 'Layout computation failed',
       description: msg,

@@ -1,4 +1,3 @@
-import type { DeriveResult } from '~/utils/parseGltf';
 import type {
   BoardLayout,
   BoardLayoutLeftover,
@@ -6,14 +5,6 @@ import type {
   PartToCut,
 } from 'cutlist';
 import { reportError } from './useAppErrors';
-
-// ─── Types matching the worker messages ──────────────────────────────────────
-
-interface DeriveRequest {
-  type: 'derive';
-  id: number;
-  gltfJson: object;
-}
 
 interface LayoutRequest {
   type: 'layout';
@@ -23,13 +14,6 @@ interface LayoutRequest {
   config: ConfigInput;
 }
 
-interface DeriveResponse {
-  type: 'derive';
-  id: number;
-  result?: DeriveResult;
-  error?: string;
-}
-
 interface LayoutResponse {
   type: 'layout';
   id: number;
@@ -37,79 +21,65 @@ interface LayoutResponse {
   error?: string;
 }
 
-type WorkerResponse = DeriveResponse | LayoutResponse;
+interface PendingRequest {
+  projectId: string;
+  resolve: (r: {
+    layouts: BoardLayout[];
+    leftovers: BoardLayoutLeftover[];
+  }) => void;
+  reject: (e: Error) => void;
+}
 
-// ─── Two dedicated workers ───────────────────────────────────────────────────
-// Layout work is long-running and cancellable via terminate+respawn; derive
-// work is short and runs on its own worker so cancelling layouts doesn't kill
-// in-flight hydration.
+// Requests are tagged with projectId and processed FIFO by a single worker.
+// Switching projects never cancels in-flight work. Within a single project,
+// older promises still resolve, but `computingProjects` only clears once the
+// latest request for that project lands.
 
-let deriveWorker: Worker | null = null;
 let layoutWorker: Worker | null = null;
 let nextId = 0;
+const pending = new Map<number, PendingRequest>();
+const latestByProject = new Map<string, number>();
 
-const pendingDerive = new Map<
-  number,
-  { resolve: (r: DeriveResult) => void; reject: (e: Error) => void }
->();
-const pendingLayout = new Map<
-  number,
-  {
-    resolve: (r: {
-      layouts: BoardLayout[];
-      leftovers: BoardLayoutLeftover[];
-    }) => void;
-    reject: (e: Error) => void;
+/** Reactive set of projectIds with a layout computation in flight. */
+export const computingProjects = shallowRef(new Set<string>());
+
+function setComputing(projectId: string, on: boolean): void {
+  const has = computingProjects.value.has(projectId);
+  if (on === has) return;
+  const next = new Set(computingProjects.value);
+  if (on) next.add(projectId);
+  else next.delete(projectId);
+  computingProjects.value = next;
+}
+
+function resetAll(rejectPending: Error | null): void {
+  if (rejectPending) {
+    for (const [, req] of pending) req.reject(rejectPending);
   }
->();
+  pending.clear();
+  latestByProject.clear();
+  if (computingProjects.value.size > 0) {
+    computingProjects.value = new Set();
+  }
+}
 
 function spawnWorker(): Worker {
-  return new Worker(
+  const w = new Worker(
     new URL('../workers/computation.worker.ts', import.meta.url),
     { type: 'module' },
   );
-}
-
-function getDeriveWorker(): Worker {
-  if (deriveWorker) return deriveWorker;
-  const w = spawnWorker();
-  w.onmessage = (e: MessageEvent<WorkerResponse>) => {
-    const msg = e.data;
-    if (msg.type !== 'derive') return;
-    const pending = pendingDerive.get(msg.id);
-    if (!pending) return;
-    pendingDerive.delete(msg.id);
-    if (msg.error) pending.reject(new Error(msg.error));
-    else pending.resolve(msg.result!);
-  };
-  w.onerror = (e) => {
-    console.error('Derive worker error:', e);
-    reportError({
-      title: 'Model processing failed',
-      description:
-        'The background worker crashed while processing a model. Try reloading the page.',
-      severity: 'error',
-    });
-    for (const [, p] of pendingDerive) p.reject(new Error('Worker error'));
-    pendingDerive.clear();
-    deriveWorker?.terminate();
-    deriveWorker = null;
-  };
-  deriveWorker = w;
-  return w;
-}
-
-function getLayoutWorker(): Worker {
-  if (layoutWorker) return layoutWorker;
-  const w = spawnWorker();
-  w.onmessage = (e: MessageEvent<WorkerResponse>) => {
+  w.onmessage = (e: MessageEvent<LayoutResponse>) => {
     const msg = e.data;
     if (msg.type !== 'layout') return;
-    const pending = pendingLayout.get(msg.id);
-    if (!pending) return;
-    pendingLayout.delete(msg.id);
-    if (msg.error) pending.reject(new Error(msg.error));
-    else pending.resolve(msg.result!);
+    const req = pending.get(msg.id);
+    if (!req) return;
+    pending.delete(msg.id);
+    if (latestByProject.get(req.projectId) === msg.id) {
+      latestByProject.delete(req.projectId);
+      setComputing(req.projectId, false);
+    }
+    if (msg.error) req.reject(new Error(msg.error));
+    else req.resolve(msg.result!);
   };
   w.onerror = (e) => {
     console.error('Layout worker error:', e);
@@ -119,55 +89,40 @@ function getLayoutWorker(): Worker {
         'The background worker crashed while computing layouts. Try reloading the page.',
       severity: 'error',
     });
-    for (const [, p] of pendingLayout) p.reject(new Error('Worker error'));
-    pendingLayout.clear();
-    layoutWorker?.terminate();
-    layoutWorker = null;
+    w.terminate();
+    if (layoutWorker === w) layoutWorker = null;
+    resetAll(new Error('Worker error'));
   };
-  layoutWorker = w;
   return w;
 }
 
-// ─── Lifecycle cleanup ──────────────────────────────────────────────────────
-// Terminate workers on page unload to prevent leaked threads and pending
-// promises that can never resolve.
+function getLayoutWorker(): Worker {
+  if (!layoutWorker) layoutWorker = spawnWorker();
+  return layoutWorker;
+}
 
-function terminateAllWorkers() {
+function terminateWorker(): void {
   if (layoutWorker) {
     layoutWorker.terminate();
     layoutWorker = null;
   }
-  if (deriveWorker) {
-    deriveWorker.terminate();
-    deriveWorker = null;
-  }
-  // Reject all pending promises so callers aren't left hanging
   const err = new Error('Page unloading');
   err.name = 'AbortError';
-  for (const [, p] of pendingLayout) p.reject(err);
-  pendingLayout.clear();
-  for (const [, p] of pendingDerive) p.reject(err);
-  pendingDerive.clear();
+  resetAll(err);
 }
 
 if (typeof window !== 'undefined' && !(window as any).__cutlistWorkersInit) {
   (window as any).__cutlistWorkersInit = true;
-  window.addEventListener('beforeunload', terminateAllWorkers);
-  // pagehide with persisted covers bfcache without killing workers on
-  // a simple tab switch (visibilitychange was too aggressive).
+  window.addEventListener('beforeunload', terminateWorker);
+  // pagehide with `persisted` covers bfcache; visibilitychange was too eager.
   window.addEventListener('pagehide', (e) => {
-    if (e.persisted) terminateAllWorkers();
+    if (e.persisted) terminateWorker();
   });
 }
 
-// ─── Part count guardrails ───────────────────────────────────────────────────
-// Profiling: 500 parts ≈ 24ms, 1000 ≈ 59ms per pass. At 10k+ parts the worker
-// may take a few seconds but remains usable. Only warn, don't block.
-
-/** Part count at which the UI should show a non-blocking performance warning. */
+// Profiling: 500 parts ≈ 24ms, 1000 ≈ 59ms per pass. 10k+ is slow but usable.
 export const PART_COUNT_SOFT_LIMIT = 2000;
-
-/** Part count above which we refuse to run the packer (would hang the worker). */
+/** Above this the packer hangs the worker, so we refuse outright. */
 export const PART_COUNT_HARD_LIMIT = 50_000;
 
 export class PartCountExceededError extends Error {
@@ -180,31 +135,12 @@ export class PartCountExceededError extends Error {
   }
 }
 
-// ─── Public API ──────────────────────────────────────────────────────────────
-
-export function deriveModel(gltfJson: object): Promise<DeriveResult> {
-  const id = ++nextId;
-  const w = getDeriveWorker();
-  const plain = JSON.parse(JSON.stringify(gltfJson));
-  return new Promise<DeriveResult>((resolve, reject) => {
-    pendingDerive.set(id, { resolve, reject });
-    w.postMessage({
-      type: 'derive',
-      id,
-      gltfJson: plain,
-    } satisfies DeriveRequest);
-  });
-}
-
 /**
- * Post a layout computation request. Returns a promise that resolves with the
- * result. Callers should track their own request versioning to discard stale
- * results (e.g. when inputs change before the previous result arrives).
- *
- * Throws `PartCountExceededError` synchronously if the part count exceeds
- * the hard limit — the worker is never started.
+ * Queue a layout computation for `projectId`. Throws `PartCountExceededError`
+ * synchronously if `parts` exceeds the hard limit.
  */
 export function computeLayouts(
+  projectId: string,
   parts: PartToCut[],
   stockYaml: string,
   config: ConfigInput,
@@ -215,10 +151,13 @@ export function computeLayouts(
 
   const id = ++nextId;
   const w = getLayoutWorker();
+  // Worker postMessage uses structured clone; strip Vue reactivity first.
   const plainParts = JSON.parse(JSON.stringify(parts));
   const plainConfig = JSON.parse(JSON.stringify(config));
+  latestByProject.set(projectId, id);
+  setComputing(projectId, true);
   return new Promise((resolve, reject) => {
-    pendingLayout.set(id, { resolve, reject });
+    pending.set(id, { projectId, resolve, reject });
     w.postMessage({
       type: 'layout',
       id,
@@ -229,18 +168,12 @@ export function computeLayouts(
   });
 }
 
-/**
- * Terminate the layout worker, cancelling any in-flight or queued layout job.
- * Pending promises reject with an AbortError; callers that guard on their own
- * requestVersion will silently drop the rejection. A fresh worker is spawned
- * lazily on the next `computeLayouts` call.
- */
-export function cancelLayouts(): void {
-  if (!layoutWorker) return;
-  layoutWorker.terminate();
-  layoutWorker = null;
-  const err = new Error('Cancelled');
-  err.name = 'AbortError';
-  for (const [, p] of pendingLayout) p.reject(err);
-  pendingLayout.clear();
+/** Test-only: reset module state between tests. */
+export function __resetForTests(): void {
+  if (layoutWorker) {
+    layoutWorker.terminate();
+    layoutWorker = null;
+  }
+  resetAll(null);
+  nextId = 0;
 }

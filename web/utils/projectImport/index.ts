@@ -39,37 +39,29 @@ const PartOverrideSchema = z.object({
   name: z.string().optional(),
 });
 
-const DerivedCacheSchema = z
-  .object({
-    version: z.number().int(),
-    parts: z.array(PartSchema),
-    colors: z.array(
-      z.object({
-        key: z.string(),
-        rgb: z.tuple([z.number(), z.number(), z.number()]),
-        count: z.number().int().min(0),
-      }),
-    ),
-    nodePartMap: z.array(
-      z.object({
-        nodeIndex: z.number().int(),
-        partNumber: z.number().int(),
-        colorHex: z.string(),
-      }),
-    ),
-  })
-  .optional();
+const ColorInfoSchema = z.object({
+  key: z.string(),
+  rgb: z.tuple([z.number(), z.number(), z.number()]),
+  count: z.number().int().min(0),
+});
+
+const NodePartMappingSchema = z.object({
+  nodeIndex: z.number().int(),
+  partNumber: z.number().int(),
+  colorHex: z.string(),
+});
 
 const ModelSchema = z.object({
   id: z.string(),
   projectId: z.string(),
   filename: z.string(),
-  source: z.enum(['gltf', 'manual']),
+  source: z.enum(['gltf', 'collada', 'manual']),
   parts: z.array(PartSchema).default([]),
+  colors: z.array(ColorInfoSchema).default([]),
+  nodePartMap: z.array(NodePartMappingSchema).default([]),
   enabled: z.boolean(),
-  gltfJson: z.union([z.record(z.string(), z.unknown()), z.null()]),
+  rawSource: z.union([z.record(z.string(), z.unknown()), z.string(), z.null()]),
   partOverrides: z.record(z.string(), PartOverrideSchema).default({}),
-  derivedCache: DerivedCacheSchema,
   createdAt: z.string(),
 });
 

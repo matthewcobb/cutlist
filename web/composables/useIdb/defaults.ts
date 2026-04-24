@@ -30,5 +30,7 @@ export function applyModelDefaults(
     source: m.source ?? 'gltf',
     enabled: m.enabled ?? true,
     partOverrides: m.partOverrides ?? {},
+    colors: m.colors ?? [],
+    nodePartMap: m.nodePartMap ?? [],
   } as IdbModelMeta;
 }

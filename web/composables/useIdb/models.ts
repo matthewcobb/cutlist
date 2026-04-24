@@ -5,8 +5,8 @@
  * write amplification. `updateModel` buffers lightweight patches in a
  * module-level map and flushes after a short delay — N clicks become 1 write.
  *
- * Bulk patches (`parts`, `derivedCache`) bypass debouncing since callers
- * expect immediate persistence.
+ * Bulk patches (`parts`) bypass debouncing since callers expect immediate
+ * persistence.
  *
  * The pending-write map is module-level (one per process) so `flushPendingModelWrites`
  * drains all in-flight coalesced writes regardless of which caller enqueued them.
@@ -25,9 +25,7 @@ export async function createModel(model: IdbModel): Promise<void> {
 const pendingModelPatches = new Map<
   string,
   {
-    patch: Partial<
-      Pick<IdbModel, 'enabled' | 'parts' | 'partOverrides' | 'derivedCache'>
-    >;
+    patch: Partial<Pick<IdbModel, 'enabled' | 'parts' | 'partOverrides'>>;
     timer: ReturnType<typeof setTimeout>;
   }
 >();
@@ -49,13 +47,11 @@ async function flushModelWrite(id: string): Promise<void> {
 
 export async function updateModel(
   id: string,
-  patch: Partial<
-    Pick<IdbModel, 'enabled' | 'parts' | 'partOverrides' | 'derivedCache'>
-  >,
+  patch: Partial<Pick<IdbModel, 'enabled' | 'parts' | 'partOverrides'>>,
 ): Promise<void> {
-  // For bulk writes (parts, derivedCache) skip debouncing — these are
-  // infrequent and callers expect immediate persistence.
-  if (patch.parts != null || patch.derivedCache != null) {
+  // For bulk writes (parts) skip debouncing — these are infrequent and
+  // callers expect immediate persistence.
+  if (patch.parts != null) {
     const db = await getDb();
     const existing = await db.models.get(id);
     if (!existing) throw new Error(`Model ${id} not found`);
@@ -94,8 +90,10 @@ export async function deleteModel(id: string): Promise<void> {
   await safeWrite(() => db.models.delete(id));
 }
 
-export async function getModelGltf(id: string): Promise<object | null> {
+export async function getModelRawSource(
+  id: string,
+): Promise<object | string | null> {
   const db = await getDb();
   const model = await db.models.get(id);
-  return model?.gltfJson ?? null;
+  return model?.rawSource ?? null;
 }

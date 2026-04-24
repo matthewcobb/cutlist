@@ -16,7 +16,6 @@ export {
 export type {
   IdbProject,
   PartOverride,
-  DerivedCache,
   IdbModel,
   IdbModelMeta,
   IdbBuildStep,

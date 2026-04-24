@@ -142,24 +142,6 @@ describe('useAppErrors', () => {
     expect(call.duration).toBe(0);
   });
 
-  it('ignores layout errors with message "Cancelled"', async () => {
-    scope.run(() => useAppErrors());
-
-    layoutError.value = 'Cancelled';
-    await nextTick();
-
-    expect(addMock).not.toHaveBeenCalled();
-  });
-
-  it('ignores layout errors with message "Page unloading"', async () => {
-    scope.run(() => useAppErrors());
-
-    layoutError.value = 'Page unloading';
-    await nextTick();
-
-    expect(addMock).not.toHaveBeenCalled();
-  });
-
   it('does not fire toast when idbError is set to null', async () => {
     scope.run(() => useAppErrors());
 

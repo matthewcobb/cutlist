@@ -1,5 +1,13 @@
 import 'fake-indexeddb/auto';
 import { beforeEach } from 'bun:test';
+import { ref, shallowRef } from 'vue';
+
+// Nuxt auto-imports these Vue primitives into every module. Bun's test runner
+// doesn't, so shim them on globalThis before any test module loads.
+// @ts-expect-error — Nuxt auto-import shim
+globalThis.ref = ref;
+// @ts-expect-error — Nuxt auto-import shim
+globalThis.shallowRef = shallowRef;
 
 const CUTLIST_DB_NAME = 'cutlist-db';
 

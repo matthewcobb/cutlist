@@ -7,8 +7,8 @@ import {
 } from 'cutlist';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
 import {
-  cancelLayouts,
   computeLayouts,
+  computingProjects,
   PART_COUNT_SOFT_LIMIT,
 } from '~/composables/useComputationWorker';
 import { fingerprint } from '~/utils/fingerprint';
@@ -19,6 +19,18 @@ type LayoutResult = {
   leftovers: BoardLayoutLeftover[];
 };
 
+const EMPTY_RESULT: LayoutResult = { layouts: [], leftovers: [] };
+
+/**
+ * Reactive derivation of cut-layout results for the active project.
+ *
+ * The worker is fire-and-forget: results land in `layoutCache` keyed by
+ * projectId regardless of which project is currently active. `data`,
+ * `isComputing`, `error` and `partCountWarning` are pure computeds over the
+ * active project id, the cache and the worker's `computingProjects` set.
+ * One watcher dispatches new computations when inputs change — no cancel,
+ * no project-switch watcher, no navigation guards.
+ */
 export default createSharedComposable(() => {
   const { activeProject, activeId, enabledModels, projectLoading } =
     useProjects();
@@ -51,143 +63,112 @@ export default createSharedComposable(() => {
     return merged;
   });
 
-  const data = shallowRef<LayoutResult | undefined>();
-  const isComputing = ref(false);
-  const error = ref<string | null>(null);
-  /** Non-blocking warning when part count is high but below hard limit. */
-  const partCountWarning = ref<string | null>(null);
-
-  let requestVersion = 0;
-
-  // Restore in-memory cache on project switch. Bumps requestVersion so any
-  // in-flight compute from the previous project is discarded when it lands.
-  // On a cache miss we clear data so the previous project's layouts don't
-  // bleed through while the new project computes.
-  watch(activeId, (id) => {
-    requestVersion++;
-    cancelLayouts();
-    if (!id) {
-      data.value = undefined;
-      isComputing.value = false;
-      error.value = null;
-      return;
+  /** Fully-hydrated worker inputs for the active project, or undefined. */
+  const activeInputs = computed(() => {
+    const pid = activeId.value;
+    const partsVal = parts.value;
+    const bw = bladeWidth.value;
+    const opt = optimize.value;
+    const mg = margin.value;
+    const du = distanceUnit.value;
+    const st = stock.value;
+    if (!pid || partsVal == null) return undefined;
+    if (bw == null || opt == null || mg == null || du == null || st == null) {
+      return undefined;
     }
-    const mem = layoutCache.get(id);
-    data.value = mem
-      ? { layouts: mem.layouts, leftovers: mem.leftovers }
-      : undefined;
-    isComputing.value = true;
-    error.value = null;
+    const config: ConfigInput = {
+      bladeWidth: new Distance(bw + du).m,
+      margin: new Distance(mg + du).m,
+      optimize: opt === 'Auto' ? 'auto' : 'cnc',
+      precision: 1e-5,
+    };
+    return {
+      projectId: pid,
+      parts: partsVal,
+      stock: st,
+      config,
+      fingerprint: fingerprint({ parts: partsVal, stock: st, config }),
+    };
+  });
+
+  const errorByProject = shallowRef(new Map<string, string>());
+
+  function setError(pid: string, msg: string | null): void {
+    const has = errorByProject.value.has(pid);
+    if (msg == null && !has) return;
+    const next = new Map(errorByProject.value);
+    if (msg == null) next.delete(pid);
+    else next.set(pid, msg);
+    errorByProject.value = next;
+  }
+
+  const data = computed<LayoutResult | undefined>(() => {
+    const pid = activeId.value;
+    if (!pid) return undefined;
+
+    const cached = layoutCache.get(pid);
+    if (cached) return { layouts: cached.layouts, leftovers: cached.leftovers };
+
+    // Project fully loaded but nothing to pack (no enabled models, or every
+    // part excluded). Synthesise an empty result so the UI can render an
+    // empty state instead of spinning forever.
+    const project = activeProject.value;
+    if (project && !projectLoading.value) {
+      const partsVal = parts.value;
+      if (partsVal == null || partsVal.length === 0) return EMPTY_RESULT;
+    }
+
+    return undefined;
+  });
+
+  const isComputing = computed(() => {
+    const pid = activeId.value;
+    if (!pid) return false;
+    if (computingProjects.value.has(pid)) return true;
+    // No active project record yet → still hydrating.
+    return projectLoading.value || !activeProject.value;
+  });
+
+  const error = computed<string | null>(() => {
+    const pid = activeId.value;
+    if (!pid) return null;
+    return errorByProject.value.get(pid) ?? null;
+  });
+
+  const partCountWarning = computed<string | null>(() => {
+    const inputs = activeInputs.value;
+    if (!inputs || inputs.parts.length <= PART_COUNT_SOFT_LIMIT) return null;
+    return (
+      `Large project (${inputs.parts.length} parts). ` +
+      `Layout computation may take longer than usual.`
+    );
   });
 
   watch(
-    [parts, bladeWidth, optimize, margin, distanceUnit, stock],
-    async ([partsVal, bw, opt, mg, du, st]) => {
-      // Settings still hydrating → show spinner, wait for next tick.
-      if (bw == null || opt == null || mg == null || du == null || st == null) {
-        if (projectLoading.value || activeId.value) {
-          isComputing.value = true;
-        } else {
-          data.value = undefined;
-          isComputing.value = false;
-        }
-        error.value = null;
-        return;
-      }
-
-      // No active project / still loading → no layout to show.
-      if (partsVal == null) {
-        if (projectLoading.value) {
-          isComputing.value = true;
-        } else {
-          data.value = undefined;
-          isComputing.value = false;
-        }
-        error.value = null;
-        return;
-      }
-
-      const projectId = activeProject.value?.id;
-      if (!projectId) return;
-
-      // Empty BOM (no parts, or every part excluded) → skip the worker.
-      if (partsVal.length === 0) {
-        cancelLayouts();
-        requestVersion++;
-        data.value = { layouts: [], leftovers: [] };
-        isComputing.value = false;
-        error.value = null;
-        return;
-      }
-
-      const config: ConfigInput = {
-        bladeWidth: new Distance(bw + du).m,
-        margin: new Distance(mg + du).m,
-        optimize: opt === 'Auto' ? 'auto' : 'cnc',
-        precision: 1e-5,
-      };
-
-      const inputFp = fingerprint({
-        parts: partsVal,
-        stock: st,
-        config,
-      });
-      const version = ++requestVersion;
+    activeInputs,
+    (inputs) => {
+      if (!inputs) return;
+      const { projectId, fingerprint: fp } = inputs;
 
       const cached = layoutCache.get(projectId);
-      const status = layoutCache.classify(cached, inputFp);
+      if (cached?.fingerprint === fp) return;
 
-      // Exact fingerprint match → skip the worker entirely.
-      if (status === 'hit' && cached) {
-        data.value = { layouts: cached.layouts, leftovers: cached.leftovers };
-        isComputing.value = false;
-        error.value = null;
-        return;
-      }
+      setError(projectId, null);
 
-      isComputing.value = true;
-      error.value = null;
-
-      // Soft warning for large part counts (still proceeds with computation).
-      if (partsVal.length > PART_COUNT_SOFT_LIMIT) {
-        partCountWarning.value =
-          `Large project (${partsVal.length} parts). ` +
-          `Layout computation may take longer than usual.`;
-      } else {
-        partCountWarning.value = null;
-      }
-
-      // Show stale cache during recompute if nothing else is visible yet.
-      if (status === 'stale' && cached && !data.value) {
-        data.value = { layouts: cached.layouts, leftovers: cached.leftovers };
-      }
-
-      try {
-        cancelLayouts();
-        const result = await computeLayouts(partsVal, st, config);
-        // Guard against a newer request (input changed or project switched).
-        if (version !== requestVersion) return;
-        if (activeProject.value?.id !== projectId) return;
-
-        data.value = result;
-        layoutCache.set(projectId, {
-          layouts: result.layouts,
-          leftovers: result.leftovers,
-          fingerprint: inputFp,
+      computeLayouts(projectId, inputs.parts, inputs.stock, inputs.config)
+        .then((result) => {
+          layoutCache.set(projectId, {
+            layouts: result.layouts,
+            leftovers: result.leftovers,
+            fingerprint: fp,
+          });
+        })
+        .catch((err: Error) => {
+          if (err.name === 'AbortError') return;
+          setError(projectId, err.message || String(err));
+          // Drop any stale cache so BOM falls back to raw model data.
+          layoutCache.remove(projectId);
         });
-        isComputing.value = false;
-      } catch (e) {
-        if (
-          version === requestVersion &&
-          activeProject.value?.id === projectId
-        ) {
-          error.value = e instanceof Error ? e.message : String(e);
-          // Clear stale data so the BOM falls back to showing raw model data
-          // instead of outdated packing results that may be missing parts.
-          data.value = undefined;
-          isComputing.value = false;
-        }
-      }
     },
     { immediate: true },
   );

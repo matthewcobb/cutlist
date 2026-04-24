@@ -104,8 +104,10 @@ describe('project CRUD', () => {
       filename: 'test.glb',
       source: 'gltf',
       parts: [],
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: { mock: true },
+      rawSource: { mock: true },
       partOverrides: {},
       createdAt: new Date().toISOString(),
     };
@@ -189,8 +191,10 @@ describe('model CRUD', () => {
           },
         },
       ],
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: { scenes: [] },
+      rawSource: { scenes: [] },
       partOverrides: { 1: { grainLock: 'length' } },
       createdAt: new Date().toISOString(),
     };
@@ -202,11 +206,11 @@ describe('model CRUD', () => {
     expect(result!.models[0].partOverrides).toEqual({
       1: { grainLock: 'length' },
     });
-    // gltfJson should be stripped from meta
-    expect((result!.models[0] as any).gltfJson).toBeUndefined();
+    // rawSource should be stripped from meta
+    expect((result!.models[0] as any).rawSource).toBeUndefined();
   });
 
-  it('getModelGltf returns the raw gltfJson', async () => {
+  it('getModelRawSource returns the raw source', async () => {
     const project = await idb.createProject('GltfProject');
     const gltf = { asset: { version: '2.0' }, scenes: [{}] };
     const model: IdbModel = {
@@ -215,19 +219,21 @@ describe('model CRUD', () => {
       filename: 'box.glb',
       source: 'gltf',
       parts: [],
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: gltf,
+      rawSource: gltf,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     };
     await idb.createModel(model);
 
-    const result = await idb.getModelGltf(model.id);
+    const result = await idb.getModelRawSource(model.id);
     expect(result).toEqual(gltf);
   });
 
-  it('getModelGltf returns null for nonexistent model', async () => {
-    const result = await idb.getModelGltf('nonexistent');
+  it('getModelRawSource returns null for nonexistent model', async () => {
+    const result = await idb.getModelRawSource('nonexistent');
     expect(result).toBeNull();
   });
 
@@ -239,8 +245,10 @@ describe('model CRUD', () => {
       filename: 'shelf.glb',
       source: 'gltf',
       parts: [],
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     };
@@ -272,8 +280,10 @@ describe('model CRUD', () => {
       filename: 'gone.glb',
       source: 'gltf',
       parts: [],
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     };

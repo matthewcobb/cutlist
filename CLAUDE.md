@@ -31,17 +31,19 @@ Formatting runs automatically via lint-staged on commit (Prettier).
 ```
 GLTF file import
   → parseGltf (web/utils/parseGltf.ts)
-  → stores raw gltfJson in IndexedDB
+  → stores parts, colors, nodePartMap + rawSource (GLTF JSON) in IndexedDB
+
+COLLADA file import
+  → parseCollada (web/utils/parseCollada.ts)
+  → stores parts, colors, nodePartMap + rawSource (XML string) in IndexedDB
 
 Manual parts
   → user enters via BOM tab
-  → stores Part[] in IndexedDB (source of truth)
+  → stores Part[] in IndexedDB
 
 On project load (useProjects → hydrateModel)
-  → GLTF models: use derivedCache if DERIVE_VERSION matches,
-                 otherwise deriveFromGltf(gltfJson) and cache result
-  → Manual models: reads stored Part[] directly
-  → Both: applies partOverrides (user edits like grainLock)
+  → Both model types: reads stored parts/colors directly from IDB
+  → applies partOverrides (user edits like grainLock)
   → user assigns colorMap (material per color)
   → useBoardLayoutsQuery resolves Part → PartToCut (adds material)
   → fingerprint(parts + stock + config) — match against in-memory layout cache
@@ -144,13 +146,9 @@ Tests use Bun's built-in test runner. Test files live alongside source in `__tes
 
 All data lives in IndexedDB. The app is still in development — breaking schema changes are acceptable (users can reset their database).
 
-### IdbModel — what's stored vs derived
+### IdbModel — what's stored
 
-GLTF models store `gltfJson` (raw), `partOverrides` (user edits), and a `derivedCache` field holding the last `deriveFromGltf` output plus the `DERIVE_VERSION` it was produced at. On load, the cache is reused if its version matches the current `DERIVE_VERSION`; otherwise derive runs in the worker and refills the cache.
-
-**Bump `DERIVE_VERSION`** (exported from [web/utils/parseGltf.ts](web/utils/parseGltf.ts)) whenever `deriveFromGltf`'s output shape or values change — otherwise stale caches will be served.
-
-Manual models store `parts` directly (source of truth). They have no `gltfJson` or `derivedCache`.
+Both GLTF and manual models store their `parts`, `colors`, and `nodePartMap` directly in IndexedDB. GLTF models also keep `rawSource` (the GLTF JSON object) and COLLADA models keep `rawSource` (the XML string) for the 3D viewer. Derivation from the source format happens once at import time — there is no re-derivation on load.
 
 Both model types use `partOverrides: Record<number, PartOverride>` for user edits (keyed by partNumber). To add a new per-part override, just add an optional field to `PartOverride` — no migration needed.
 
@@ -158,12 +156,11 @@ Both model types use `partOverrides: Record<number, PartOverride>` for user edit
 
 Board layouts are cached per tab in a module-level `Map` inside [web/composables/useBoardLayoutsQuery.ts](web/composables/useBoardLayoutsQuery.ts), keyed by `projectId`. Each entry stores layouts plus a fingerprint over `{parts, stock, config}` (FNV-1a via [web/utils/fingerprint.ts](web/utils/fingerprint.ts)). Exact fingerprint match skips the worker; mismatch recomputes (stale result shown SWR-style when available). The cache is not persisted — a full page reload always recomputes.
 
-### Versioning policy (two independent version numbers)
+### Versioning policy
 
-| Version constant | File                                             | Bump when                                         |
-| ---------------- | ------------------------------------------------ | ------------------------------------------------- |
-| `SCHEMA_VERSION` | [web/utils/versions.ts](web/utils/versions.ts)   | Any IDB record type's fields change               |
-| `DERIVE_VERSION` | [web/utils/parseGltf.ts](web/utils/parseGltf.ts) | `deriveFromGltf` output shape or semantics change |
+| Version constant | File                                           | Bump when                           |
+| ---------------- | ---------------------------------------------- | ----------------------------------- |
+| `SCHEMA_VERSION` | [web/utils/versions.ts](web/utils/versions.ts) | Any IDB record type's fields change |
 
 `FutureSchemaError` also lives in `versions.ts` — it's the shared error raised when the stored DB or imported export file was written by a newer Cutlist than the one running.
 

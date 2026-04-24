@@ -33,7 +33,7 @@ const focusedModelIdx = ref(0);
 
 watch(activeId, () => {
   focusedModelIdx.value = 0;
-  gltfCache.clear();
+  rawSourceCache.clear();
 });
 
 const displayModels = computed(() => {
@@ -42,49 +42,57 @@ const displayModels = computed(() => {
   return m ? [m] : [];
 });
 
-const hasGltfData = computed(() =>
-  enabledModels.value.some((m) => m.source === 'gltf'),
-);
+const hasModelData = computed(() => enabledModels.value.length > 0);
 
 const hasOnlyManualModels = computed(
   () =>
-    enabledModels.value.length > 0 &&
-    enabledModels.value.every((m) => m.source === 'manual'),
+    allEnabledModels.value.length > 0 &&
+    allEnabledModels.value.every((m) => m.source === 'manual'),
 );
 
 // In-memory cache to avoid redundant IDB reads when switching models.
-const gltfCache = new Map<string, object>();
-const allGltfData = ref<Map<string, object> | null>(null);
+const rawSourceCache = new Map<string, object | string>();
+const allRawData = ref<Map<
+  string,
+  { raw: object | string; source: 'gltf' | 'collada' }
+> | null>(null);
 
-async function loadGltfData() {
+async function loadRawData() {
   if (!activeId.value || displayModels.value.length === 0) {
-    allGltfData.value = null;
+    allRawData.value = null;
     return;
   }
   const entries = await Promise.all(
     displayModels.value.map(async (m) => {
-      let json = gltfCache.get(m.id);
-      if (!json) {
-        json = (await idb.getModelGltf(m.id)) ?? undefined;
-        if (json) gltfCache.set(m.id, json);
+      let raw = rawSourceCache.get(m.id);
+      if (raw == null) {
+        const fetched = await idb.getModelRawSource(m.id);
+        if (fetched != null) {
+          raw = fetched;
+          rawSourceCache.set(m.id, raw);
+        }
       }
-      return [m.id, json] as const;
+      return raw != null
+        ? ([m.id, { raw, source: m.source as 'gltf' | 'collada' }] as const)
+        : null;
     }),
   );
-  allGltfData.value = new Map(
-    entries.filter(([, json]) => json != null) as [string, object][],
+  allRawData.value = new Map(
+    entries.filter((e): e is NonNullable<typeof e> => e != null),
   );
 }
 
 watch(
   [activeId, () => displayModels.value.map((m) => m.id).join(',')],
-  loadGltfData,
+  loadRawData,
   { immediate: true },
 );
 
-function loadAllModels() {
-  const data = allGltfData.value;
+async function loadAllModels() {
+  const data = allRawData.value;
   if (!data || !viewer.ready.value) return;
+
+  const { resolveModelScene } = await import('~/utils/resolveModelScene');
 
   viewer.clearModels();
 
@@ -95,14 +103,19 @@ function loadAllModels() {
   for (const model of models) {
     const modelIdx = enabledModels.value.findIndex((m) => m.id === model.id);
     const offset = modelIdx >= 0 ? allOffsets[modelIdx] : 0;
-    const gltfJson = data.get(model.id);
-    if (gltfJson && model.nodePartMap) {
-      viewer.loadModel(gltfJson, model.nodePartMap, offset);
+    const entry = data.get(model.id);
+    if (entry && model.nodePartMap) {
+      const resolvedNodes = await resolveModelScene(
+        entry.raw,
+        entry.source,
+        model.nodePartMap,
+      );
+      viewer.loadModel(resolvedNodes, offset);
     }
   }
 }
 
-watch(allGltfData, loadAllModels);
+watch(allRawData, loadAllModels);
 watch(
   () => viewer.ready.value,
   (isReady) => {
@@ -141,7 +154,7 @@ const infoPart = computed(
         </p>
       </div>
 
-      <!-- Empty state: only manual parts, no GLTF -->
+      <!-- Empty state: only manual parts -->
       <div
         v-else-if="hasOnlyManualModels"
         class="absolute inset-0 flex items-center justify-center"
@@ -151,9 +164,9 @@ const infoPart = computed(
         </p>
       </div>
 
-      <!-- Empty state: models exist but no GLTF stored (pre-feature import) -->
+      <!-- Empty state: models exist but no raw source stored (pre-feature import) -->
       <div
-        v-else-if="!hasGltfData"
+        v-else-if="!hasModelData"
         class="absolute inset-0 flex items-center justify-center"
       >
         <p class="bg-base border border-default rounded p-4 text-muted">

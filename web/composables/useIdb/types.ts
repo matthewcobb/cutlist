@@ -8,7 +8,7 @@
  * declared there via `this.version(N).stores({...})`.
  */
 
-import type { ColorInfo, NodePartMapping, Part } from '~/utils/parseGltf';
+import type { ColorInfo, NodePartMapping, Part } from '~/utils/modelTypes';
 
 export interface IdbProject {
   id: string;
@@ -38,36 +38,25 @@ export interface PartOverride {
   name?: string;
 }
 
-/**
- * Cached output of `deriveFromGltf` for a GLTF model. Keyed by DERIVE_VERSION
- * — stale entries (lower version) are ignored and re-derived.
- */
-export interface DerivedCache {
-  version: number;
-  parts: Part[];
-  colors: ColorInfo[];
-  nodePartMap: NodePartMapping[];
-}
-
 export interface IdbModel {
   id: string;
   projectId: string;
   filename: string;
-  source: 'gltf' | 'manual';
-  /** Source of truth for manual models. GLTF models re-derive from gltfJson on load. */
+  source: 'gltf' | 'collada' | 'manual';
   parts: Part[];
+  colors: ColorInfo[];
+  /** Maps 3D scene node indices to part numbers. Empty for manual models. */
+  nodePartMap: NodePartMapping[];
   enabled: boolean;
-  /** Raw GLTF JSON. Null for manual models. */
-  gltfJson: object | null;
+  /** Raw GLTF JSON or COLLADA XML string. Null for manual models. Kept for the 3D viewer. */
+  rawSource: object | string | null;
   /** Per-part user overrides, keyed by partNumber. Extensible for future fields. */
   partOverrides: Record<number, PartOverride>;
-  /** Cached derive output for GLTF models. Undefined until first derive. */
-  derivedCache?: DerivedCache;
   createdAt: string;
 }
 
-/** Model record without gltfJson — what we keep in the reactive store. */
-export type IdbModelMeta = Omit<IdbModel, 'gltfJson'>;
+/** Model record without rawSource — what we keep in the reactive store. */
+export type IdbModelMeta = Omit<IdbModel, 'rawSource'>;
 
 export interface IdbBuildStep {
   id: string;

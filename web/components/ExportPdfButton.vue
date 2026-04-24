@@ -27,7 +27,7 @@ async function onDownload() {
       :title="
         isComputing
           ? 'Waiting for layout to finish computing…'
-          : 'Export BOM and board layouts as a PDF'
+          : 'Export BOM (plus board layouts if available) as a PDF'
       "
       icon="i-lucide-file-down"
       color="neutral"

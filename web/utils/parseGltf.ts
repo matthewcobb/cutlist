@@ -1,20 +1,5 @@
-import type { PartToCut } from 'cutlist';
-
-/**
- * One unmaterialized part. The `colorKey` references a `ColorInfo.key`; the
- * board layout pipeline turns it into a real `material` via the user's color
- * mapping.
- */
-export type Part = Omit<PartToCut, 'material'> & { colorKey: string };
-
-export interface ColorInfo {
-  /** Raw material `name` from the GLTF file (e.g. "0.921569_0.800000_..."). */
-  key: string;
-  /** Parsed RGB in 0..1 for swatch rendering. */
-  rgb: [number, number, number];
-  /** How many parts use this color. */
-  count: number;
-}
+import type { DeriveResult } from './modelTypes';
+import { groupPartInfos, rgbToHex, type PartInfo } from './groupPartInfos';
 
 interface GltfAccessor {
   min?: number[];
@@ -58,30 +43,9 @@ interface Gltf {
   accessors?: GltfAccessor[];
 }
 
-export interface NodePartMapping {
-  nodeIndex: number;
-  partNumber: number;
-  colorHex: string;
-}
-
-export interface DeriveResult {
-  parts: Part[];
-  colors: ColorInfo[];
-  nodePartMap: NodePartMapping[];
-}
-
 interface ParseResult extends DeriveResult {
   gltfJson: object;
 }
-
-/** Coarser tolerance for grouping — parts within 0.1mm are the same cut. */
-const GROUP_PRECISION = 1e-4;
-
-/**
- * Bump whenever `deriveFromGltf` output shape or semantics change. Persisted
- * derive caches with a lower version are discarded and re-derived on load.
- */
-export const DERIVE_VERSION = 1;
 
 /** Derive parts, colors, and node mapping from a raw GLTF JSON object. */
 export function deriveFromGltf(gltfJson: object): DeriveResult {
@@ -105,78 +69,7 @@ export function deriveFromGltf(gltfJson: object): DeriveResult {
     throw new Error('No parts with geometry found in the GLTF file.');
   }
 
-  // Aggregate identical parts by stock identity + canonical dimensions.
-  // Track which node indices belong to each group.
-  const roundGroup = (n: number) =>
-    Math.round(n / GROUP_PRECISION) * GROUP_PRECISION;
-  const groups = new Map<
-    string,
-    PartInfo & { quantity: number; nodeIndices: number[] }
-  >();
-  for (const info of partInfos) {
-    const canonicalWidth = Math.min(info.size.width, info.size.length);
-    const canonicalLength = Math.max(info.size.width, info.size.length);
-    const key = [
-      info.colorKey,
-      roundGroup(info.size.thickness),
-      roundGroup(canonicalWidth),
-      roundGroup(canonicalLength),
-    ].join('|');
-    const existing = groups.get(key);
-    if (existing) {
-      existing.quantity += 1;
-      existing.nodeIndices.push(info.nodeIndex);
-    } else {
-      groups.set(key, {
-        ...info,
-        size: {
-          thickness: info.size.thickness,
-          width: canonicalWidth,
-          length: canonicalLength,
-        },
-        quantity: 1,
-        nodeIndices: [info.nodeIndex],
-      });
-    }
-  }
-
-  const parts: Part[] = [];
-  const nodePartMap: NodePartMapping[] = [];
-  let partNumber = 0;
-  for (const group of groups.values()) {
-    partNumber += 1;
-    for (let i = 0; i < group.quantity; i += 1) {
-      parts.push({
-        partNumber,
-        instanceNumber: i + 1,
-        name: group.name,
-        colorKey: group.colorKey,
-        size: group.size,
-      });
-    }
-    for (const nodeIndex of group.nodeIndices) {
-      nodePartMap.push({ nodeIndex, partNumber, colorHex: group.colorHex });
-    }
-  }
-
-  // Tally colors across all parts.
-  const colorMap = new Map<
-    string,
-    { rgb: [number, number, number]; count: number }
-  >();
-  for (const group of groups.values()) {
-    const existing = colorMap.get(group.colorKey);
-    if (existing) {
-      existing.count += group.quantity;
-    } else {
-      colorMap.set(group.colorKey, { rgb: group.rgb, count: group.quantity });
-    }
-  }
-  const colors: ColorInfo[] = Array.from(colorMap.entries()).map(
-    ([key, { rgb, count }]) => ({ key, rgb, count }),
-  );
-
-  return { parts, colors, nodePartMap };
+  return groupPartInfos(partInfos);
 }
 
 export async function parseGltf(file: File): Promise<ParseResult> {
@@ -189,15 +82,6 @@ export async function parseGltf(file: File): Promise<ParseResult> {
   }
   const derived = deriveFromGltf(gltf);
   return { ...derived, gltfJson: gltf };
-}
-
-interface PartInfo {
-  name: string;
-  colorKey: string;
-  colorHex: string;
-  rgb: [number, number, number];
-  size: PartToCut['size'];
-  nodeIndex: number;
 }
 
 function walkNode(
@@ -314,14 +198,6 @@ function resolveColor(
   const fallbackRgb: [number, number, number] = [0.5, 0.5, 0.5];
   const key = name || 'Unknown';
   return { key, rgb: fallbackRgb, hex: rgbToHex(fallbackRgb) };
-}
-
-function rgbToHex(rgb: [number, number, number]): string {
-  const clamp = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 255);
-  const r = clamp(rgb[0]);
-  const g = clamp(rgb[1]);
-  const b = clamp(rgb[2]);
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
 // --- Minimal 4x4 column-major matrix helpers (matching GLTF spec) ---
