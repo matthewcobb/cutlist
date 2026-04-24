@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   appConfig: {
     version: pkg.version,
   },
-  modules: ['@nuxt/ui', '@vueuse/nuxt'],
+  modules: ['@nuxt/ui', '@vueuse/nuxt', '@sentry/nuxt/module'],
   css: ['~/assets/css/main.css'],
   ssr: false,
   colorMode: {
@@ -15,6 +15,13 @@ export default defineNuxtConfig({
   },
   alias: {
     cutlist: resolve(__dirname, 'lib'),
+  },
+  sentry: {
+    org: 'cutlist',
+    project: 'cutlist',
+  },
+  sourcemap: {
+    client: 'hidden',
   },
   app: {
     head: {
