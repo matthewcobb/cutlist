@@ -177,6 +177,7 @@ describe('addManualPart', () => {
       projectId,
       'Walnut',
       'Walnut',
+      true,
     );
   });
 

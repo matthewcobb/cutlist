@@ -8,6 +8,7 @@ import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
 import { loadProject } from '~/composables/useModelHydration';
 import { maybeSeedDemo } from '~/composables/useDemoSeed';
 import { useManualParts } from '~/composables/useManualParts';
+import { pushUndoCommand } from '~/composables/useUndo';
 
 export interface Model {
   id: string;
@@ -243,13 +244,65 @@ export default function useProjects() {
   }
 
   async function removeModel(projectId: string, modelId: string) {
-    if (activeProjectData.value?.id === projectId) {
-      activeProjectData.value = {
-        ...activeProjectData.value,
-        models: activeProjectData.value.models.filter((m) => m.id !== modelId),
-      };
-    }
+    const project = activeProjectData.value;
+    if (!project || project.id !== projectId) return;
+
+    // Capture before-state for undo
+    const removedModel = project.models.find((m) => m.id === modelId);
+    if (!removedModel) return;
+    const removedModelSnapshot = { ...removedModel };
+    // For GLTF models, also capture gltfJson from IDB so we can restore fully
+    const gltfJson =
+      removedModel.source === 'gltf' ? await idb.getModelGltf(modelId) : null;
+    // Capture the IDB model meta for full restoration
+    const idbData = await idb.getProjectWithModels(projectId);
+    const idbModelMeta = idbData?.models.find((m) => m.id === modelId);
+    const partOverrides = idbModelMeta?.partOverrides ?? {};
+    const storedParts = idbModelMeta?.parts ?? [];
+    const derivedCache = idbModelMeta?.derivedCache;
+
+    activeProjectData.value = {
+      ...project,
+      models: project.models.filter((m) => m.id !== modelId),
+    };
     await idb.deleteModel(modelId);
+
+    pushUndoCommand(projectId, {
+      label: `Remove model "${removedModelSnapshot.filename}"`,
+      undo: async () => {
+        // Restore model to IDB
+        await idb.createModel({
+          id: modelId,
+          projectId,
+          filename: removedModelSnapshot.filename,
+          source: removedModelSnapshot.source,
+          parts: storedParts,
+          enabled: removedModelSnapshot.enabled,
+          gltfJson: gltfJson ?? null,
+          partOverrides,
+          derivedCache,
+          createdAt: new Date().toISOString(),
+        });
+        // Restore to reactive store
+        const current = activeProjectData.value;
+        if (current?.id === projectId) {
+          activeProjectData.value = {
+            ...current,
+            models: [...current.models, removedModelSnapshot],
+          };
+        }
+      },
+      redo: async () => {
+        const current = activeProjectData.value;
+        if (current?.id === projectId) {
+          activeProjectData.value = {
+            ...current,
+            models: current.models.filter((m) => m.id !== modelId),
+          };
+        }
+        await idb.deleteModel(modelId);
+      },
+    });
   }
 
   async function toggleModel(projectId: string, modelId: string) {
@@ -273,23 +326,75 @@ export default function useProjects() {
     id: string,
     colorKey: string,
     material: string,
+    /** @internal Skip undo push when called as a side-effect of addManualPart. */
+    _skipUndo = false,
   ) {
     const project = activeProjectData.value;
     if (!project || project.id !== id) return;
+
+    const oldMaterial = project.colorMap[colorKey] ?? '';
     const newColorMap = { ...project.colorMap, [colorKey]: material };
     activeProjectData.value = { ...project, colorMap: newColorMap };
     await idb.updateProject(id, { colorMap: newColorMap });
+
+    if (!_skipUndo && oldMaterial !== material) {
+      pushUndoCommand(id, {
+        label: `Change material mapping`,
+        undo: async () => {
+          const current = activeProjectData.value;
+          if (current?.id === id) {
+            const restored = { ...current.colorMap, [colorKey]: oldMaterial };
+            if (!oldMaterial) delete restored[colorKey];
+            activeProjectData.value = { ...current, colorMap: restored };
+            await idb.updateProject(id, { colorMap: restored });
+          }
+        },
+        redo: async () => {
+          const current = activeProjectData.value;
+          if (current?.id === id) {
+            const reapplied = { ...current.colorMap, [colorKey]: material };
+            activeProjectData.value = { ...current, colorMap: reapplied };
+            await idb.updateProject(id, { colorMap: reapplied });
+          }
+        },
+      });
+    }
   }
 
   async function toggleColorExcluded(id: string, colorKey: string) {
     const project = activeProjectData.value;
     if (!project || project.id !== id) return;
-    const excluded = project.excludedColors ?? [];
-    const newExcluded = excluded.includes(colorKey)
-      ? excluded.filter((k) => k !== colorKey)
-      : [...excluded, colorKey];
+    const oldExcluded = [...(project.excludedColors ?? [])];
+    const newExcluded = oldExcluded.includes(colorKey)
+      ? oldExcluded.filter((k) => k !== colorKey)
+      : [...oldExcluded, colorKey];
     activeProjectData.value = { ...project, excludedColors: newExcluded };
     await idb.updateProject(id, { excludedColors: newExcluded });
+
+    const wasExcluded = oldExcluded.includes(colorKey);
+    pushUndoCommand(id, {
+      label: wasExcluded ? `Include color in BOM` : `Exclude color from BOM`,
+      undo: async () => {
+        const current = activeProjectData.value;
+        if (current?.id === id) {
+          activeProjectData.value = {
+            ...current,
+            excludedColors: oldExcluded,
+          };
+          await idb.updateProject(id, { excludedColors: oldExcluded });
+        }
+      },
+      redo: async () => {
+        const current = activeProjectData.value;
+        if (current?.id === id) {
+          activeProjectData.value = {
+            ...current,
+            excludedColors: newExcluded,
+          };
+          await idb.updateProject(id, { excludedColors: newExcluded });
+        }
+      },
+    });
   }
 
   async function updateStock(projectId: string, stock: string) {

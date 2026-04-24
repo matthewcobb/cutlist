@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 useUrlSync();
+useUndoKeyboard();
 </script>
 
 <template>

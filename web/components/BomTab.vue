@@ -22,6 +22,7 @@ const {
   updatePartGrainLock,
   updatePartNameOverride,
 } = useProjects();
+const { undo } = useUndo();
 const { distanceUnit, stock } = useProjectSettings();
 const formatDistance = useFormatDistance();
 const toast = useToast();
@@ -301,11 +302,50 @@ async function handleUpdatePart(adjustedPn: number, input: ManualPartInput) {
   editingPartNumber.value = null;
 }
 
+async function handleRemoveModel(modelId: string) {
+  if (!activeId.value || !activeProject.value) return;
+  const model = activeProject.value.models.find((m) => m.id === modelId);
+  const filename = model?.filename ?? 'model';
+  await removeModel(activeId.value, modelId);
+  pendingRemoveModelId.value = null;
+  toast.add({
+    title: 'Model removed',
+    description: filename,
+    duration: 5000,
+    actions: [
+      {
+        label: 'Undo',
+        color: 'primary' as const,
+        onClick: () => {
+          undo();
+        },
+      },
+    ],
+  });
+}
+
 async function handleRemovePart(adjustedPn: number) {
   if (!activeId.value) return;
+  const partName =
+    manualPartInfoMap.value.get(adjustedPn - manualPartOffset.value)?.name ??
+    'part';
   await removeManualPart(activeId.value, adjustedPn - manualPartOffset.value);
   if (editingPartNumber.value === adjustedPn) editingPartNumber.value = null;
   if (renamingPartNumber.value === adjustedPn) cancelRenamePart();
+  toast.add({
+    title: 'Part removed',
+    description: partName,
+    duration: 5000,
+    actions: [
+      {
+        label: 'Undo',
+        color: 'primary' as const,
+        onClick: () => {
+          undo();
+        },
+      },
+    ],
+  });
 }
 
 onUnmounted(() => {
@@ -428,10 +468,7 @@ onUnmounted(() => {
                     color="error"
                     variant="solid"
                     label="Remove"
-                    @click="
-                      removeModel(activeProject!.id, model.id);
-                      pendingRemoveModelId = null;
-                    "
+                    @click="handleRemoveModel(model.id)"
                   />
                 </template>
                 <UButton
