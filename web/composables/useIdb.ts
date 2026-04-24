@@ -18,6 +18,7 @@
  */
 
 import { ref, readonly } from 'vue';
+import { deepToRaw } from '~/utils/deepToRaw';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { BoardLayout, BoardLayoutLeftover } from 'cutlist';
 import type { ColorInfo, NodePartMapping, Part } from '~/utils/parseGltf';
@@ -512,7 +513,7 @@ export function useIdb() {
     const db = await getDb();
     const existing = await db.get('models', id);
     if (!existing) throw new Error(`Model ${id} not found`);
-    const rawPatch = JSON.parse(JSON.stringify(entry.patch));
+    const rawPatch = structuredClone(deepToRaw(entry.patch));
     await safeWrite(() => db.put('models', { ...existing, ...rawPatch }));
   }
 
@@ -528,7 +529,7 @@ export function useIdb() {
       const db = await getDb();
       const existing = await db.get('models', id);
       if (!existing) throw new Error(`Model ${id} not found`);
-      const rawPatch = JSON.parse(JSON.stringify(patch));
+      const rawPatch = structuredClone(deepToRaw(patch));
       await safeWrite(() => db.put('models', { ...existing, ...rawPatch }));
       return;
     }
@@ -611,8 +612,8 @@ export function useIdb() {
 
   async function putLayoutCache(entry: IdbLayoutCache): Promise<void> {
     const db = await getDb();
-    // JSON round-trip strips Vue reactive proxies and class instances.
-    const raw = JSON.parse(JSON.stringify(entry)) as IdbLayoutCache;
+    // structuredClone(deepToRaw()) strips Vue reactive proxies for safe IDB writes.
+    const raw = structuredClone(deepToRaw(entry)) as IdbLayoutCache;
     await safeWrite(() => db.put('layoutCache', raw)).catch(() => {
       // Layout cache writes are advisory — swallow errors silently.
       // The layout will simply be recomputed on next load.

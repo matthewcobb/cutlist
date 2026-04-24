@@ -24,7 +24,7 @@ function addPreset(preset: (typeof STOCK_PRESETS)[number]) {
   if (stock.value == null) return;
   try {
     const current = parseStock(stock.value);
-    current.push(JSON.parse(JSON.stringify(preset.stock)));
+    current.push(structuredClone(preset.stock));
     stock.value = YAML.dump(current, { indent: 2, flowLevel: 3 });
     stockInput.value?.scrollToBottom();
   } catch {
