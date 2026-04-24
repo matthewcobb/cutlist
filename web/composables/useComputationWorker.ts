@@ -149,14 +149,14 @@ if (typeof window !== 'undefined') {
 }
 
 // ─── Part count guardrails ───────────────────────────────────────────────────
-// Profiling at 500 parts: ~24ms per pass, 14 passes in auto ≈ 340ms total.
-// At 2000+ parts the worker can block for seconds. Warn early, refuse late.
+// Profiling: 500 parts ≈ 24ms, 1000 ≈ 59ms per pass. At 10k+ parts the worker
+// may take a few seconds but remains usable. Only warn, don't block.
 
 /** Part count at which the UI should show a non-blocking performance warning. */
-export const PART_COUNT_SOFT_LIMIT = 500;
+export const PART_COUNT_SOFT_LIMIT = 2000;
 
 /** Part count above which we refuse to run the packer (would hang the worker). */
-export const PART_COUNT_HARD_LIMIT = 2000;
+export const PART_COUNT_HARD_LIMIT = 50_000;
 
 export class PartCountExceededError extends Error {
   constructor(count: number) {

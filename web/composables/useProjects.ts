@@ -1,14 +1,13 @@
 import {
-  DERIVE_VERSION,
   type ColorInfo,
   type NodePartMapping,
   type Part,
 } from '~/utils/parseGltf';
-import type { IdbModelMeta, PartOverride } from '~/composables/useIdb';
+import type { PartOverride } from '~/composables/useIdb';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
-import { importProjectFromFile } from '~/utils/projectImport';
-import { DEMO_PROJECT_FILENAME, shouldSeedDemoProject } from '~/utils/demoSeed';
-import { deriveModel } from '~/composables/useComputationWorker';
+import { loadProject } from '~/composables/useModelHydration';
+import { maybeSeedDemo } from '~/composables/useDemoSeed';
+import { useManualParts } from '~/composables/useManualParts';
 
 export interface Model {
   id: string;
@@ -64,150 +63,13 @@ const archivedList = ref<ArchivedProjectItem[]>([]);
 const activeProjectData = ref<Project | null>(null);
 const projectLoading = ref(false);
 
-async function seedDemoProject(
-  idb: ReturnType<typeof useIdb>,
-): Promise<string> {
-  const base = import.meta.env.BASE_URL ?? '/';
-  const url = `${base.endsWith('/') ? base : `${base}/`}${DEMO_PROJECT_FILENAME}`;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to load demo project (${response.status})`);
-  }
-  const blob = await response.blob();
-  const file = new File([blob], DEMO_PROJECT_FILENAME, {
-    type: blob.type || 'application/gzip',
-  });
-  return importProjectFromFile(file, idb);
-}
-
-/** Apply partOverrides onto derived parts. */
-function applyOverrides(
-  parts: Part[],
-  overrides: Record<number, PartOverride>,
-): Part[] {
-  if (Object.keys(overrides).length === 0) return parts;
-  return parts.map((p) => {
-    const o = overrides[p.partNumber];
-    return o ? { ...p, ...o } : p;
-  });
-}
-
-/** Build a Model from IDB metadata. GLTF models re-derive from stored gltfJson. */
-async function hydrateModel(
-  meta: IdbModelMeta,
-  idb: ReturnType<typeof useIdb>,
-): Promise<Model> {
-  // Manual models: stored parts are the source of truth
-  if (meta.source === 'manual') {
-    return {
-      id: meta.id,
-      filename: meta.filename,
-      source: meta.source,
-      parts: applyOverrides(meta.parts, meta.partOverrides),
-      colors: [],
-      enabled: meta.enabled,
-    };
-  }
-
-  // GLTF models: use cached derive if version matches, otherwise re-derive
-  // in the worker and persist the result for next time.
-  const cached = meta.derivedCache;
-  if (cached && cached.version === DERIVE_VERSION) {
-    return {
-      id: meta.id,
-      filename: meta.filename,
-      source: meta.source,
-      parts: applyOverrides(cached.parts, meta.partOverrides),
-      colors: cached.colors,
-      enabled: meta.enabled,
-      nodePartMap: cached.nodePartMap,
-    };
-  }
-
-  const gltfJson = await idb.getModelGltf(meta.id);
-  if (!gltfJson) {
-    return {
-      id: meta.id,
-      filename: meta.filename,
-      source: meta.source,
-      parts: applyOverrides(meta.parts, meta.partOverrides),
-      colors: [],
-      enabled: meta.enabled,
-    };
-  }
-
-  try {
-    const derived = await deriveModel(gltfJson);
-    // Persist for subsequent loads. Swallow IDB errors — cache is advisory.
-    idb
-      .updateModel(meta.id, {
-        derivedCache: {
-          version: DERIVE_VERSION,
-          parts: derived.parts,
-          colors: derived.colors,
-          nodePartMap: derived.nodePartMap,
-        },
-      })
-      .catch(() => {});
-    return {
-      id: meta.id,
-      filename: meta.filename,
-      source: meta.source,
-      parts: applyOverrides(derived.parts, meta.partOverrides),
-      colors: derived.colors,
-      enabled: meta.enabled,
-      nodePartMap: derived.nodePartMap,
-    };
-  } catch {
-    return {
-      id: meta.id,
-      filename: meta.filename,
-      source: meta.source,
-      parts: applyOverrides(meta.parts, meta.partOverrides),
-      colors: [],
-      enabled: meta.enabled,
-    };
-  }
-}
-
-async function loadProject(
-  idb: ReturnType<typeof useIdb>,
-  id: string,
-): Promise<Project | null> {
-  const full = await idb.getProjectWithModels(id);
-  if (!full) return null;
-  const models = await Promise.all(
-    full.models.map((meta) => hydrateModel(meta, idb)),
-  );
-  return { ...full, models };
-}
-
 async function init(idb: ReturnType<typeof useIdb>) {
-  let [list, archived] = await Promise.all([
+  await maybeSeedDemo(idb);
+
+  const [list, archived] = await Promise.all([
     idb.getProjectList(),
     idb.getArchivedList(),
   ]);
-
-  const demoSeeded = await idb.getDemoSeeded();
-  if (
-    shouldSeedDemoProject({
-      projects: list.length,
-      archived: archived.length,
-      demoSeeded,
-    })
-  ) {
-    try {
-      await seedDemoProject(idb);
-      await idb.setDemoSeeded(true);
-      [list, archived] = await Promise.all([
-        idb.getProjectList(),
-        idb.getArchivedList(),
-      ]);
-    } catch (err) {
-      console.warn('Demo project seed failed', err);
-    }
-  }
-
   projectList.value = list;
   archivedList.value = archived;
 }
@@ -447,205 +309,12 @@ export default function useProjects() {
     await idb.updateProject(projectId, { distanceUnit });
   }
 
-  async function addManualPart(projectId: string, data: ManualPartInput) {
-    const project = activeProjectData.value;
-    if (!project || project.id !== projectId) return;
-
-    const existing = project.models.find((m) => m.source === 'manual');
-    const newPartNumber = existing
-      ? Math.max(0, ...existing.parts.map((d) => d.partNumber)) + 1
-      : 1;
-
-    const newParts: Part[] = Array.from({ length: data.qty }, (_, i) => ({
-      partNumber: newPartNumber,
-      instanceNumber: i + 1,
-      name: data.name,
-      colorKey: data.material,
-      size: {
-        width: data.widthMm / 1000,
-        length: data.lengthMm / 1000,
-        thickness: data.thicknessMm / 1000,
-      },
-    }));
-
-    // grainLock goes into partOverrides, not onto the Part
-    const newOverrides: Record<number, PartOverride> = {};
-    if (data.grainLock) {
-      newOverrides[newPartNumber] = { grainLock: data.grainLock };
-    }
-
-    if (existing) {
-      const updatedParts = [...existing.parts, ...newParts];
-      // Merge new overrides with existing (get current from IDB)
-      const idbModel = (await idb.getProjectWithModels(projectId))?.models.find(
-        (m) => m.id === existing.id,
-      );
-      const mergedOverrides = {
-        ...(idbModel?.partOverrides ?? {}),
-        ...newOverrides,
-      };
-      // Reactive store sees parts with overrides applied
-      activeProjectData.value = {
-        ...project,
-        models: project.models.map((m) =>
-          m.id === existing.id
-            ? { ...m, parts: applyOverrides(updatedParts, mergedOverrides) }
-            : m,
-        ),
-      };
-      await idb.updateModel(existing.id, {
-        parts: updatedParts,
-        partOverrides: mergedOverrides,
-      });
-    } else {
-      const modelId = crypto.randomUUID();
-      const model: Model = {
-        id: modelId,
-        filename: 'Manual Parts',
-        source: 'manual',
-        parts: applyOverrides(newParts, newOverrides),
-        colors: [],
-        enabled: true,
-      };
-      activeProjectData.value = {
-        ...project,
-        models: [...project.models, model],
-      };
-      await idb.createModel({
-        id: modelId,
-        projectId,
-        filename: model.filename,
-        source: 'manual',
-        parts: newParts,
-        enabled: true,
-        gltfJson: null,
-        partOverrides: newOverrides,
-        createdAt: new Date().toISOString(),
-      });
-    }
-
-    if (!project.colorMap[data.material]) {
-      await updateColorMap(projectId, data.material, data.material);
-    }
-  }
-
-  async function updateManualPart(
-    projectId: string,
-    partNumber: number,
-    data: ManualPartInput,
-  ) {
-    const project = activeProjectData.value;
-    if (!project || project.id !== projectId) return;
-
-    const existing = project.models.find((m) => m.source === 'manual');
-    if (!existing) return;
-
-    const remaining = existing.parts.filter((d) => d.partNumber !== partNumber);
-    const updated: Part[] = Array.from({ length: data.qty }, (_, i) => ({
-      partNumber,
-      instanceNumber: i + 1,
-      name: data.name,
-      colorKey: data.material,
-      size: {
-        width: data.widthMm / 1000,
-        length: data.lengthMm / 1000,
-        thickness: data.thicknessMm / 1000,
-      },
-    }));
-    // Strip overrides from remaining parts (they live in partOverrides)
-    const cleanParts = [...remaining, ...updated].map(
-      ({ grainLock: _, ...rest }) => rest,
-    );
-
-    // Update partOverrides for this part number
-    const idbModel = (await idb.getProjectWithModels(projectId))?.models.find(
-      (m) => m.id === existing.id,
-    );
-    const updatedOverrides = { ...(idbModel?.partOverrides ?? {}) };
-    if (data.grainLock) {
-      updatedOverrides[partNumber] = {
-        ...updatedOverrides[partNumber],
-        grainLock: data.grainLock,
-      };
-    } else {
-      // Clear grainLock if removed
-      if (updatedOverrides[partNumber]) {
-        const { grainLock: _, ...rest } = updatedOverrides[partNumber];
-        if (Object.keys(rest).length === 0) {
-          delete updatedOverrides[partNumber];
-        } else {
-          updatedOverrides[partNumber] = rest;
-        }
-      }
-    }
-
-    activeProjectData.value = {
-      ...project,
-      models: project.models.map((m) =>
-        m.id === existing.id
-          ? { ...m, parts: applyOverrides(cleanParts, updatedOverrides) }
-          : m,
-      ),
-    };
-    await idb.updateModel(existing.id, {
-      parts: cleanParts,
-      partOverrides: updatedOverrides,
-    });
-
-    if (!project.colorMap[data.material]) {
-      await updateColorMap(projectId, data.material, data.material);
-    }
-  }
-
-  async function removeManualPart(projectId: string, partNumber: number) {
-    const project = activeProjectData.value;
-    if (!project || project.id !== projectId) return;
-
-    const existing = project.models.find((m) => m.source === 'manual');
-    if (!existing) return;
-
-    const remaining = existing.parts.filter((d) => d.partNumber !== partNumber);
-
-    if (remaining.length === 0) {
-      activeProjectData.value = {
-        ...project,
-        models: project.models.filter((m) => m.id !== existing.id),
-      };
-      await idb.deleteModel(existing.id);
-    } else {
-      activeProjectData.value = {
-        ...project,
-        models: project.models.map((m) =>
-          m.id === existing.id ? { ...m, parts: remaining } : m,
-        ),
-      };
-      await idb.updateModel(existing.id, { parts: remaining });
-    }
-  }
-
-  async function renameProject(id: string, name: string) {
-    if (activeProjectData.value?.id === id) {
-      activeProjectData.value = { ...activeProjectData.value, name };
-    }
-    projectList.value = projectList.value.map((p) =>
-      p.id === id ? { ...p, name } : p,
-    );
-    await idb.updateProject(id, { name });
-  }
-
-  async function reloadProjectList() {
-    const [list, archived] = await Promise.all([
-      idb.getProjectList(),
-      idb.getArchivedList(),
-    ]);
-    projectList.value = list;
-    archivedList.value = archived;
-  }
-
-  function reorderProjects(ids: string[]) {
-    const map = new Map(projectList.value.map((p) => [p.id, p]));
-    projectList.value = ids.map((id) => map.get(id)!).filter(Boolean);
-  }
+  // Manual part operations (delegated to useManualParts)
+  const { addManualPart, updateManualPart, removeManualPart } = useManualParts({
+    activeProjectData,
+    idb,
+    updateColorMap,
+  });
 
   /** Shared helper: apply a partial override to a part by adjusted number. */
   async function applyPartOverride(
@@ -710,6 +379,30 @@ export default function useProjects() {
     const nextName = name.trim();
     if (!nextName) return;
     await applyPartOverride(projectId, adjustedPartNumber, { name: nextName });
+  }
+
+  async function renameProject(id: string, name: string) {
+    if (activeProjectData.value?.id === id) {
+      activeProjectData.value = { ...activeProjectData.value, name };
+    }
+    projectList.value = projectList.value.map((p) =>
+      p.id === id ? { ...p, name } : p,
+    );
+    await idb.updateProject(id, { name });
+  }
+
+  async function reloadProjectList() {
+    const [list, archived] = await Promise.all([
+      idb.getProjectList(),
+      idb.getArchivedList(),
+    ]);
+    projectList.value = list;
+    archivedList.value = archived;
+  }
+
+  function reorderProjects(ids: string[]) {
+    const map = new Map(projectList.value.map((p) => [p.id, p]));
+    projectList.value = ids.map((id) => map.get(id)!).filter(Boolean);
   }
 
   return {

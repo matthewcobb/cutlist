@@ -288,6 +288,7 @@ async function saveRenamePart(row: BomRow) {
 async function handleAddPart(input: ManualPartInput) {
   if (!activeId.value) return;
   await addManualPart(activeId.value, input);
+  showAddForm.value = false;
 }
 
 async function handleUpdatePart(adjustedPn: number, input: ManualPartInput) {
