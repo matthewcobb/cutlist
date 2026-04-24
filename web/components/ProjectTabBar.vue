@@ -24,7 +24,7 @@ const pendingCloseId = ref<string | null>(null);
 const pendingCloseName = ref('');
 
 function goHome() {
-  activeId.value = null;
+  navigateTo('/');
 }
 
 function requestClose(id: string) {

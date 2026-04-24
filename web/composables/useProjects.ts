@@ -216,7 +216,8 @@ export default function useProjects() {
   }
 
   function setActive(id: string) {
-    activeId.value = id;
+    if (id === activeId.value) return;
+    navigateTo(`/${id}`);
   }
 
   async function addModel(projectId: string, model: Model) {

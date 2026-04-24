@@ -130,8 +130,7 @@ function getLayoutWorker(): Worker {
 
 // ─── Lifecycle cleanup ──────────────────────────────────────────────────────
 // Terminate workers on page unload to prevent leaked threads and pending
-// promises that can never resolve. Also cleans up on visibilitychange to
-// 'hidden' (covers bfcache, mobile tab switches).
+// promises that can never resolve.
 
 function terminateAllWorkers() {
   if (layoutWorker) {
@@ -154,10 +153,10 @@ function terminateAllWorkers() {
 if (typeof window !== 'undefined' && !(window as any).__cutlistWorkersInit) {
   (window as any).__cutlistWorkersInit = true;
   window.addEventListener('beforeunload', terminateAllWorkers);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      terminateAllWorkers();
-    }
+  // pagehide with persisted covers bfcache without killing workers on
+  // a simple tab switch (visibilitychange was too aggressive).
+  window.addEventListener('pagehide', (e) => {
+    if (e.persisted) terminateAllWorkers();
   });
 }
 

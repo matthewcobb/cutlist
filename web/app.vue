@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 useUrlSync();
 useAppErrors();
+usePageGuard();
 </script>
 
 <template>
