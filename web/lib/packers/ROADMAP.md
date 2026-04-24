@@ -50,7 +50,7 @@ Replace `TightPacker` with a proper MaxRects implementation. The [`maxrects-pack
 
 Low-effort passes to add: sort-by-perimeter, sort-by-side-ratio, sort-by-difference-of-sides. The Jylänki "A Thousand Ways to Pack the Bin" paper shows these occasionally win on irregular part mixes.
 
-- **Risk**: adds pass time linearly. Already have 11 passes; staying under ~15 keeps `maxSearchMs` safely reachable.
+- **Risk**: adds pass time linearly. Already have 12 passes; keep an eye on total wall-clock for large inputs, since every default pass now runs to completion.
 
 ### 6. Skyline-BL for `cnc` mode
 

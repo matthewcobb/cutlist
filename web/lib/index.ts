@@ -89,13 +89,6 @@ const SEARCH_PASS_DEFINITIONS: Record<SearchPass, SearchPassDefinition> = {
     partSortMode: 'long-side-desc',
     guillotineFitMode: 'bssf',
   },
-  'cuts-guillotine-bssf-short-side': {
-    id: 'cuts-guillotine-bssf-short-side',
-    optimize: 'cuts',
-    packerKind: 'guillotine',
-    partSortMode: 'short-side-desc',
-    guillotineFitMode: 'bssf',
-  },
   'cuts-guillotine-baf-area': {
     id: 'cuts-guillotine-baf-area',
     optimize: 'cuts',
@@ -286,11 +279,12 @@ function runMultiPassSearch(
 
   for (const group of groups) {
     let best: SearchPassResult | undefined;
-    const startedAt = Date.now();
 
-    for (let i = 0; i < passOrder.length; i++) {
-      if (i > 0 && Date.now() - startedAt >= config.maxSearchMs) break;
-
+    const passLimit =
+      config.maxSearchPasses != null
+        ? Math.min(passOrder.length, config.maxSearchPasses)
+        : passOrder.length;
+    for (let i = 0; i < passLimit; i++) {
       const pass = SEARCH_PASS_DEFINITIONS[passOrder[i]];
       const candidate = runSearchPass(config, group.parts, group.stock, pass);
 

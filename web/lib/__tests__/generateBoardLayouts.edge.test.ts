@@ -10,7 +10,6 @@ const baseConfig: Config = {
   bladeWidth: 0,
   margin: 0,
   optimize: 'auto',
-  maxSearchMs: 8000,
   precision: 1e-5,
 };
 

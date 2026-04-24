@@ -2,20 +2,11 @@ import { Rectangle } from '../geometry';
 import type { PackOptions, PackResult, Packer } from './Packer';
 
 /**
- * How to choose shelf height when opening a new shelf.
- * - `first-fit`: Shelf height = height of the first part placed on it.
- * - `best-width-fit`: Among parts that haven't been placed yet, pick the one
- *   whose height (as shelf height) would leave the least wasted width across
- *   all remaining parts that share that height.
- */
-export type ShelfHeightMode = 'first-fit' | 'best-width-fit';
-
-/**
  * 2D bin packer that arranges parts into horizontal shelves (rows).
  *
  * Each shelf is a horizontal band spanning the full bin width. Parts are placed
  * left-to-right within a shelf, and shelves stack bottom-to-top. The shelf
- * height is determined by the tallest part on that shelf.
+ * height is set by the height of the first part placed on it (first-fit).
  *
  * This produces layouts that are trivially guillotine-cuttable:
  *   1. One horizontal cut per shelf boundary (full-width).
@@ -23,13 +14,7 @@ export type ShelfHeightMode = 'first-fit' | 'best-width-fit';
  *
  * This is the easiest pattern to execute with a table/track/circular saw.
  */
-export function createShelfPacker<T>(
-  config: {
-    shelfHeightMode?: ShelfHeightMode;
-  } = {},
-): Packer<T> {
-  const shelfHeightMode = config.shelfHeightMode ?? 'first-fit';
-
+export function createShelfPacker<T>(): Packer<T> {
   return {
     pack(bin, rects, options) {
       const res: PackResult<T> = { placements: [], leftovers: [] };

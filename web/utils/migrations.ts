@@ -43,7 +43,7 @@ export const SCHEMA_VERSION = 1;
  * Bump whenever the packing engine output shape, scoring, or ConfigInput
  * fields change.
  */
-export const LAYOUT_CACHE_VERSION = 1;
+export const LAYOUT_CACHE_VERSION = 2;
 
 type StoreName = 'projects' | 'models' | 'buildSteps' | 'settings';
 

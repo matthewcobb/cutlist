@@ -33,7 +33,6 @@ describe('generateBoardLayouts', () => {
       bladeWidth: 0,
       margin: 0,
       optimize: 'cuts',
-      maxSearchMs: 8000,
       precision: 1e-5,
     };
     const result = generateBoardLayouts([createPart(1, 2, 1)], stock, config);
@@ -53,7 +52,6 @@ describe('generateBoardLayouts', () => {
       bladeWidth: 0,
       margin: 0,
       optimize: 'cnc',
-      maxSearchMs: 8000,
       precision: 1e-5,
     };
     const result = generateBoardLayouts([createPart(1, 2, 1)], stock, config);
@@ -68,12 +66,39 @@ describe('generateBoardLayouts', () => {
     ]);
   });
 
+  it('respects maxSearchPasses as a deterministic pass budget', () => {
+    const parts = [
+      createPart(1, 1, 1),
+      createPart(2, 1, 1),
+      createPart(3, 2, 1),
+    ];
+
+    // With the budget fixed at 1, only the very first pass runs per stock
+    // group — the winning layout is fully determined by pass ordering.
+    const budgeted = generateBoardLayouts(parts, stock, {
+      bladeWidth: 0,
+      margin: 0,
+      optimize: 'auto',
+      maxSearchPasses: 1,
+      searchPasses: ['cnc-area', 'cnc-perimeter', 'cuts-shelf-long-side'],
+      precision: 1e-5,
+    });
+    const firstPassOnly = generateBoardLayouts(parts, stock, {
+      bladeWidth: 0,
+      margin: 0,
+      optimize: 'auto',
+      searchPasses: ['cnc-area'],
+      precision: 1e-5,
+    });
+
+    expect(budgeted).toEqual(firstPassOnly);
+  });
+
   it('is deterministic in auto mode', () => {
     const config: Config = {
       bladeWidth: 0,
       margin: 0,
       optimize: 'auto',
-      maxSearchMs: 8000,
       precision: 1e-5,
     };
     const parts = [

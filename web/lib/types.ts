@@ -13,7 +13,6 @@ export const SearchPass = z.union([
   z.literal('cuts-shelf-short-side'),
   z.literal('cuts-guillotine-bssf-area'),
   z.literal('cuts-guillotine-bssf-long-side'),
-  z.literal('cuts-guillotine-bssf-short-side'),
   z.literal('cuts-guillotine-baf-area'),
   z.literal('cuts-guillotine-baf-long-side'),
   z.literal('cuts-guillotine-blsf-long-side'),
@@ -141,9 +140,13 @@ export const Config = z.object({
    */
   margin: Distance.default('0'),
   /**
-   * Maximum time budget for the multi-pass optimizer.
+   * Optional cap on the number of search passes run per stock group in
+   * `auto` mode. When unset, every pass in `DEFAULT_SEARCH_PASSES` (or the
+   * caller-provided `searchPasses` list) runs to completion. Replaces the
+   * previous wall-clock budget, which made the "winning" layout depend on
+   * the machine's speed.
    */
-  maxSearchMs: z.number().positive().default(8000),
+  maxSearchPasses: z.number().int().positive().optional(),
   /**
    * Optional pass override for the multi-pass optimizer.
    */

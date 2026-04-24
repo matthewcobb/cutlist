@@ -110,7 +110,6 @@ describe('performance: generateBoardLayouts', () => {
       bladeWidth: '3.175mm',
       margin: '0mm',
       optimize: 'auto' as const,
-      maxSearchMs: 8000,
       precision: 1e-5,
     };
 
@@ -130,7 +129,6 @@ describe('performance: generateBoardLayouts', () => {
       bladeWidth: '3.175mm',
       margin: '0mm',
       optimize: 'auto' as const,
-      maxSearchMs: 8000,
       precision: 1e-5,
     };
 
@@ -150,7 +148,6 @@ describe('performance: generateBoardLayouts', () => {
       bladeWidth: '3.175mm',
       margin: '0mm',
       optimize: 'auto' as const,
-      maxSearchMs: 8000,
       precision: 1e-5,
     };
 
@@ -170,7 +167,6 @@ describe('performance: generateBoardLayouts', () => {
       bladeWidth: '3.175mm',
       margin: '0mm',
       optimize: 'auto' as const,
-      maxSearchMs: 8000,
       precision: 1e-5,
     };
 
@@ -190,7 +186,6 @@ describe('performance: generateBoardLayouts', () => {
       bladeWidth: '3.175mm',
       margin: '0mm',
       optimize: 'auto' as const,
-      maxSearchMs: 8000,
       precision: 1e-5,
     };
 
@@ -210,7 +205,6 @@ describe('performance: generateBoardLayouts', () => {
       bladeWidth: '3.175mm',
       margin: '0mm',
       optimize: 'cuts' as const,
-      maxSearchMs: 8000,
       precision: 1e-5,
     };
 
@@ -230,7 +224,6 @@ describe('performance: generateBoardLayouts', () => {
       bladeWidth: '3.175mm',
       margin: '0mm',
       optimize: 'cnc' as const,
-      maxSearchMs: 8000,
       precision: 1e-5,
     };
 
