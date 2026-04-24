@@ -1,3 +1,4 @@
+import { deepToRaw } from '~/utils/deepToRaw';
 import type { DeriveResult } from '~/utils/parseGltf';
 import type {
   BoardLayout,
@@ -173,7 +174,7 @@ export class PartCountExceededError extends Error {
 export function deriveModel(gltfJson: object): Promise<DeriveResult> {
   const id = ++nextId;
   const w = getDeriveWorker();
-  const plain = JSON.parse(JSON.stringify(gltfJson));
+  const plain = structuredClone(deepToRaw(gltfJson));
   return new Promise<DeriveResult>((resolve, reject) => {
     pendingDerive.set(id, { resolve, reject });
     w.postMessage({
@@ -203,8 +204,8 @@ export function computeLayouts(
 
   const id = ++nextId;
   const w = getLayoutWorker();
-  const plainParts = JSON.parse(JSON.stringify(parts));
-  const plainConfig = JSON.parse(JSON.stringify(config));
+  const plainParts = structuredClone(deepToRaw(parts));
+  const plainConfig = structuredClone(deepToRaw(config));
   return new Promise((resolve, reject) => {
     pendingLayout.set(id, { resolve, reject });
     w.postMessage({

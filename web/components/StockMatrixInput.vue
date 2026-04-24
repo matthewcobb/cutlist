@@ -3,6 +3,7 @@ import { reduceStockMatrix } from 'cutlist';
 import type { StockMatrix } from 'cutlist';
 import { parseStock } from '~/utils/parseStock';
 import { FALLBACK_PALETTE } from '~/composables/useMaterialColors';
+import { deepToRaw } from '~/utils/deepToRaw';
 import YAML from 'js-yaml';
 
 const value = defineModel<string>({ required: true });
@@ -28,7 +29,7 @@ function parseAndSet(yaml: string) {
 parseAndSet(value.value);
 
 function serialize() {
-  const yaml = YAML.dump(JSON.parse(JSON.stringify(matrix.value)), {
+  const yaml = YAML.dump(structuredClone(deepToRaw(matrix.value)), {
     indent: 2,
     flowLevel: 3,
   });
@@ -56,7 +57,7 @@ watch(
 
 function commit() {
   try {
-    reduceStockMatrix(JSON.parse(JSON.stringify(matrix.value)));
+    reduceStockMatrix(structuredClone(deepToRaw(matrix.value)));
     serialize();
     err.value = undefined;
     return true;
