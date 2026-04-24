@@ -209,7 +209,6 @@ export default createSharedComposable(() => {
             cacheVersion: LAYOUT_CACHE_VERSION,
             layouts: result.layouts,
             leftovers: result.leftovers,
-            savedAt: new Date().toISOString(),
           })
           .catch(() => {});
         isComputing.value = false;

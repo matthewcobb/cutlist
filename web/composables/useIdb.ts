@@ -96,7 +96,6 @@ export interface IdbLayoutCache {
   cacheVersion: number;
   layouts: BoardLayout[];
   leftovers: BoardLayoutLeftover[];
-  savedAt: string;
 }
 
 export interface IdbBuildStep {

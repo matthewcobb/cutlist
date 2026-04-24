@@ -15,7 +15,6 @@ function makeLayoutCache(
     cacheVersion: LAYOUT_CACHE_VERSION,
     layouts: [],
     leftovers: [],
-    savedAt: new Date().toISOString(),
     ...overrides,
   };
 }
