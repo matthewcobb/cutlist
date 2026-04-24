@@ -12,18 +12,12 @@ import {
   PART_COUNT_SOFT_LIMIT,
 } from '~/composables/useComputationWorker';
 import { fingerprint } from '~/utils/fingerprint';
+import * as layoutCache from '~/composables/boardLayoutsCache';
 
 type LayoutResult = {
   layouts: BoardLayout[];
   leftovers: BoardLayoutLeftover[];
 };
-
-interface CacheEntry extends LayoutResult {
-  fingerprint: string;
-}
-
-// Module-level per-tab layout cache. Cleared on full page reload.
-const layoutCache = new Map<string, CacheEntry>();
 
 export default createSharedComposable(() => {
   const { activeProject, activeId, enabledModels, projectLoading } =
@@ -141,9 +135,10 @@ export default createSharedComposable(() => {
       const version = ++requestVersion;
 
       const cached = layoutCache.get(projectId);
+      const status = layoutCache.classify(cached, inputFp);
 
       // Exact fingerprint match → skip the worker entirely.
-      if (cached && cached.fingerprint === inputFp) {
+      if (status === 'hit' && cached) {
         data.value = { layouts: cached.layouts, leftovers: cached.leftovers };
         isComputing.value = false;
         error.value = null;
@@ -163,7 +158,7 @@ export default createSharedComposable(() => {
       }
 
       // Show stale cache during recompute if nothing else is visible yet.
-      if (cached && !data.value) {
+      if (status === 'stale' && cached && !data.value) {
         data.value = { layouts: cached.layouts, leftovers: cached.leftovers };
       }
 
@@ -175,12 +170,11 @@ export default createSharedComposable(() => {
         if (activeProject.value?.id !== projectId) return;
 
         data.value = result;
-        const entry: CacheEntry = {
+        layoutCache.set(projectId, {
           layouts: result.layouts,
           leftovers: result.leftovers,
           fingerprint: inputFp,
-        };
-        layoutCache.set(projectId, entry);
+        });
         isComputing.value = false;
       } catch (e) {
         if (

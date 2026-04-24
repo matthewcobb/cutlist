@@ -6,7 +6,7 @@
  */
 
 import { DEFAULT_SETTINGS, DEFAULT_STOCK_YAML } from '~/utils/settings';
-import { getDb, safeWrite, notifyOtherTabs } from './db';
+import { getDb, safeWrite } from './db';
 import { applyProjectDefaults, applyModelDefaults } from './defaults';
 import type { IdbProject, IdbModelMeta } from './types';
 
@@ -45,7 +45,6 @@ export async function archiveProject(id: string): Promise<void> {
       archivedAt: new Date().toISOString(),
     }),
   );
-  notifyOtherTabs('project-updated');
 }
 
 export async function unarchiveProject(id: string): Promise<void> {
@@ -54,7 +53,6 @@ export async function unarchiveProject(id: string): Promise<void> {
   if (!existing) throw new Error(`Project ${id} not found`);
   const { archivedAt: _, ...rest } = existing;
   await safeWrite(() => db.projects.put(rest as IdbProject));
-  notifyOtherTabs('project-updated');
 }
 
 export async function getProjectWithModels(
@@ -107,7 +105,6 @@ export async function createProject(
     updatedAt: now,
   };
   await safeWrite(() => db.projects.put(project));
-  notifyOtherTabs('project-created');
   return project;
 }
 
@@ -138,20 +135,16 @@ export async function updateProject(
     updatedAt: new Date().toISOString(),
   };
   await safeWrite(() => db.projects.put(updated));
-  notifyOtherTabs('project-updated');
   return updated;
 }
 
 export async function deleteProject(id: string): Promise<void> {
   const db = await getDb();
-  await db.transaction(
-    'rw',
-    [db.projects, db.models, db.buildSteps],
-    async () => {
+  await safeWrite(() =>
+    db.transaction('rw', [db.projects, db.models, db.buildSteps], async () => {
       await db.models.where('projectId').equals(id).delete();
       await db.buildSteps.where('projectId').equals(id).delete();
       await db.projects.delete(id);
-    },
+    }),
   );
-  notifyOtherTabs('project-deleted');
 }

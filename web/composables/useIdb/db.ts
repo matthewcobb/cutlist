@@ -1,15 +1,15 @@
 /**
- * DB infrastructure: Dexie class singleton, error channel, quota-aware
- * write wrapper, and the multi-tab BroadcastChannel.
+ * DB infrastructure: Dexie class singleton, error channel, and quota-aware
+ * write wrapper.
  *
  * Everything here is module-level state — one instance per process — so
- * every domain module shares the same DB handle, error ref, and channel.
+ * every domain module shares the same DB handle and error ref.
  *
  * Versioning: the canonical schema version lives in `SCHEMA_VERSION` in
  * `~/utils/versions`. When bumping, add a new `.version(N).stores(...)`
  * call in `CutlistDB` below AND bump `SCHEMA_VERSION` so the export file
- * format stays in sync. See `web/utils/migrations.ts` for the export-side
- * record migrations.
+ * format stays in sync. See `web/utils/projectImport/migrations.ts` for
+ * the export-side record migrations.
  */
 
 import { ref, readonly } from 'vue';
@@ -98,30 +98,6 @@ export async function safeWrite<T>(fn: () => Promise<T>): Promise<T> {
         'Storage is full. Delete unused projects or clear browser data to free space.';
     }
     throw err;
-  }
-}
-
-// ─── Multi-tab coordination ─────────────────────────────────────────────────
-
-/**
- * BroadcastChannel for notifying other tabs of data changes.
- * Receiving tabs should reload project data when they get a message.
- */
-let channel: BroadcastChannel | null = null;
-
-function getChannel(): BroadcastChannel | null {
-  if (typeof BroadcastChannel === 'undefined') return null;
-  if (!channel) {
-    channel = new BroadcastChannel('cutlist-idb');
-  }
-  return channel;
-}
-
-export function notifyOtherTabs(event: string) {
-  try {
-    getChannel()?.postMessage({ event, timestamp: Date.now() });
-  } catch {
-    // BroadcastChannel may not be supported or may have been closed.
   }
 }
 

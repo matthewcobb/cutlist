@@ -19,7 +19,7 @@
  *  - New required fields must have a sensible default.
  */
 
-import { SCHEMA_VERSION } from '../versions';
+import { FutureSchemaError, SCHEMA_VERSION } from '../versions';
 
 type StoreName = 'projects' | 'models' | 'buildSteps';
 
@@ -67,16 +67,15 @@ interface RawExport {
 
 /**
  * Migrate an imported `.cutlist.gz` from its version to `SCHEMA_VERSION`.
- * Throws a plain `Error` (not `FutureSchemaError`) for forward-version
- * exports — the import-time UX reads the message directly.
+ * Throws `FutureSchemaError` when the export advertises a version greater
+ * than this client supports — the same error class used on DB open, so
+ * callers can handle "future schema" uniformly regardless of source.
  */
 export function migrateExport(raw: RawExport): RawExport {
   const fromVersion = raw.version ?? 0;
 
   if (fromVersion > SCHEMA_VERSION) {
-    throw new Error(
-      `This export was created with a newer version of Cutlist (v${fromVersion}). Please update the app.`,
-    );
+    throw new FutureSchemaError(fromVersion, 'export');
   }
 
   if (fromVersion >= SCHEMA_VERSION) return raw;

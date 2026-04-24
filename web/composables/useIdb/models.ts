@@ -12,13 +12,12 @@
  * drains all in-flight coalesced writes regardless of which caller enqueued them.
  */
 
-import { getDb, safeWrite, notifyOtherTabs } from './db';
+import { getDb, safeWrite } from './db';
 import type { IdbModel } from './types';
 
 export async function createModel(model: IdbModel): Promise<void> {
   const db = await getDb();
   await safeWrite(() => db.models.put(model));
-  notifyOtherTabs('model-created');
 }
 
 // ── Debounced model writes ─────────────────────────────────────────────────
@@ -81,9 +80,18 @@ export async function flushPendingModelWrites(): Promise<void> {
   await Promise.all(ids.map((id) => flushModelWrite(id)));
 }
 
+// Best-effort flush when the user closes the tab mid-debounce. Matches the
+// `useProjectSettings` handler; see its comment for the same reasoning.
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    if (pendingModelPatches.size === 0) return;
+    void flushPendingModelWrites();
+  });
+}
+
 export async function deleteModel(id: string): Promise<void> {
   const db = await getDb();
-  await db.models.delete(id);
+  await safeWrite(() => db.models.delete(id));
 }
 
 export async function getModelGltf(id: string): Promise<object | null> {

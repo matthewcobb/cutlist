@@ -36,5 +36,5 @@ export async function updateBuildStep(
 
 export async function deleteBuildStep(id: string): Promise<void> {
   const db = await getDb();
-  await db.buildSteps.delete(id);
+  await safeWrite(() => db.buildSteps.delete(id));
 }

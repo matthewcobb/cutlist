@@ -62,7 +62,7 @@ Three packers:
 
 Search passes include shelf variants, guillotine variants (with/without rotation, CNC vs manual cuts), and randomized permutations. The packer returning the fewest boards / least waste wins.
 
-Types: `Part` (web/utils/parseGltf.ts) is the storage/UI type (no material). `PartToCut` (web/lib/types.ts) is the packing engine input (has material). `PartOverride` (web/composables/useIdb.ts) holds per-part user edits (grainLock, extensible). Other packing types: `Stock`, `BoardLayout`, `SearchPass` in `web/lib/types.ts`.
+Types: `Part` (web/utils/parseGltf.ts) is the storage/UI type (no material). `PartToCut` (web/lib/types.ts) is the packing engine input (has material). `PartOverride` (web/composables/useIdb/types.ts) holds per-part user edits (grainLock, extensible). Other packing types: `Stock`, `BoardLayout`, `SearchPass` in `web/lib/types.ts`.
 
 ### Composables (`web/composables/`)
 
@@ -138,7 +138,7 @@ Tests use Bun's built-in test runner. Test files live alongside source in `__tes
 - `web/lib/utils/__tests__/` — utility tests
 - `web/utils/__tests__/` — web utility tests
 
-## Data Model (`web/composables/useIdb.ts`)
+## Data Model (`web/composables/useIdb/`)
 
 All data lives in IndexedDB. The app is still in development — breaking schema changes are acceptable (users can reset their database).
 
@@ -201,9 +201,8 @@ Board layouts are cached per tab in a module-level `Map` inside [web/composables
 
 ### IDB error handling
 
-- **QuotaExceededError**: all writes go through `safeWrite()` which catches quota errors and sets `useIdbErrors().error` so the UI can show a toast.
-- **Multi-tab**: a `BroadcastChannel('cutlist-idb')` notifies other tabs of data changes. Last-write-wins semantics.
-- **Import validation**: all `.cutlist.gz` imports are validated against strict Zod schemas in `projectImport.ts` before touching IDB.
+- **QuotaExceededError**: all mutations (create/update/delete) go through `safeWrite()` which catches quota errors and sets `useIdbErrors().error` so the UI can show a toast.
+- **Import validation**: all `.cutlist.gz` imports are validated against strict Zod schemas in `projectImport/index.ts` before touching IDB.
 
 ## Key Config Files
 

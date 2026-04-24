@@ -37,6 +37,19 @@ function scheduleFlush(idb: ReturnType<typeof useIdb>) {
   }, DEBOUNCE_MS);
 }
 
+// Best-effort flush when the user closes the tab mid-debounce. IDB writes
+// issued synchronously from the handler are held open by the browser long
+// enough to complete in practice; worst case they're dropped, which matches
+// pre-unload-handler behaviour.
+if (import.meta.client) {
+  window.addEventListener('beforeunload', () => {
+    if (!flushTimer) return;
+    clearTimeout(flushTimer);
+    flushTimer = null;
+    void flushPending(useIdb());
+  });
+}
+
 export default createSharedComposable(() => {
   const { activeProject, patchActiveProject } = useProjects();
   const idb = useIdb();

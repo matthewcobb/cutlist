@@ -7,9 +7,8 @@
  *
  * Error handling:
  * - QuotaExceededError is caught on writes and surfaced via `useIdbErrors()`.
- * - Multi-tab coordination: a BroadcastChannel notifies other tabs when data
- *   changes, so they can reload. Last-write-wins semantics.
- * - FutureSchemaError (from migrations.ts) is surfaced to the user on startup.
+ * - FutureSchemaError (from `~/utils/versions`) is surfaced to the user on
+ *   startup when the stored DB was written by a newer Cutlist.
  *
  * Contract:
  * - `getDb()` (in `./db`) is the singleton entry point. It opens the database,

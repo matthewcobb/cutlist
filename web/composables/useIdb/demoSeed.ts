@@ -3,7 +3,7 @@
  * Stored in the `meta` store alongside any other app-wide flags we add later.
  */
 
-import { getDb } from './db';
+import { getDb, safeWrite } from './db';
 import { DEMO_SEEDED_KEY, type IdbDemoSeedRecord } from './types';
 
 export async function getDemoSeeded(): Promise<boolean> {
@@ -14,8 +14,10 @@ export async function getDemoSeeded(): Promise<boolean> {
 
 export async function setDemoSeeded(seeded: boolean): Promise<void> {
   const db = await getDb();
-  await db.meta.put({
-    key: DEMO_SEEDED_KEY,
-    seeded,
-  });
+  await safeWrite(() =>
+    db.meta.put({
+      key: DEMO_SEEDED_KEY,
+      seeded,
+    }),
+  );
 }
