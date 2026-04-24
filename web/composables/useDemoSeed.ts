@@ -7,6 +7,7 @@
 
 import { importProjectFromFile } from '~/utils/projectImport';
 import { DEMO_PROJECT_FILENAME, shouldSeedDemoProject } from '~/utils/demoSeed';
+import { reportError } from '~/composables/useAppErrors';
 
 /** Fetch and import the bundled demo project. */
 export async function seedDemoProject(
@@ -50,7 +51,11 @@ export async function maybeSeedDemo(
     await idb.setDemoSeeded(true);
     return true;
   } catch (err) {
-    console.warn('Demo project seed failed', err);
+    reportError({
+      title: 'Demo project',
+      description: 'Failed to load the demo project.',
+      severity: 'warning',
+    });
     return false;
   }
 }

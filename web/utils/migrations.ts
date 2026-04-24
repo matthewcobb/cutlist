@@ -202,7 +202,10 @@ export async function runStartupSweep(db: IDBPDatabase<any>): Promise<void> {
     await tx.done;
   } catch (err) {
     // Transaction auto-aborts on error — no partial state.
-    // Re-throw so the caller can handle it.
+    console.error(
+      `[migrations] Startup sweep failed migrating from v${storedVersion} to v${SCHEMA_VERSION}:`,
+      err,
+    );
     throw err;
   }
 }

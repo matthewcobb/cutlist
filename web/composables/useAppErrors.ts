@@ -1,5 +1,6 @@
 /**
- * Centralized error reporting — surfaces actionable errors to users via toasts.
+ * Centralized error reporting — surfaces actionable errors to users via toasts
+ * and forwards them to Sentry.
  *
  * This composable bridges internal error state (IDB errors, worker failures,
  * computation errors) to user-visible notifications using Nuxt UI's toast system.
@@ -12,6 +13,8 @@
  * - Additive: wraps existing error patterns without restructuring control flow.
  */
 
+import * as Sentry from '@sentry/nuxt';
+
 interface AppError {
   title: string;
   description: string;
@@ -19,10 +22,14 @@ interface AppError {
 }
 
 /**
- * Push an error to the user-visible toast queue.
+ * Push an error to the user-visible toast queue and report to Sentry.
  * Call this from composables/utilities when a meaningful error occurs.
  */
 export function reportError(error: AppError): void {
+  Sentry.captureMessage(`${error.title}: ${error.description}`, {
+    level: error.severity === 'error' ? 'error' : 'warning',
+  });
+
   const toast = useToast();
   toast.add({
     title: error.title,

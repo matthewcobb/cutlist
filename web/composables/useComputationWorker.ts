@@ -151,9 +151,9 @@ function terminateAllWorkers() {
   pendingDerive.clear();
 }
 
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !(window as any).__cutlistWorkersInit) {
+  (window as any).__cutlistWorkersInit = true;
   window.addEventListener('beforeunload', terminateAllWorkers);
-  // visibilitychange to 'hidden' fires reliably on mobile/tab close
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       terminateAllWorkers();
