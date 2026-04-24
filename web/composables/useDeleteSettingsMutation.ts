@@ -1,4 +1,5 @@
 import { updateSettingsCache } from '~/composables/useSettingsQuery';
+import { reportError } from './useAppErrors';
 
 interface MutateOptions {
   onSuccess?: () => void;
@@ -18,6 +19,12 @@ export default function () {
       options?.onSuccess?.();
     } catch (error) {
       console.error('[settings] Failed to reset settings', error);
+      reportError({
+        title: 'Settings not reset',
+        description:
+          'Your settings could not be reset. Check your browser storage.',
+        severity: 'warning',
+      });
       options?.onError?.(error);
     } finally {
       isPending.value = false;

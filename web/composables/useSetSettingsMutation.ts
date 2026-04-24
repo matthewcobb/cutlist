@@ -1,5 +1,6 @@
 import type { CutlistSettings } from '~/utils';
 import { updateSettingsCache } from '~/composables/useSettingsQuery';
+import { reportError } from './useAppErrors';
 
 interface MutateOptions {
   onSuccess?: (result: CutlistSettings) => void;
@@ -22,6 +23,12 @@ export default function () {
       options?.onSuccess?.(updated);
     } catch (error) {
       console.error('[settings] Failed to save settings', error);
+      reportError({
+        title: 'Settings not saved',
+        description:
+          'Your settings change could not be saved. Check your browser storage.',
+        severity: 'warning',
+      });
       options?.onError?.(error);
     } finally {
       isPending.value = false;
