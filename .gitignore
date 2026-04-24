@@ -10,3 +10,4 @@ web/dist
 # Sentry Config File
 .env
 /.claude/worktrees
+/plans
