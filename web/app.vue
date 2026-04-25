@@ -1,7 +1,9 @@
 <script lang="ts" setup>
+import { startProjects } from '~/composables/useProjects';
+
+startProjects();
 useUrlSync();
 useAppErrors();
-usePageGuard();
 </script>
 
 <template>

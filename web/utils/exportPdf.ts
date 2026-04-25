@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import type { BoardLayout, BoardLayoutLeftover } from 'cutlist';
 import type { RulerMeasurement } from '~/composables/useRulerStore';
-import { aggregateBom, drawBomPages } from './pdf/bom';
+import { drawBomPages, type BomRow } from './pdf/bom';
 import { drawBoardTiles } from './pdf/board';
 import type { Ctx } from './pdf/context';
 
@@ -13,6 +13,12 @@ export interface ExportPdfOptions {
   scale: PdfScale;
   margin?: number; // mm
   tileOverlap?: number; // mm
+  /**
+   * Pre-aggregated BOM rows to print. Supplying these directly (rather than
+   * re-deriving from placements) lets callers export the BOM even when no
+   * board layouts have been generated yet — e.g. before stock is assigned.
+   */
+  bomRows: BomRow[];
   layouts: BoardLayout[];
   leftovers: BoardLayoutLeftover[];
   formatSize: (m: number) => string | undefined;
@@ -42,14 +48,8 @@ export async function exportCutlistPdf(
     pageCount: { value: 0 },
   };
 
-  const bomRows = aggregateBom(
-    opts.layouts.flatMap((l) => l.placements),
-    opts.leftovers,
-    opts.formatSize,
-  );
-
   // Page 1+: BOM
-  drawBomPages(ctx, bomRows);
+  drawBomPages(ctx, opts.bomRows);
 
   // Pages: each board, possibly tiled
   const measurements = opts.measurements ?? [];

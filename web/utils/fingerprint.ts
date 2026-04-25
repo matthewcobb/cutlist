@@ -5,8 +5,7 @@
  * fast and stable for the same input shape. Not collision-safe for adversarial
  * input, but inputs are user-owned parts/config objects.
  *
- * `DERIVE_VERSION` (in parseGltf.ts) is checked separately by the derive cache
- * via an explicit version field on `DerivedCache`.
+ * Used for cache keys in the layout cache to detect when inputs have changed.
  */
 
 /** FNV-1a (32-bit) over a string. Returns an 8-char hex digest. */

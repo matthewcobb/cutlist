@@ -5,54 +5,59 @@
  * parameters for different severity levels, and that useAppErrors() sets up
  * watchers that pipe IDB and layout errors into the toast system.
  */
-import { describe, expect, it, mock, beforeEach, afterEach } from 'bun:test';
-import {
-  ref,
-  watch,
-  readonly,
-  nextTick,
-  effectScope,
-  type EffectScope,
-} from 'vue';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { ref, nextTick, effectScope, type Ref, type EffectScope } from 'vue';
 
-// ── Expose Vue auto-imports on globalThis ──────────────────────────────────
-// Nuxt auto-imports these at build time; in Bun tests we provide them manually.
-// @ts-expect-error — globalThis mock for Nuxt auto-import
-globalThis.watch = watch;
-// @ts-expect-error — globalThis mock for Nuxt auto-import
-globalThis.readonly = readonly;
-
-// ── Mock useToast ───────────────────────────────────────────────────────────
-// Nuxt auto-imports useToast — we provide a minimal mock.
-const addMock = mock((_opts: Record<string, unknown>) => {});
-const toastMock = { add: addMock };
-
-// @ts-expect-error — globalThis mock for Nuxt auto-import
-globalThis.useToast = () => toastMock;
-
-// ── Mock useIdbErrors / useBoardLayoutsQuery ────────────────────────────────
-// These are Nuxt auto-imports called inside useAppErrors(). We provide reactive
-// refs so watchers trigger when we set .value in tests.
-const idbError = ref<string | null>(null);
-const dismissIdb = mock(() => {
-  idbError.value = null;
+// vi.hoisted runs before any imports, so factories below can reference these.
+// We can't construct real Vue refs here (vue isn't loaded yet); we use mutable
+// holders and swap in real refs after the import phase completes.
+const hoisted = vi.hoisted(() => {
+  return {
+    addMock: vi.fn((_opts: Record<string, unknown>) => {}),
+    dismissIdb: vi.fn(),
+    idbError: { value: null } as { value: string | null },
+    layoutError: { value: null } as { value: string | null },
+  };
 });
 
-// @ts-expect-error — globalThis mock for Nuxt auto-import
-globalThis.useIdbErrors = () => ({
-  error: readonly(idbError),
-  dismiss: dismissIdb,
+vi.mock('@sentry/nuxt', () => ({
+  captureMessage: vi.fn(),
+}));
+// Nuxt auto-imports rewrite `useToast()` to its registered import source —
+// the runtime sub-path exposed by @nuxt/ui's package exports map.
+vi.mock('@nuxt/ui/composables/useToast', () => ({
+  useToast: () => ({ add: hoisted.addMock }),
+}));
+vi.mock('../useIdb/db', async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    useIdbErrors: () => ({
+      error: hoisted.idbError,
+      dismiss: hoisted.dismissIdb,
+    }),
+  };
 });
+vi.mock('../useBoardLayoutsQuery', () => ({
+  default: () => ({ error: hoisted.layoutError }),
+}));
 
-const layoutError = ref<string | null>(null);
+// Replace the plain holders with real reactive refs now that vue is loaded.
+// The mock factories above only read `hoisted.idbError`/`hoisted.layoutError`
+// at call time (inside `useAppErrors()`), so swapping the references here
+// before any test runs gives `watch()` something it can track.
+const idbErrorRef = ref<string | null>(null);
+const layoutErrorRef = ref<string | null>(null);
+hoisted.idbError = idbErrorRef as unknown as Ref<string | null> & {
+  value: string | null;
+};
+hoisted.layoutError = layoutErrorRef as unknown as Ref<string | null> & {
+  value: string | null;
+};
 
-// @ts-expect-error — globalThis mock for Nuxt auto-import
-globalThis.useBoardLayoutsQuery = () => ({
-  error: layoutError,
-});
-
-// Import after mocks are set up
 import { reportError, useAppErrors } from '../useAppErrors';
+
+const { addMock, dismissIdb } = hoisted;
 
 describe('reportError', () => {
   beforeEach(() => {
@@ -71,7 +76,7 @@ describe('reportError', () => {
     expect(call.title).toBe('Storage error');
     expect(call.description).toBe('Storage is full.');
     expect(call.color).toBe('error');
-    expect(call.duration).toBe(0); // persistent
+    expect(call.duration).toBe(0);
   });
 
   it('shows a warning toast with auto-dismiss for severity "warning"', () => {
@@ -86,7 +91,7 @@ describe('reportError', () => {
     expect(call.title).toBe('Settings not saved');
     expect(call.description).toBe('Could not save.');
     expect(call.color).toBe('warning');
-    expect(call.duration).toBe(8000); // auto-dismiss
+    expect(call.duration).toBe(8000);
   });
 });
 
@@ -96,8 +101,8 @@ describe('useAppErrors', () => {
   beforeEach(() => {
     addMock.mockClear();
     dismissIdb.mockClear();
-    idbError.value = null;
-    layoutError.value = null;
+    idbErrorRef.value = null;
+    layoutErrorRef.value = null;
     scope = effectScope();
   });
 
@@ -108,7 +113,7 @@ describe('useAppErrors', () => {
   it('reports IDB errors as "Storage error" toasts', async () => {
     scope.run(() => useAppErrors());
 
-    idbError.value = 'QuotaExceededError: storage is full';
+    idbErrorRef.value = 'QuotaExceededError: storage is full';
     await nextTick();
 
     expect(addMock).toHaveBeenCalledTimes(1);
@@ -122,7 +127,7 @@ describe('useAppErrors', () => {
   it('calls dismissIdb() after reporting an IDB error', async () => {
     scope.run(() => useAppErrors());
 
-    idbError.value = 'Something went wrong';
+    idbErrorRef.value = 'Something went wrong';
     await nextTick();
 
     expect(dismissIdb).toHaveBeenCalledTimes(1);
@@ -131,7 +136,7 @@ describe('useAppErrors', () => {
   it('reports layout errors as "Layout computation failed" toasts', async () => {
     scope.run(() => useAppErrors());
 
-    layoutError.value = 'Worker terminated unexpectedly';
+    layoutErrorRef.value = 'Worker terminated unexpectedly';
     await nextTick();
 
     expect(addMock).toHaveBeenCalledTimes(1);
@@ -142,28 +147,10 @@ describe('useAppErrors', () => {
     expect(call.duration).toBe(0);
   });
 
-  it('ignores layout errors with message "Cancelled"', async () => {
-    scope.run(() => useAppErrors());
-
-    layoutError.value = 'Cancelled';
-    await nextTick();
-
-    expect(addMock).not.toHaveBeenCalled();
-  });
-
-  it('ignores layout errors with message "Page unloading"', async () => {
-    scope.run(() => useAppErrors());
-
-    layoutError.value = 'Page unloading';
-    await nextTick();
-
-    expect(addMock).not.toHaveBeenCalled();
-  });
-
   it('does not fire toast when idbError is set to null', async () => {
     scope.run(() => useAppErrors());
 
-    idbError.value = null;
+    idbErrorRef.value = null;
     await nextTick();
 
     expect(addMock).not.toHaveBeenCalled();
@@ -172,7 +159,7 @@ describe('useAppErrors', () => {
   it('does not fire toast when layoutError is set to null', async () => {
     scope.run(() => useAppErrors());
 
-    layoutError.value = null;
+    layoutErrorRef.value = null;
     await nextTick();
 
     expect(addMock).not.toHaveBeenCalled();

@@ -10,8 +10,6 @@
  *   a matching `this.version(N)` call on `CutlistDB` and (if the change
  *   affects exported data) a record migration entry in
  *   `./projectImport/migrations`.
- * - `DERIVE_VERSION` (lives in `parseGltf.ts`) — `deriveFromGltf` output
- *   shape or semantics change.
  */
 
 /**

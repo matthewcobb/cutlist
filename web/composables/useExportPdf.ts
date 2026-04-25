@@ -1,8 +1,10 @@
 import { exportCutlistPdf, type PdfScale } from '~/utils/exportPdf';
+import type { BomRow as PdfBomRow } from '~/utils/pdf/bom';
 
 export default function () {
   const { data: layouts } = useBoardLayoutsQuery();
   const { activeProject } = useProjects();
+  const { allRows } = useBomRows();
   const formatDistance = useFormatDistance();
   const { showPartNumbers } = useProjectSettings();
   const { measurements } = useRulerStore();
@@ -10,8 +12,18 @@ export default function () {
   const isExporting = ref(false);
   const error = ref<string | undefined>();
 
+  const bomRows = computed<PdfBomRow[]>(() =>
+    allRows.value.map((r) => ({
+      partNumber: r.number,
+      name: r.name,
+      qty: r.qty,
+      material: r.material,
+      size: `${formatDistance(r.thicknessM) ?? ''} × ${formatDistance(r.widthM) ?? ''} × ${formatDistance(r.lengthM) ?? ''}`,
+    })),
+  );
+
   async function download(scale: PdfScale) {
-    if (!layouts.value) return;
+    if (!bomRows.value.length) return;
     isExporting.value = true;
     error.value = undefined;
     try {
@@ -20,8 +32,9 @@ export default function () {
         documentName: name,
         generatedAt: new Date(),
         scale,
-        layouts: layouts.value.layouts,
-        leftovers: layouts.value.leftovers,
+        bomRows: bomRows.value,
+        layouts: layouts.value?.layouts ?? [],
+        leftovers: layouts.value?.leftovers ?? [],
         formatSize: formatDistance,
         showPartNumbers: !!showPartNumbers.value,
         measurements: measurements.value,
@@ -47,7 +60,7 @@ export default function () {
     }
   }
 
-  const canExport = computed(() => (layouts.value?.layouts.length ?? 0) > 0);
+  const canExport = computed(() => bomRows.value.length > 0);
 
   return {
     download,

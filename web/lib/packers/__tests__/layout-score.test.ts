@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from 'vitest';
 import { Rectangle } from '../../geometry';
 import type { PartToCut, PotentialBoardLayout, Stock } from '../../types';
 import { compareLayoutScores, scoreLayouts } from '../layout-score';
@@ -48,6 +48,44 @@ function createLayout(
 }
 
 describe('layout score', () => {
+  it('Should return zero scores for an empty layout list', () => {
+    expect(scoreLayouts([], 1e-5)).toEqual({
+      boardsUsed: 0,
+      wasteArea: 0,
+      cutComplexity: 0,
+    });
+  });
+
+  it('Should calculate waste area and cut complexity for a simple board', () => {
+    const score = scoreLayouts(
+      [
+        createLayout(stock10x10, [
+          { left: 0, bottom: 0, width: 5, height: 10 },
+          { left: 5, bottom: 0, width: 5, height: 10 },
+        ]),
+      ],
+      1e-5,
+    );
+
+    expect(score).toEqual({
+      boardsUsed: 1,
+      wasteArea: 0,
+      cutComplexity: 5,
+    });
+  });
+
+  it('Should return zero when scores tie within precision', () => {
+    const score = {
+      boardsUsed: 1,
+      wasteArea: 0.000001,
+      cutComplexity: 4,
+    };
+
+    expect(compareLayoutScores(score, { ...score, wasteArea: 0 }, 1e-5)).toBe(
+      0,
+    );
+  });
+
   it('prefers fewer boards even when waste is higher', () => {
     const oneBoard = scoreLayouts(
       [createLayout(stock10x10, [{ left: 0, bottom: 0, width: 5, height: 5 }])],

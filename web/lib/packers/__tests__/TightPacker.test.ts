@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from 'vitest';
 import { createTightPacker } from '../TightPacker';
 import type { PackOptions } from '../Packer';
 import { Rectangle } from '../../geometry';

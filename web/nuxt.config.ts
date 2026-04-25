@@ -8,6 +8,12 @@ export default defineNuxtConfig({
     version: pkg.version,
   },
   modules: ['@nuxt/ui', '@vueuse/nuxt', '@sentry/nuxt/module'],
+  components: [
+    {
+      path: '~/components',
+      pathPrefix: false,
+    },
+  ],
   css: ['~/assets/css/main.css'],
   ssr: false,
   colorMode: {

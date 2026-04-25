@@ -68,7 +68,7 @@ export async function getProjectWithModels(
   const models: IdbModelMeta[] = allModels
     .map(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      ({ gltfJson: _g, ...meta }) => applyModelDefaults(meta),
+      ({ rawSource: _r, ...meta }) => applyModelDefaults(meta),
     )
     // Sort by createdAt to ensure stable model ordering across loads.
     // Without this, IDB returns models in UUID (primary key) order, which

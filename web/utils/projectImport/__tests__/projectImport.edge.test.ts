@@ -2,7 +2,7 @@
  * Edge-case tests for project import: corrupt data, boundary cases,
  * and round-trip fidelity with overrides and build steps.
  */
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { gzipSync } from 'node:zlib';
 import { SCHEMA_VERSION } from '../../versions';
 import {
@@ -46,7 +46,7 @@ function makePayload(overrides?: any) {
           },
         ],
         enabled: true,
-        gltfJson: { asset: { version: '2.0' } },
+        rawSource: { asset: { version: '2.0' } },
         partOverrides: { '1': { grainLock: 'length' } },
         createdAt: now,
       },
@@ -105,8 +105,9 @@ describe('parseProjectExport edge cases', () => {
   it('handles model with partOverrides preserved', () => {
     const payload = makePayload();
     const parsed = parseProjectExport(payload);
-    // Zod parses the key as string from JSON, which is correct for Record<string, PartOverride>
-    expect(parsed.models[0].partOverrides).toBeDefined();
+    expect(parsed.models[0].partOverrides).toMatchObject({
+      '1': { grainLock: 'length' },
+    });
   });
 
   it('handles payload with no buildSteps field', () => {
@@ -223,9 +224,10 @@ describe('round-trip fidelity', () => {
     const { db, calls } = makeIdbMock();
     await importProjectData(parsed, db as any);
 
-    // The model's partOverrides should be preserved
     const importedModel = calls.createModel[0];
-    expect(importedModel.partOverrides).toBeDefined();
+    expect(importedModel.partOverrides).toMatchObject({
+      '1': { grainLock: 'length' },
+    });
   });
 
   it('preserves stock and distanceUnit through import', async () => {
@@ -267,16 +269,16 @@ describe('round-trip fidelity', () => {
     expect(parsed.project.showPartNumbers).toBeDefined();
   });
 
-  it('preserves derivedCache on models', () => {
+  it('preserves colors and nodePartMap on models', () => {
     const payload = makePayload();
-    payload.models[0].derivedCache = {
-      version: 1,
-      parts: payload.models[0].parts,
-      colors: [{ key: '#aaa', rgb: [0.5, 0.5, 0.5], count: 1 }],
-      nodePartMap: [{ nodeIndex: 0, partNumber: 1, colorHex: '#aaa' }],
-    };
+    payload.models[0].colors = [
+      { key: '#aaa', rgb: [0.5, 0.5, 0.5], count: 1 },
+    ];
+    payload.models[0].nodePartMap = [
+      { nodeIndex: 0, partNumber: 1, colorHex: '#aaa' },
+    ];
     const parsed = parseProjectExport(payload);
-    expect(parsed.models[0].derivedCache).toBeDefined();
-    expect(parsed.models[0].derivedCache!.version).toBe(1);
+    expect(parsed.models[0].colors).toHaveLength(1);
+    expect(parsed.models[0].nodePartMap).toHaveLength(1);
   });
 });

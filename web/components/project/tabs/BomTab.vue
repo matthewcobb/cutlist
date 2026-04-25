@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { parseGltf } from '~/utils/parseGltf';
+import { parseCollada, type ParseColladaResult } from '~/utils/parseCollada';
 import { parseStock } from '~/utils/parseStock';
 import { computePartNumberOffsets } from '~/utils/partNumberOffsets';
 import { STORAGE_KEYS } from '~/utils/localStorage';
@@ -74,15 +75,19 @@ async function importFiles(files: File[]) {
   if (!files.length || !activeId.value) return;
   for (const file of files) {
     try {
-      const result = await parseGltf(file);
+      const isDae = file.name.toLowerCase().endsWith('.dae');
+      const result = isDae ? await parseCollada(file) : await parseGltf(file);
+      const rawSource = isDae
+        ? (result as ParseColladaResult).colladaXml
+        : (result as Awaited<ReturnType<typeof parseGltf>>).gltfJson;
       addModel(activeId.value, {
         id: crypto.randomUUID(),
         filename: file.name,
-        source: 'gltf',
+        source: isDae ? 'collada' : 'gltf',
         parts: result.parts,
         colors: result.colors,
         enabled: true,
-        gltfJson: result.gltfJson,
+        rawSource,
         nodePartMap: result.nodePartMap,
       });
       toast.add({
@@ -129,9 +134,10 @@ function onDragLeave(e: DragEvent) {
 async function onDrop(e: DragEvent) {
   e.preventDefault();
   isDragging.value = false;
-  const files = [...(e.dataTransfer?.files ?? [])].filter((f) =>
-    f.name.endsWith('.gltf'),
-  );
+  const files = [...(e.dataTransfer?.files ?? [])].filter((f) => {
+    const name = f.name.toLowerCase();
+    return name.endsWith('.gltf') || name.endsWith('.dae');
+  });
   await importFiles(files);
 }
 
@@ -187,11 +193,11 @@ function getManualEditInfo(adjustedPn: number) {
   return manualPartInfoMap.value.get(adjustedPn - manualPartOffset.value);
 }
 
-const gltfModels = computed(
+const importedModels = computed(
   () => activeProject.value?.models.filter((m) => m.source !== 'manual') ?? [],
 );
 const totalModelParts = computed(() =>
-  gltfModels.value.reduce((s, m) => s + m.parts.length, 0),
+  importedModels.value.reduce((s, m) => s + m.parts.length, 0),
 );
 const hasModelPreview = computed(() =>
   enabledModels.value.some((m) => m.source !== 'manual'),
@@ -328,10 +334,10 @@ onUnmounted(() => {
     <input
       ref="fileInput"
       type="file"
-      accept=".gltf"
+      accept=".gltf,.dae"
       multiple
       class="hidden"
-      aria-label="Import GLTF model files"
+      aria-label="Import model files"
       @change="onFileChange"
     />
 
@@ -354,7 +360,7 @@ onUnmounted(() => {
           <UIcon name="i-lucide-download" class="w-7 h-7 text-teal-400" />
         </div>
         <p class="text-sm font-semibold text-teal-400">
-          Drop .gltf file to import
+          Drop .gltf or .dae file to import
         </p>
       </div>
     </Transition>
@@ -387,11 +393,11 @@ onUnmounted(() => {
               />
               <span class="text-sm font-medium text-hi">Models</span>
               <span
-                v-if="gltfModels.length > 0"
+                v-if="importedModels.length > 0"
                 class="text-xs text-muted ml-auto"
               >
-                {{ gltfModels.length }} model{{
-                  gltfModels.length === 1 ? '' : 's'
+                {{ importedModels.length }} model{{
+                  importedModels.length === 1 ? '' : 's'
                 }}
                 &middot; {{ totalModelParts }} part{{
                   totalModelParts === 1 ? '' : 's'
@@ -404,7 +410,7 @@ onUnmounted(() => {
               class="px-3 pb-3 space-y-2 border-t border-subtle"
             >
               <div
-                v-for="model in gltfModels"
+                v-for="model in importedModels"
                 :key="model.id"
                 class="flex items-center gap-2 first:mt-2"
               >
@@ -482,12 +488,11 @@ onUnmounted(() => {
               </div>
               <div class="space-y-1">
                 <p class="text-base font-semibold text-hi">
-                  Drag your .gltf model here
+                  Drag your model here
                 </p>
                 <p class="text-sm text-muted leading-relaxed">
-                  Optimised for Onshape, but any GLTF export will work. Import a
-                  model to automatically generate your cut list, or add parts
-                  manually.
+                  Import a .gltf (Onshape) or .dae (SketchUp) model to
+                  automatically generate your cut list, or add parts manually.
                 </p>
               </div>
               <div class="flex items-center justify-center gap-2">

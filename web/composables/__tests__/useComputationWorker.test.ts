@@ -1,100 +1,167 @@
 /**
- * Tests for the computation worker's cancel semantics.
+ * Tests the worker module's project-scoped request tracking.
  *
- * Since Bun's test runner doesn't support Web Workers, we test the cancel
- * logic by exercising the module's exports directly. The key invariant is
- * that cancelLayouts() rejects all pending promises with AbortError and
- * clears the pending map, so callers guarding on requestVersion silently
- * drop the rejection.
- *
- * We mock the Worker constructor to avoid actual worker spawning.
+ * Bun's test runner has no Web Worker, so a FakeWorker captures posted
+ * messages and drives responses manually.
  */
-import { describe, expect, it, beforeEach, mock } from 'bun:test';
 
-// We need to mock Worker before importing the module. Since the module uses
-// lazy worker initialization, we can test the cancel path by:
-// 1. Verifying cancelLayouts is safe to call when no worker exists
-// 2. Testing the AbortError shape contract
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ConfigInput, PartToCut } from 'cutlist';
 
-describe('cancelLayouts safety', () => {
-  it('does not throw when called with no worker', async () => {
-    // Dynamic import to get a fresh module state
-    const mod = await import('../useComputationWorker');
-    // Should be a no-op, not throw
-    expect(() => mod.cancelLayouts()).not.toThrow();
+interface PostedMessage {
+  type: 'layout';
+  id: number;
+  parts: PartToCut[];
+  stockYaml: string;
+  config: ConfigInput;
+}
+
+let workerInstance: FakeWorker | null = null;
+
+class FakeWorker {
+  posts: PostedMessage[] = [];
+  onmessage:
+    | ((e: {
+        data: { type: 'layout'; id: number; result?: unknown; error?: string };
+      }) => void)
+    | null = null;
+  onerror: ((e: unknown) => void) | null = null;
+  constructor() {
+    workerInstance = this;
+  }
+  postMessage(msg: PostedMessage) {
+    this.posts.push(msg);
+  }
+  terminate() {
+    if (workerInstance === this) workerInstance = null;
+  }
+  respond(id: number, result: unknown) {
+    this.onmessage?.({ data: { type: 'layout', id, result } });
+  }
+  respondError(id: number, error: string) {
+    this.onmessage?.({ data: { type: 'layout', id, error } });
+  }
+}
+
+(globalThis as any).Worker = FakeWorker;
+vi.mock('../useAppErrors', () => ({
+  reportError: () => {},
+}));
+
+const {
+  computeLayouts,
+  computingProjects,
+  PART_COUNT_HARD_LIMIT,
+  PartCountExceededError,
+  __resetForTests,
+} = await import('../useComputationWorker');
+
+function isComputing(projectId: string): boolean {
+  return computingProjects.value.has(projectId);
+}
+
+function makeParts(n: number): PartToCut[] {
+  return Array.from({ length: n }, (_, i) => ({
+    partNumber: i + 1,
+    instanceNumber: 1,
+    name: `p${i + 1}`,
+    size: { width: 0.3, length: 0.5, thickness: 0.018 },
+    material: 'plywood',
+  }));
+}
+
+const CONFIG: ConfigInput = {
+  bladeWidth: 0.003,
+  margin: 0,
+  optimize: 'auto',
+  precision: 1e-5,
+};
+
+const emptyResult = () => ({ layouts: [], leftovers: [] });
+
+beforeEach(() => {
+  __resetForTests();
+  workerInstance = null;
+});
+
+describe('computeLayouts', () => {
+  it('rejects synchronously when part count exceeds the hard limit', async () => {
+    const tooMany = makeParts(PART_COUNT_HARD_LIMIT + 1);
+    await expect(
+      computeLayouts('proj-a', tooMany, '', CONFIG),
+    ).rejects.toBeInstanceOf(PartCountExceededError);
+    expect(workerInstance).toBeNull();
   });
 
-  it('can be called multiple times without error', async () => {
-    const mod = await import('../useComputationWorker');
-    mod.cancelLayouts();
-    mod.cancelLayouts();
-    mod.cancelLayouts();
-    // No error = pass
+  it('marks a project as computing and clears on resolve', async () => {
+    const promise = computeLayouts('proj-a', makeParts(3), '', CONFIG);
+    expect(isComputing('proj-a')).toBe(true);
+
+    const [post] = workerInstance!.posts;
+    workerInstance!.respond(post.id, emptyResult());
+
+    await expect(promise).resolves.toEqual(emptyResult());
+    expect(isComputing('proj-a')).toBe(false);
+  });
+
+  it('clears the flag on reject too', async () => {
+    const promise = computeLayouts('proj-a', makeParts(1), '', CONFIG);
+    expect(isComputing('proj-a')).toBe(true);
+
+    const [post] = workerInstance!.posts;
+    workerInstance!.respondError(post.id, 'boom');
+
+    await expect(promise).rejects.toThrow('boom');
+    expect(isComputing('proj-a')).toBe(false);
   });
 });
 
-describe('AbortError contract', () => {
-  it('AbortError has the correct name and message shape', () => {
-    // Test the error shape that cancelLayouts creates internally
-    const err = new Error('Cancelled');
-    err.name = 'AbortError';
-    expect(err.name).toBe('AbortError');
-    expect(err.message).toBe('Cancelled');
-    // Callers check `err.name === 'AbortError'` to distinguish cancel from real errors
+describe('project isolation', () => {
+  it('tracks multiple projects independently', async () => {
+    const pA = computeLayouts('proj-a', makeParts(1), '', CONFIG);
+    const pB = computeLayouts('proj-b', makeParts(1), '', CONFIG);
+    expect(isComputing('proj-a')).toBe(true);
+    expect(isComputing('proj-b')).toBe(true);
+
+    const [postA, postB] = workerInstance!.posts;
+    workerInstance!.respond(postA.id, emptyResult());
+    await pA;
+    expect(isComputing('proj-a')).toBe(false);
+    expect(isComputing('proj-b')).toBe(true);
+
+    workerInstance!.respond(postB.id, emptyResult());
+    await pB;
+    expect(isComputing('proj-b')).toBe(false);
   });
 });
 
-describe('pending map rejection pattern', () => {
-  it('rejecting all entries in a Map clears it properly', () => {
-    // This tests the pattern used in cancelLayouts
-    const pending = new Map<
-      number,
-      { resolve: (r: any) => void; reject: (e: Error) => void }
-    >();
+describe('superseding within the same project', () => {
+  it('stays computing until the latest request resolves, even if older ones land first', async () => {
+    const first = computeLayouts('proj-a', makeParts(1), '', CONFIG);
+    const second = computeLayouts('proj-a', makeParts(2), '', CONFIG);
+    expect(isComputing('proj-a')).toBe(true);
 
-    const rejections: Error[] = [];
+    const [postFirst, postSecond] = workerInstance!.posts;
+    workerInstance!.respond(postFirst.id, emptyResult());
+    await first;
+    expect(isComputing('proj-a')).toBe(true);
 
-    pending.set(1, {
-      resolve: () => {},
-      reject: (e) => rejections.push(e),
-    });
-    pending.set(2, {
-      resolve: () => {},
-      reject: (e) => rejections.push(e),
-    });
-
-    // Simulate cancelLayouts pattern
-    const err = new Error('Cancelled');
-    err.name = 'AbortError';
-    for (const [, p] of pending) p.reject(err);
-    pending.clear();
-
-    expect(rejections).toHaveLength(2);
-    expect(rejections[0].name).toBe('AbortError');
-    expect(rejections[1].name).toBe('AbortError');
-    expect(pending.size).toBe(0);
+    workerInstance!.respond(postSecond.id, emptyResult());
+    await second;
+    expect(isComputing('proj-a')).toBe(false);
   });
 
-  it('request versioning pattern guards against stale results', () => {
-    // This tests the requestVersion guard pattern used in useBoardLayoutsQuery
-    let requestVersion = 0;
-    const results: string[] = [];
+  it('does not flip back on when a stale request resolves after the latest one', async () => {
+    const first = computeLayouts('proj-a', makeParts(1), '', CONFIG);
+    const second = computeLayouts('proj-a', makeParts(2), '', CONFIG);
 
-    function simulateCompute(version: number, result: string) {
-      // Simulate async delay — check version on "return"
-      if (version !== requestVersion) return; // stale, discard
-      results.push(result);
-    }
+    const [postFirst, postSecond] = workerInstance!.posts;
+    workerInstance!.respond(postSecond.id, emptyResult());
+    await second;
+    expect(isComputing('proj-a')).toBe(false);
 
-    requestVersion = 1;
-    // Simulate: start computation for version 1, but user changes input
-    const v1 = requestVersion;
-    requestVersion = 2; // user changed input
-    const v2 = requestVersion;
-
-    simulateCompute(v1, 'stale-result'); // should be discarded
-    simulateCompute(v2, 'fresh-result'); // should be kept
-
-    expect(results).toEqual(['fresh-result']);
+    workerInstance!.respond(postFirst.id, emptyResult());
+    await first;
+    expect(isComputing('proj-a')).toBe(false);
   });
 });

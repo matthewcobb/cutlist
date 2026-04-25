@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'bun:test';
-import { shouldSeedDemoProject } from '../../utils/demoSeed';
+import { describe, expect, it } from 'vitest';
+import { shouldSeedDemoProject } from '../demoSeed';
 
 describe('shouldSeedDemoProject', () => {
-  it('returns true on a fresh workspace that has never been seeded', () => {
+  it('Should return true for a fresh workspace that has never been seeded', () => {
     expect(
       shouldSeedDemoProject({
         projects: 0,
@@ -12,7 +12,7 @@ describe('shouldSeedDemoProject', () => {
     ).toBe(true);
   });
 
-  it('returns false after initial seed to avoid duplicate demo projects', () => {
+  it('Should return false after initial seed to avoid duplicate demo projects', () => {
     expect(
       shouldSeedDemoProject({
         projects: 0,
@@ -22,7 +22,7 @@ describe('shouldSeedDemoProject', () => {
     ).toBe(false);
   });
 
-  it('returns false when projects already exist', () => {
+  it('Should return false when projects already exist', () => {
     expect(
       shouldSeedDemoProject({
         projects: 1,
@@ -32,7 +32,7 @@ describe('shouldSeedDemoProject', () => {
     ).toBe(false);
   });
 
-  it('returns false when archived history exists', () => {
+  it('Should return false when archived history exists', () => {
     expect(
       shouldSeedDemoProject({
         projects: 0,

@@ -4,16 +4,16 @@
  * These functions take a context object with a real IDB (fake-indexeddb) and
  * a ref-like activeProjectData. We use Vue's ref() for the reactive wrapper.
  */
-import { describe, expect, it, beforeEach, mock } from 'bun:test';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { ref, type Ref } from 'vue';
 import { useIdb, type IdbModel } from '../useIdb';
-import type { Part } from '~/utils/parseGltf';
+import type { Part } from '~/utils/modelTypes';
 import type { Project, ManualPartInput } from '../useProjects';
 import { useManualParts } from '../useManualParts';
 import { DEFAULT_SETTINGS } from '../../utils/settings';
 
 const idb = useIdb();
-const mockUpdateColorMap = mock(async () => {});
+const mockUpdateColorMap = vi.fn(async () => {});
 
 function makeProject(id: string, models: Project['models'] = []): Project {
   return {
@@ -128,8 +128,10 @@ describe('addManualPart', () => {
       filename: 'Manual Parts',
       source: 'manual',
       parts: existingParts,
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     });
@@ -243,8 +245,10 @@ describe('removeManualPart', () => {
       filename: 'Manual Parts',
       source: 'manual',
       parts,
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     });
@@ -267,6 +271,48 @@ describe('removeManualPart', () => {
     expect(names).not.toContain('Stile');
   });
 
+  it('Should remove stale overrides and persist only raw remaining parts', async () => {
+    const partsWithOverridesApplied = [
+      makePart(1, { name: 'Rail', grainLock: 'length' }),
+      makePart(2, { name: 'Stile', grainLock: 'width' }),
+      makePart(3, { name: 'Panel' }),
+    ];
+    activeProjectData.value = makeProject(projectId, [
+      makeManualModel(modelId, partsWithOverridesApplied),
+    ]);
+
+    await idb.updateModel(modelId, {
+      parts: [
+        makePart(1, { name: 'Rail' }),
+        makePart(2, { name: 'Stile' }),
+        makePart(3, { name: 'Panel' }),
+      ],
+      partOverrides: {
+        1: { grainLock: 'length' },
+        2: { grainLock: 'width' },
+      },
+    });
+    await idb.flushPendingModelWrites();
+
+    const { removeManualPart } = useManualParts({
+      activeProjectData,
+      idb,
+      updateColorMap: mockUpdateColorMap,
+    });
+
+    await removeManualPart(projectId, 2);
+    await idb.flushPendingModelWrites();
+
+    const persisted = (await idb.getProjectWithModels(projectId))!.models[0];
+    expect(persisted.partOverrides).toEqual({ 1: { grainLock: 'length' } });
+    expect(persisted.parts.map((p) => p.partNumber)).toEqual([1, 3]);
+    expect(persisted.parts[0].grainLock).toBeUndefined();
+
+    const reactiveModel = activeProjectData.value!.models[0];
+    expect(reactiveModel.parts[0].grainLock).toBe('length');
+    expect(reactiveModel.parts.some((p) => p.partNumber === 2)).toBe(false);
+  });
+
   it('removes the manual model entirely when last part is removed', async () => {
     // Start with a single part
     const singlePartModelId = crypto.randomUUID();
@@ -284,8 +330,10 @@ describe('removeManualPart', () => {
       filename: 'Manual Parts',
       source: 'manual',
       parts: singleParts,
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     });
@@ -338,8 +386,10 @@ describe('updateManualPart', () => {
       filename: 'Manual Parts',
       source: 'manual',
       parts,
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     });
@@ -399,7 +449,6 @@ describe('updateManualPart', () => {
     expect(rail.grainLock).toBe('width');
 
     // Check IDB has it stored in partOverrides
-    const full = await idb.getProjectWithModels(projectId);
     await idb.flushPendingModelWrites();
     const fullAfterFlush = await idb.getProjectWithModels(projectId);
     const idbModel = fullAfterFlush!.models[0];
@@ -436,6 +485,29 @@ describe('updateManualPart', () => {
     const idbModel = full!.models[0];
     // partOverrides entry for partNumber 1 should be gone (empty override removed)
     expect(idbModel.partOverrides[1]).toBeUndefined();
+  });
+
+  it('Should update the color map when changing to a new material', async () => {
+    const { updateManualPart } = useManualParts({
+      activeProjectData,
+      idb,
+      updateColorMap: mockUpdateColorMap,
+    });
+
+    await updateManualPart(
+      projectId,
+      1,
+      makeInput({
+        name: 'Rail',
+        material: 'Walnut',
+      }),
+    );
+
+    expect(mockUpdateColorMap).toHaveBeenCalledWith(
+      projectId,
+      'Walnut',
+      'Walnut',
+    );
   });
 
   it('does nothing if project ID does not match', async () => {

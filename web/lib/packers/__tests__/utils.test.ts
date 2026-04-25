@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from 'vitest';
 import { Rectangle } from '../../geometry';
 import { getAllPossiblePlacements, isValidPlacement } from '../utils';
 
@@ -108,5 +108,15 @@ describe('isValidPlacement', () => {
 
     // isIntersecting returns false for merely-touching rects, so this should be valid
     expect(isValidPlacement(bin, [existing], candidate, PRECISION)).toBe(true);
+  });
+
+  it('Should return false when a candidate sits inside the required gap', () => {
+    const bin = rect(0, 0, 100, 100);
+    const existing = rect(0, 0, 30, 30);
+    const candidate = rect(31, 0, 30, 30);
+
+    expect(isValidPlacement(bin, [existing], candidate, PRECISION, 2)).toBe(
+      false,
+    );
   });
 });

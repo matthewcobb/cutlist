@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from 'vitest';
 import {
   renumberSteps,
   removeStep,
@@ -53,10 +53,10 @@ describe('removeStep', () => {
     expect(removeStep([step('a', 1)], 'a')).toEqual([]);
   });
 
-  it('returns original array when id is not found', () => {
-    const input = [step('a', 1), step('b', 2)];
+  it('normalizes step numbers even when id is not found', () => {
+    const input = [step('a', 99), step('b', 100)];
     const result = removeStep(input, 'z');
-    expect(result.map((s) => s.id)).toEqual(['a', 'b']);
+    expect(result).toEqual([step('a', 1), step('b', 2)]);
   });
 
   it('removes first step and renumbers', () => {

@@ -4,14 +4,14 @@
  * The happy path (actual fetch + import of the demo .cutlist.gz) requires
  * a bundled asset served by the dev server, which is not available in unit
  * tests. We test the guard logic (shouldSeedDemoProject is already tested
- * in useProjects.demoSeed.test.ts) and verify graceful error handling when
+ * in utils/__tests__/demoSeed.test.ts) and verify graceful error handling when
  * fetch fails.
  *
  * NOTE: We deliberately avoid mock.module on ~/utils/projectImport because
  * Bun's module mocks are global and would break projectImport's own tests
  * when run in the same process. IDB is reset per test via `web/test-setup.ts`.
  */
-import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import { useIdb } from '../useIdb';
 import { maybeSeedDemo, seedDemoProject } from '../useDemoSeed';
 

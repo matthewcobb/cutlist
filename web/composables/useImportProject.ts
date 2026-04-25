@@ -2,14 +2,15 @@ import { importProjectFromFile as importProjectFromCompressedFile } from '~/util
 import { reportError } from './useAppErrors';
 
 export default function useImportProject() {
-  const { reloadProjectList, setActive } = useProjects();
+  const { reloadProjectList } = useProjects();
+  const { setActiveProject } = useProjectNavigation();
   const { reloadSteps } = useBuildSteps();
   const idb = useIdb();
 
   async function importFromFile(file: File) {
     const newProjectId = await importProjectFromCompressedFile(file, idb);
     await reloadProjectList();
-    setActive(newProjectId);
+    setActiveProject(newProjectId);
     await reloadSteps(newProjectId);
   }
 

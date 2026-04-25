@@ -1,10 +1,9 @@
-import type { NodePartMapping } from '~/utils/parseGltf';
+import type { ResolvedNode } from '~/utils/resolveModelScene';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
 interface ThreeModules {
   THREE: typeof import('three');
-  GLTFLoader: typeof import('three/addons/loaders/GLTFLoader.js').GLTFLoader;
   OrbitControls: typeof import('three/addons/controls/OrbitControls.js').OrbitControls;
   LineSegmentsGeometry: typeof import('three/addons/lines/LineSegmentsGeometry.js').LineSegmentsGeometry;
   LineSegments2: typeof import('three/addons/lines/LineSegments2.js').LineSegments2;
@@ -40,7 +39,6 @@ async function loadThree(): Promise<ThreeModules> {
   if (_modules) return _modules;
   const [
     THREE,
-    { GLTFLoader },
     { OrbitControls },
     { LineSegmentsGeometry },
     { LineSegments2 },
@@ -48,7 +46,6 @@ async function loadThree(): Promise<ThreeModules> {
     { RoomEnvironment },
   ] = await Promise.all([
     import('three'),
-    import('three/addons/loaders/GLTFLoader.js'),
     import('three/addons/controls/OrbitControls.js'),
     import('three/addons/lines/LineSegmentsGeometry.js'),
     import('three/addons/lines/LineSegments2.js'),
@@ -57,7 +54,6 @@ async function loadThree(): Promise<ThreeModules> {
   ]);
   _modules = {
     THREE,
-    GLTFLoader,
     OrbitControls,
     LineSegmentsGeometry,
     LineSegments2,
@@ -334,8 +330,7 @@ export default function useThreeViewer(
   // ─── Model loading ──────────────────────────────────────────────
 
   async function loadModel(
-    gltfJson: object,
-    nodePartMap: NodePartMapping[],
+    resolvedNodes: ResolvedNode[],
     partNumberOffset: number = 0,
   ) {
     if (!state) return;
@@ -344,53 +339,49 @@ export default function useThreeViewer(
 
     const gen = ++loadGeneration;
 
-    // Parse directly from JSON string — no Blob URL round-trip
-    const loader = new modules.GLTFLoader();
-    const gltf = await new Promise<
-      import('three/addons/loaders/GLTFLoader.js').GLTF
-    >((resolve, reject) =>
-      loader.parse(JSON.stringify(gltfJson), '', resolve, reject),
-    );
-    if (gen !== loadGeneration || !state) return;
-
-    // Compute world matrices so we can extract them per-mesh
-    gltf.scene.updateMatrixWorld(true);
-
-    const nodeColorMap = new Map<number, string>();
-    for (const { nodeIndex, colorHex } of nodePartMap) {
-      nodeColorMap.set(nodeIndex, colorHex);
-    }
-
     // ── First pass: collect all meshes + metadata ──
 
+    /**
+     * Per-mesh data collected from the resolved scene graph.
+     *
+     * We keep two geometry references because the rendering path and the
+     * edge-detection path need different things:
+     *
+     * - `geometry` is the version uploaded to the GPU via BatchedMesh. It
+     *   must be indexed, so for non-indexed COLLADA input we run
+     *   `mergeVertices` below to synthesise an index buffer.
+     *
+     * - `edgeGeometry` is the original (pre-merge) BufferGeometry as
+     *   produced by the loader. `computeEdgesAsync` needs this because
+     *   (a) `EdgesGeometry` uses the angle threshold only on indexed
+     *   geometry, and (b) the COLLADA-specific workaround for SketchUp's
+     *   duplicate material groups relies on `groups[]` + non-indexed
+     *   positions still being intact. Overwriting this with the merged
+     *   version silently re-introduces all internal triangulation edges.
+     *
+     * For GLTF the two references point at the same indexed geometry and
+     * no workaround kicks in — the edge path falls through to a plain
+     * `new EdgesGeometry(geometry, 15)` exactly as before.
+     */
     interface MeshEntry {
       geometry: import('three').BufferGeometry;
+      edgeGeometry: import('three').BufferGeometry;
       matrixWorld: import('three').Matrix4;
       color: [number, number, number]; // sRGB 0–1
       partNumber: number;
     }
 
     const meshEntries: MeshEntry[] = [];
-    let totalVertices = 0;
-    let totalIndices = 0;
 
-    for (const { nodeIndex, partNumber } of nodePartMap) {
+    // `mergeVertices` converts non-indexed COLLADA geometry into the
+    // indexed form BatchedMesh requires. Hoisted outside the loop so the
+    // dynamic import only happens once per `loadModel` call.
+    const { mergeVertices } =
+      await import('three/addons/utils/BufferGeometryUtils.js');
+
+    for (const { node, partNumber, colorHex } of resolvedNodes) {
       const adjustedPartNumber = partNumber + partNumberOffset;
-      let node: Object3D;
-      try {
-        node = (await gltf.parser.getDependency('node', nodeIndex)) as Object3D;
-      } catch (err) {
-        if (import.meta.dev) {
-          console.warn(
-            `[useThreeViewer] Failed to load GLTF node ${nodeIndex}, skipping:`,
-            err,
-          );
-        }
-        continue;
-      }
-      if (!node || gen !== loadGeneration || !state) continue;
 
-      const colorHex = nodeColorMap.get(nodeIndex) ?? '#808080';
       const hexVal = parseInt(colorHex.slice(1), 16);
       const sr = ((hexVal >> 16) & 0xff) / 255;
       const sg = ((hexVal >> 8) & 0xff) / 255;
@@ -400,11 +391,23 @@ export default function useThreeViewer(
         if (!(child as Mesh).isMesh) return;
         const mesh = child as Mesh;
 
-        totalVertices += mesh.geometry.attributes.position.count;
-        totalIndices += mesh.geometry.index ? mesh.geometry.index.count : 0;
+        // Derive the render-ready geometry for BatchedMesh. GLTF meshes
+        // are already indexed so we reuse them as-is; ColladaLoader emits
+        // non-indexed geometry (each triangle has its own vertices) which
+        // we must merge to synthesise an index buffer.
+        //
+        // We deliberately keep `mesh.geometry` as `rawGeometry` and store
+        // it on the entry as `edgeGeometry`. The edge-detection pass needs
+        // the pre-merge form — see `computeEdgesAsync` and the MeshEntry
+        // doc above for why.
+        const rawGeometry = mesh.geometry;
+        const geometry = rawGeometry.index
+          ? rawGeometry
+          : mergeVertices(rawGeometry);
 
         meshEntries.push({
-          geometry: mesh.geometry,
+          geometry,
+          edgeGeometry: rawGeometry,
           matrixWorld: mesh.matrixWorld.clone(),
           color: [sr, sg, sb],
           partNumber: adjustedPartNumber,
@@ -413,6 +416,40 @@ export default function useThreeViewer(
     }
 
     if (meshEntries.length === 0 || gen !== loadGeneration || !state) return;
+
+    // ── Normalize geometry attributes ──
+    // BatchedMesh requires all geometries to have the same attributes.
+    // COLLADA models may have some meshes with UVs and some without.
+    const allAttribNames = new Set<string>();
+    for (const entry of meshEntries) {
+      for (const name of Object.keys(entry.geometry.attributes)) {
+        allAttribNames.add(name);
+      }
+    }
+    for (const entry of meshEntries) {
+      for (const name of allAttribNames) {
+        if (!entry.geometry.attributes[name]) {
+          const reference = meshEntries.find(
+            (e) => e.geometry.attributes[name],
+          )!;
+          const refAttr = reference.geometry.attributes[name];
+          const count = entry.geometry.attributes.position.count;
+          const arr = new Float32Array(count * refAttr.itemSize);
+          entry.geometry.setAttribute(
+            name,
+            new THREE.BufferAttribute(arr, refAttr.itemSize),
+          );
+        }
+      }
+    }
+
+    // Recount after merging/normalization
+    let totalVertices = 0;
+    let totalIndices = 0;
+    for (const entry of meshEntries) {
+      totalVertices += entry.geometry.attributes.position.count;
+      totalIndices += entry.geometry.index ? entry.geometry.index.count : 0;
+    }
 
     // ── Create BatchedMesh (single draw call for all parts) ──
 
@@ -472,23 +509,22 @@ export default function useThreeViewer(
 
     // Start async edge computation (non-blocking — model renders immediately)
     computeEdgesAsync(meshEntries, gen);
-
-    // Free GPU memory for original GLTF geometries/materials
-    // (CPU-side arrays persist for async edge computation)
-    gltf.scene.traverse((child) => {
-      const m = child as Mesh;
-      if (!m.isMesh) return;
-      m.geometry.dispose();
-      const mats = Array.isArray(m.material) ? m.material : [m.material];
-      for (const mat of mats) mat?.dispose();
-    });
   }
 
   // ─── Async edge computation ─────────────────────────────────────
 
+  /**
+   * Build the merged silhouette-edge LineSegments2 for the current
+   * model. Runs off the main thread in chunks so the BatchedMesh can
+   * render immediately while edges stream in.
+   *
+   * Feed this the ORIGINAL (`edgeGeometry`) reference, not the merged
+   * render geometry — see the COLLADA/SketchUp workaround inside the
+   * loop for why the pre-merge form matters.
+   */
   async function computeEdgesAsync(
     entries: {
-      geometry: import('three').BufferGeometry;
+      edgeGeometry: import('three').BufferGeometry;
       matrixWorld: import('three').Matrix4;
     }[],
     gen: number,
@@ -500,13 +536,62 @@ export default function useThreeViewer(
     const v = new THREE.Vector3();
     const CHUNK = 50; // meshes per yield
 
+    const { mergeVertices } =
+      await import('three/addons/utils/BufferGeometryUtils.js');
+
     for (let i = 0; i < entries.length; i += CHUNK) {
       if (gen !== loadGeneration || !state) return;
 
       const end = Math.min(i + CHUNK, entries.length);
       for (let j = i; j < end; j++) {
-        const { geometry, matrixWorld } = entries[j];
-        const edges = new THREE.EdgesGeometry(geometry, 15);
+        const { edgeGeometry, matrixWorld } = entries[j];
+
+        // Prepare a geometry that `EdgesGeometry` can apply the 15°
+        // angle threshold to.
+        //
+        // Indexed geometry (GLTF): use it directly. EdgesGeometry walks
+        // the index buffer to find shared edges between adjacent faces
+        // and only emits ones above the threshold.
+        //
+        // Non-indexed geometry (COLLADA): needs two fixes before we can
+        // pass it to EdgesGeometry.
+        //
+        //   1. SketchUp's COLLADA exporter duplicates every face across
+        //      multiple material groups (e.g. front material + edge
+        //      material), so a single physical edge ends up touching 4+
+        //      triangles. That confuses EdgesGeometry's adjacency pairing
+        //      and it emits every internal triangulation line. Workaround:
+        //      when we see `groups.length > 1`, use only the first group's
+        //      vertices.
+        //
+        //   2. `mergeVertices` compares ALL attributes when deciding which
+        //      vertices to collapse. COLLADA meshes carry per-face normals
+        //      so two positionally-identical vertices on adjacent faces
+        //      have different normals and won't merge, leaving adjacency
+        //      broken. Workaround: strip to a position-only BufferGeometry
+        //      before merging.
+        //
+        // Both workarounds are safe no-ops for well-behaved non-indexed
+        // geometry from other sources.
+        let geo = edgeGeometry;
+        if (!edgeGeometry.index) {
+          const srcPos = edgeGeometry.attributes.position;
+          let posAttr = srcPos;
+          if (edgeGeometry.groups.length > 1) {
+            const g = edgeGeometry.groups[0];
+            const arr = new Float32Array(g.count * 3);
+            for (let vi = 0; vi < g.count; vi++) {
+              arr[vi * 3] = srcPos.getX(g.start + vi);
+              arr[vi * 3 + 1] = srcPos.getY(g.start + vi);
+              arr[vi * 3 + 2] = srcPos.getZ(g.start + vi);
+            }
+            posAttr = new THREE.BufferAttribute(arr, 3);
+          }
+          const posOnly = new THREE.BufferGeometry();
+          posOnly.setAttribute('position', posAttr);
+          geo = mergeVertices(posOnly);
+        }
+        const edges = new THREE.EdgesGeometry(geo, 15);
         const pos = edges.attributes.position.array as Float32Array;
         for (let k = 0; k < pos.length; k += 3) {
           v.set(pos[k], pos[k + 1], pos[k + 2]).applyMatrix4(matrixWorld);

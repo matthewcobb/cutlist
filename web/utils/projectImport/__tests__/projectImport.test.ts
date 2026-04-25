@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { gzipSync } from 'node:zlib';
 import { SCHEMA_VERSION } from '../../versions';
 import {
@@ -35,7 +35,7 @@ function makePayload() {
         source: 'gltf' as const,
         parts: [],
         enabled: true,
-        gltfJson: { asset: { version: '2.0' } },
+        rawSource: { asset: { version: '2.0' } },
         partOverrides: {},
         createdAt: now,
       },
@@ -103,6 +103,15 @@ describe('parseProjectExport validation', () => {
     ).toThrow('Invalid project file');
   });
 
+  it('Should reject an empty project name with a human-readable message', () => {
+    const payload = makePayload();
+    payload.project.name = '';
+
+    expect(() => parseProjectExport(payload)).toThrow(
+      'Project name cannot be empty',
+    );
+  });
+
   it('rejects missing version field', () => {
     // migrateExport treats missing version as v0, which is fine,
     // but the export itself needs to be structurally valid.
@@ -142,18 +151,26 @@ describe('parseProjectExport validation', () => {
     expect(() => parseProjectExport(payload)).toThrow('Invalid project file');
   });
 
-  it('rejects gltfJson that is not object or null', () => {
+  it('rejects rawSource that is not object, string, or null', () => {
     const payload = makePayload();
-    (payload.models[0] as any).gltfJson = 'string-not-allowed';
+    (payload.models[0] as any).rawSource = 42;
     expect(() => parseProjectExport(payload)).toThrow('Invalid project file');
   });
 
-  it('accepts model with gltfJson: null (manual model)', () => {
+  it('accepts rawSource that is a string (COLLADA XML)', () => {
     const payload = makePayload();
-    (payload.models[0] as any).gltfJson = null;
+    (payload.models[0] as any).rawSource = '<COLLADA>...</COLLADA>';
+    (payload.models[0] as any).source = 'collada';
+    const parsed = parseProjectExport(payload);
+    expect(parsed.models[0].rawSource).toBe('<COLLADA>...</COLLADA>');
+  });
+
+  it('accepts model with rawSource: null (manual model)', () => {
+    const payload = makePayload();
+    (payload.models[0] as any).rawSource = null;
     (payload.models[0] as any).source = 'manual';
     const parsed = parseProjectExport(payload);
-    expect(parsed.models[0].gltfJson).toBeNull();
+    expect(parsed.models[0].rawSource).toBeNull();
   });
 
   it('provides human-readable error messages with paths', () => {

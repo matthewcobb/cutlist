@@ -1,5 +1,17 @@
-import { describe, expect, it } from 'bun:test';
-import { deriveFromGltf, DERIVE_VERSION } from '../parseGltf';
+import { describe, expect, it } from 'vitest';
+import { deriveFromGltf, parseGltf } from '../parseGltf';
+
+describe('parseGltf', () => {
+  it('Should wrap invalid JSON errors with the file name', async () => {
+    const file = new File(['{ not json'], 'broken.gltf', {
+      type: 'model/gltf+json',
+    });
+
+    await expect(parseGltf(file)).rejects.toThrow(
+      'Could not parse "broken.gltf" as JSON GLTF',
+    );
+  });
+});
 
 describe('deriveFromGltf error handling', () => {
   it('throws when nodes are missing', () => {
@@ -269,12 +281,5 @@ describe('deriveFromGltf nodePartMap', () => {
     );
     expect(byNode.get(0)).toBe(byNode.get(2)); // same group
     expect(byNode.get(1)).not.toBe(byNode.get(0)); // different
-  });
-});
-
-describe('DERIVE_VERSION', () => {
-  it('is a positive integer', () => {
-    expect(DERIVE_VERSION).toBeGreaterThan(0);
-    expect(Number.isInteger(DERIVE_VERSION)).toBe(true);
   });
 });

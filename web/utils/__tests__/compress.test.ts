@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { gzipCompress, gzipDecompress } from '../compress';
 
 describe('gzip round-trip', () => {
@@ -23,12 +23,13 @@ describe('gzip round-trip', () => {
     expect(await gzipDecompress(file)).toBe(original);
   });
 
-  test('handles large repetitive payload', async () => {
+  test('Should handle a deterministic large repetitive payload', async () => {
     const data = {
       items: Array.from({ length: 1000 }, (_, i) => ({
         id: i,
-        name: `item-${i}`,
-        value: Math.random(),
+        name: `drawer-runner-${i % 10}`,
+        material: 'Baltic Birch',
+        size: { width: 300, length: 600, thickness: 18 },
       })),
     };
     const original = JSON.stringify(data);

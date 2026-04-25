@@ -30,14 +30,14 @@ export default function useExportProject() {
   async function exportProject() {
     if (!activeId.value) return;
 
-    // Fetch from IDB to get real timestamps and gltfJson in one pass
+    // Fetch from IDB to get real timestamps and rawSource in one pass
     const idbProject = await idb.getProjectWithModels(activeId.value);
     if (!idbProject) return;
 
     const fullModels: IdbModel[] = await Promise.all(
       idbProject.models.map(async (m) => ({
         ...m,
-        gltfJson: await idb.getModelGltf(m.id),
+        rawSource: await idb.getModelRawSource(m.id),
       })),
     );
 

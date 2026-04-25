@@ -3,29 +3,23 @@ const {
   projects,
   activeId,
   archivedList,
-  addProject,
   closeProject,
   restoreProject,
   permanentlyDeleteProject,
   clearHistory,
-  setActive,
   renameProject,
   reorderProjects,
 } = useProjects();
+const { setActiveProject, goHome } = useProjectNavigation();
 const { exportProject } = useExportProject();
 const { pickAndImport } = useImportProject();
 
 const showModal = ref(false);
-const projectName = ref('');
 const showHistory = ref(false);
 const pendingDeleteId = ref<string | null>(null);
 const showClearConfirm = ref(false);
 const pendingCloseId = ref<string | null>(null);
 const pendingCloseName = ref('');
-
-function goHome() {
-  navigateTo('/');
-}
 
 function requestClose(id: string) {
   const project = projects.value.get(id);
@@ -147,15 +141,7 @@ function onDragEnd() {
 // ─── New project ──────────────────────────────────────────────────────────────
 
 function openNewProject() {
-  projectName.value = '';
   showModal.value = true;
-}
-
-function createProject() {
-  const name = projectName.value.trim();
-  if (!name) return;
-  addProject(name);
-  showModal.value = false;
 }
 </script>
 
@@ -196,7 +182,7 @@ function createProject() {
         :editing="editingId === id"
         :draggable="editingId !== id"
         :class="dragOverId === id ? 'border-l-2 border-teal-400' : ''"
-        @click="setActive(id)"
+        @click="setActiveProject(id)"
         @close="requestClose(id)"
         @dblclick="startEdit(id, project.name)"
         @rename="(name) => finishEdit(id, name)"
@@ -410,45 +396,6 @@ function createProject() {
       </template>
     </UModal>
 
-    <UModal
-      v-model:open="showModal"
-      title="New Project"
-      description="Create a new project"
-    >
-      <template #content>
-        <div class="p-6 space-y-4 bg-elevated border border-default rounded-lg">
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-medium text-white">New Project</h3>
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-x"
-              class="rounded-full"
-              @click="showModal = false"
-            />
-          </div>
-          <UInput
-            v-model="projectName"
-            placeholder="Project name"
-            class="w-full"
-            autofocus
-            @keydown.enter="createProject"
-          />
-          <div class="flex justify-end gap-2">
-            <UButton color="neutral" variant="ghost" @click="showModal = false">
-              Cancel
-            </UButton>
-            <UButton
-              color="primary"
-              :disabled="!projectName.trim()"
-              @click="createProject"
-            >
-              Create
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
+    <NewProjectDialog v-model:open="showModal" />
   </div>
 </template>

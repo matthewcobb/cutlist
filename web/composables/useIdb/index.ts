@@ -35,7 +35,7 @@ import {
   createModel,
   updateModel,
   deleteModel,
-  getModelGltf,
+  getModelRawSource,
   flushPendingModelWrites,
 } from './models';
 import {
@@ -51,7 +51,6 @@ export { applyProjectDefaults, applyModelDefaults } from './defaults';
 export type {
   IdbProject,
   PartOverride,
-  DerivedCache,
   IdbModel,
   IdbModelMeta,
   IdbBuildStep,
@@ -70,7 +69,7 @@ export function useIdb() {
     createModel,
     updateModel,
     deleteModel,
-    getModelGltf,
+    getModelRawSource,
     getDemoSeeded,
     setDemoSeeded,
     getBuildSteps,

@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { BoardLayout, BoardLayoutPlacement } from 'cutlist';
+import PartListItem from './PartListItem.vue';
 
 const props = defineProps<{
   layout: BoardLayout;

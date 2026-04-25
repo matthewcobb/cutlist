@@ -1,14 +1,27 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { exportCutlistPdf, type ExportPdfOptions } from '../exportPdf';
+import { aggregateBom } from '../pdf/bom';
+
+const formatSize = (m: number) => `${Math.round(m * 1000)}mm`;
 
 function makeOptions(overrides?: Partial<ExportPdfOptions>): ExportPdfOptions {
+  const layouts = overrides?.layouts ?? [];
+  const leftovers = overrides?.leftovers ?? [];
+  const bomRows =
+    overrides?.bomRows ??
+    aggregateBom(
+      layouts.flatMap((l) => l.placements),
+      leftovers,
+      formatSize,
+    );
   return {
     documentName: 'Test Cutlist',
     generatedAt: new Date('2025-01-15T12:00:00Z'),
     scale: 10 as const,
-    layouts: [],
-    leftovers: [],
-    formatSize: (m: number) => `${Math.round(m * 1000)}mm`,
+    bomRows,
+    layouts,
+    leftovers,
+    formatSize,
     showPartNumbers: true,
     ...overrides,
   };
@@ -198,6 +211,39 @@ describe('exportCutlistPdf', () => {
       }),
     );
     expect(result).toBeInstanceOf(Uint8Array);
+  });
+
+  it('prints the BOM when there are no layouts or leftovers (e.g. no stock assigned yet)', async () => {
+    const emptyResult = await exportCutlistPdf(makeOptions());
+
+    const withBomResult = await exportCutlistPdf(
+      makeOptions({
+        layouts: [],
+        leftovers: [],
+        bomRows: [
+          {
+            partNumber: 1,
+            name: 'Side Panel',
+            qty: 2,
+            material: 'Plywood',
+            size: '18mm × 500mm × 800mm',
+          },
+          {
+            partNumber: 2,
+            name: 'Top',
+            qty: 1,
+            material: 'Oak',
+            size: '22mm × 400mm × 900mm',
+          },
+        ],
+      }),
+    );
+
+    expect(withBomResult).toBeInstanceOf(Uint8Array);
+    const header = new TextDecoder().decode(withBomResult.slice(0, 5));
+    expect(header).toBe('%PDF-');
+    // Rendering actual BOM rows must produce more bytes than an empty BOM.
+    expect(withBomResult.length).toBeGreaterThan(emptyResult.length);
   });
 
   it('handles leftovers in BOM aggregation', async () => {

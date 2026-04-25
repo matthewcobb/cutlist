@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { parseStock } from '../parseStock';
 
 describe('parseStock', () => {
@@ -38,11 +38,42 @@ describe('parseStock', () => {
     expect(result[1].material).toBe('Ply');
   });
 
+  it('Should parse explicit units, string dimensions, colors, and multiple thicknesses', () => {
+    const yaml = `
+- material: Baltic Birch
+  unit: in
+  color: '#d2b996'
+  sizes:
+    - width: 48
+      length: 96
+      thickness: [0.5, 0.75]
+    - width: 1220mm
+      length: 2440mm
+      thickness: [18mm]
+`;
+
+    expect(parseStock(yaml)).toEqual([
+      {
+        material: 'Baltic Birch',
+        unit: 'in',
+        color: '#d2b996',
+        sizes: [
+          { width: 48, length: 96, thickness: [0.5, 0.75] },
+          { width: '1220mm', length: '2440mm', thickness: ['18mm'] },
+        ],
+      },
+    ]);
+  });
+
   it('throws a ZodError for invalid YAML missing required fields', () => {
     const yaml = `
 - material: MDF
 `;
     expect(() => parseStock(yaml)).toThrow();
+  });
+
+  it('Should throw when YAML is malformed', () => {
+    expect(() => parseStock('- material: [unterminated')).toThrow();
   });
 
   it('returns [] for an empty array YAML', () => {

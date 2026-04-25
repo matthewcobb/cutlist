@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from 'vitest';
 import { isValidStock } from '../stock-utils';
 import type { Stock, BoardLayoutStock, PartToCut } from '../../types';
 

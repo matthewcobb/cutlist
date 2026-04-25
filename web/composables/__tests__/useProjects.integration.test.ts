@@ -1,27 +1,14 @@
 /**
- * Integration tests for useProjects that exercise the full IDB round-trip
- * for manual part management and model hydration.
+ * Integration tests for the full IDB round-trip used by project hydration.
  *
  * These tests construct IDB records directly and verify that hydrateModel
  * produces the correct Model output. They do NOT use the composable's
  * module-level reactive state (which requires Vue runtime).
  */
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { useIdb, type IdbModel } from '../useIdb';
-import type { Part } from '~/utils/parseGltf';
-import type { PartOverride } from '../useIdb';
-
-/** Mirror of applyOverrides from useProjects.ts (can't import due to Nuxt auto-imports). */
-function applyOverrides(
-  parts: Part[],
-  overrides: Record<number, PartOverride>,
-): Part[] {
-  if (Object.keys(overrides).length === 0) return parts;
-  return parts.map((p) => {
-    const o = overrides[p.partNumber];
-    return o ? { ...p, ...o } : p;
-  });
-}
+import type { Part } from '~/utils/modelTypes';
+import { applyOverrides } from '../useModelHydration';
 
 const idb = useIdb();
 
@@ -55,8 +42,10 @@ describe('manual model IDB round-trip', () => {
       filename: 'Manual Parts',
       source: 'manual',
       parts,
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: { 1: { grainLock: 'length' } },
       createdAt: new Date().toISOString(),
     };
@@ -88,8 +77,10 @@ describe('manual model IDB round-trip', () => {
       filename: 'Manual Parts',
       source: 'manual',
       parts: [makePart(1), makePart(2)],
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     };
@@ -116,8 +107,10 @@ describe('manual model IDB round-trip', () => {
       filename: 'Manual Parts',
       source: 'manual',
       parts: [],
+      colors: [],
+      nodePartMap: [],
       enabled: true,
-      gltfJson: null,
+      rawSource: null,
       partOverrides: {},
       createdAt: new Date().toISOString(),
     };
@@ -135,7 +128,7 @@ describe('manual model IDB round-trip', () => {
 // ─── GLTF model metadata ────────────────────────────────────────────────────
 
 describe('GLTF model IDB metadata', () => {
-  it('strips gltfJson from model metadata in getProjectWithModels', async () => {
+  it('strips rawSource from model metadata in getProjectWithModels', async () => {
     const project = await idb.createProject('GltfMetaTest');
     const modelId = crypto.randomUUID();
 
@@ -144,24 +137,26 @@ describe('GLTF model IDB metadata', () => {
       projectId: project.id,
       filename: 'test.glb',
       source: 'gltf',
-      parts: [],
+      parts: [makePart(1)],
+      colors: [{ key: '#fff', rgb: [1, 1, 1], count: 1 }],
+      nodePartMap: [{ nodeIndex: 0, partNumber: 1, colorHex: '#fff' }],
       enabled: true,
-      gltfJson: { scenes: [], nodes: [], meshes: [], accessors: [] },
+      rawSource: { scenes: [], nodes: [], meshes: [], accessors: [] },
       partOverrides: {},
       createdAt: new Date().toISOString(),
     };
     await idb.createModel(model);
 
     const full = await idb.getProjectWithModels(project.id);
-    expect(full!.models[0]).not.toHaveProperty('gltfJson');
+    expect(full!.models[0]).not.toHaveProperty('rawSource');
 
-    // But getModelGltf should still return it
-    const gltf = await idb.getModelGltf(modelId);
+    // But getModelRawSource should still return it
+    const gltf = await idb.getModelRawSource(modelId);
     expect(gltf).toEqual({ scenes: [], nodes: [], meshes: [], accessors: [] });
   });
 
-  it('stores and retrieves derivedCache for GLTF models', async () => {
-    const project = await idb.createProject('DerivedCacheTest');
+  it('stores and retrieves colors and nodePartMap for GLTF models', async () => {
+    const project = await idb.createProject('GltfDerivedDataTest');
     const modelId = crypto.randomUUID();
 
     const model: IdbModel = {
@@ -169,28 +164,22 @@ describe('GLTF model IDB metadata', () => {
       projectId: project.id,
       filename: 'test.glb',
       source: 'gltf',
-      parts: [],
+      parts: [makePart(1)],
+      colors: [{ key: '#fff', rgb: [1, 1, 1], count: 1 }],
+      nodePartMap: [{ nodeIndex: 0, partNumber: 1, colorHex: '#fff' }],
       enabled: true,
-      gltfJson: {},
+      rawSource: {},
       partOverrides: {},
       createdAt: new Date().toISOString(),
     };
     await idb.createModel(model);
 
-    // Update with derivedCache
-    await idb.updateModel(modelId, {
-      derivedCache: {
-        version: 1,
-        parts: [makePart(1)],
-        colors: [{ key: '#fff', rgb: [1, 1, 1], count: 1 }],
-        nodePartMap: [{ nodeIndex: 0, partNumber: 1, colorHex: '#fff' }],
-      },
-    });
-
     const full = await idb.getProjectWithModels(project.id);
-    expect(full!.models[0].derivedCache).toBeDefined();
-    expect(full!.models[0].derivedCache!.version).toBe(1);
-    expect(full!.models[0].derivedCache!.parts).toHaveLength(1);
+    expect(full!.models[0].colors).toHaveLength(1);
+    expect(full!.models[0].colors[0].key).toBe('#fff');
+    expect(full!.models[0].nodePartMap).toHaveLength(1);
+    expect(full!.models[0].nodePartMap[0].partNumber).toBe(1);
+    expect(full!.models[0].parts).toHaveLength(1);
   });
 });
 
@@ -206,8 +195,10 @@ describe('multiple models per project', () => {
         filename: `model-${i}.glb`,
         source: i === 0 ? 'manual' : 'gltf',
         parts: [makePart(1, { name: `Part from model ${i}` })],
+        colors: [],
+        nodePartMap: [],
         enabled: true,
-        gltfJson: i === 0 ? null : { mock: true },
+        rawSource: i === 0 ? null : { mock: true },
         partOverrides: {},
         createdAt: new Date().toISOString(),
       };
@@ -230,8 +221,10 @@ describe('multiple models per project', () => {
         filename: `model-${i}.glb`,
         source: 'manual',
         parts: [],
+        colors: [],
+        nodePartMap: [],
         enabled: true,
-        gltfJson: null,
+        rawSource: null,
         partOverrides: {},
         createdAt: new Date().toISOString(),
       };

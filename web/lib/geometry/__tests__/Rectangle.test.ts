@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from 'vitest';
 import { Rectangle } from '../Rectangle';
 
 const epsilon = 1e-5;
@@ -44,7 +44,7 @@ describe('Rectangle', () => {
     });
   });
 
-  describe('pad', () => {
+  it('pad', () => {
     const rect = new Rectangle(null, 1, 1, 1, 1);
     const expected = new Rectangle(null, 0, -2, 4, 8);
     const actual = rect.pad({
@@ -106,7 +106,7 @@ describe('Rectangle', () => {
   });
 
   describe('isIntersecting', () => {
-    it('should return false when edges touch', () => {
+    it('should return true when rectangles overlap along an edge range', () => {
       const rect1 = new Rectangle(null, 4, 0, 1, 5);
       const rect2 = new Rectangle(null, 0, 0, 5, 5);
       expect(rect1.isIntersecting(rect2, epsilon)).toBe(true);
@@ -118,7 +118,7 @@ describe('Rectangle', () => {
       expect(rect1.isIntersecting(rect2, epsilon)).toBe(true);
     });
 
-    it('should return false when sides are within a threshold', () => {
+    it('should return false when corners only touch within epsilon', () => {
       const rect1 = new Rectangle(null, 5, 5, 1, 1);
       const rect2 = new Rectangle(null, 0, 0, 5, 5);
       expect(rect1.isIntersecting(rect2, 0.1)).toBe(false);
