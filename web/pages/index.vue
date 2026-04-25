@@ -1,21 +1,12 @@
 <script lang="ts" setup>
-const { activeProject, addProject } = useProjects();
+const { activeProject } = useProjects();
 const { importFromFile, pickAndImport } = useImportProject();
 const toast = useToast();
 
 const showNewProject = ref(false);
-const projectName = ref('');
 
 function openNewProject() {
-  projectName.value = '';
   showNewProject.value = true;
-}
-
-async function createProject() {
-  const name = projectName.value.trim();
-  if (!name) return;
-  await addProject(name);
-  showNewProject.value = false;
 }
 
 const isDragging = ref(false);
@@ -59,9 +50,7 @@ function scrollToContent() {
 </script>
 
 <template>
-  <div class="absolute inset-0 flex flex-col bg-base">
-    <ProjectTabBar class="shrink-0 border-b border-subtle" />
-
+  <AppShell>
     <ClientOnly>
       <div
         v-if="!activeProject"
@@ -708,39 +697,6 @@ function scrollToContent() {
       </div>
     </ClientOnly>
 
-    <UModal
-      v-model:open="showNewProject"
-      title="New Project"
-      description="Create a new project"
-    >
-      <template #content>
-        <div class="p-6 space-y-4 bg-elevated border border-default rounded-lg">
-          <h3 class="text-lg font-medium text-white">New Project</h3>
-          <UInput
-            v-model="projectName"
-            placeholder="Project name"
-            class="w-full"
-            autofocus
-            @keydown.enter="createProject"
-          />
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              @click="showNewProject = false"
-            >
-              Cancel
-            </UButton>
-            <UButton
-              color="primary"
-              :disabled="!projectName.trim()"
-              @click="createProject"
-            >
-              Create
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
-  </div>
+    <NewProjectDialog v-model:open="showNewProject" />
+  </AppShell>
 </template>
